@@ -123,6 +123,36 @@ export const aiUsage = pgTable(
   (t) => [index('ai_usage_created_idx').on(t.createdAt)],
 );
 
+/**
+ * J-235/237: an in-flight reservation against the daily AI token budget.
+ *
+ * `tokensUsedToday()` only ever summed COMPLETED requests, cached for 60s —
+ * so N concurrent requests arriving inside that window (or across different
+ * app-server containers, each with its own module-level cache) could all see
+ * "under budget" and all proceed, overshooting the cap by however many
+ * requests fit in the race window. A row here is inserted BEFORE the upstream
+ * call starts (reserving a conservative worst-case token ceiling) and deleted
+ * once the real usage is recorded — `reserveBudget()`'s check sums both real
+ * usage AND live reservations, inside a single Postgres advisory-lock-guarded
+ * transaction that serializes every reservation attempt for the same Tehran
+ * day, closing the TOCTOU window completely instead of just narrowing it.
+ *
+ * Deliberately its own tiny table rather than a single running counter row:
+ * a crashed/aborted request's reservation simply ages out of the SUM once
+ * older than RESERVATION_TTL_MS (see budget.ts) — no explicit rollback path
+ * needed — and the hourly cleanup job sweeps the rows themselves.
+ */
+export const aiBudgetReservations = pgTable(
+  'ai_budget_reservations',
+  {
+    id: text('id').primaryKey(),
+    day: text('day').notNull(), // Tehran Jalali day key, e.g. "1405-06-21"
+    tokens: integer('tokens').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('ai_budget_reservations_day_idx').on(t.day)],
+);
+
 /** User feedback (👍/👎 + optional reason) on one assistant answer. The raw
  *  signal for the continuous-improvement loop: admins review it, curate
  *  "golden" corrections, and those get retrieved into future grounded context.

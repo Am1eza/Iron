@@ -254,6 +254,11 @@ export type TurnNotice = {
   retryOf: string;
   /** Epoch ms before which a retry is pointless (rate limit only). */
   retryAfterMs?: number;
+  /** J-234: the id of the ORIGINAL attempt at this turn, carried unchanged
+   *  through every retry of it — lets the server dedupe its usage/budget row
+   *  if an earlier attempt actually finished server-side after the client
+   *  gave up on it. */
+  requestId: string;
 };
 
 /** Tool frames are the ONLY progress signal during the wait — measured live at
@@ -896,13 +901,17 @@ export function AdvisorChat({
     pushAi(msgs, notice);
   };
 
-  const sendLive = async (text: string) => {
+  const sendLive = async (text: string, requestId?: string) => {
     busyRef.current = true;
     setBusy(true);
     setTyping(true);
     setProgress(PROGRESS_DEFAULT);
     setSlow(false);
     const aiId = uid();
+    // J-234: a fresh turn mints its own id; a retry (requestId passed in by
+    // retryTurn) reuses the ORIGINAL attempt's id instead, so the server can
+    // recognize this as the same logical exchange.
+    const reqId = requestId ?? aiId;
     // Escalate the wait copy once, and only if the answer really is slow.
     const slowHint = window.setTimeout(() => setSlow(true), SLOW_HINT_MS);
     // Watchdog: a hung connection produces no frames and no error, so nothing
@@ -985,6 +994,7 @@ export function AdvisorChat({
       const res = await api.ai.chatStream(transcript, {
         conversationId: conversationIdRef.current,
         signal: controller.signal,
+        requestId: reqId,
       });
       if (!res.body) throw new Error('no-body');
       armStall();
@@ -1120,6 +1130,7 @@ export function AdvisorChat({
                 ? 'offline'
                 : 'fallback',
         retryOf: text,
+        requestId: reqId,
         ...(rateLimited && isApiError(e) && e.retryAfterSeconds
           ? // The server states the real wait in Retry-After (300s here); the
             // JSON body only says «کمی بعد». Cap the countdown so a large
@@ -1181,7 +1192,7 @@ export function AdvisorChat({
     // failure gets — not a fake answer that quietly loses its own warning
     // label from the second message onward.
     else if (API_MODE === 'mock') sendLocal(text);
-    else pushNotice({ kind: 'fallback', retryOf: text });
+    else pushNotice({ kind: 'fallback', retryOf: text, requestId: uid() });
   };
   /**
    * Replay the turn that fell back, live this time. The failed answer is
@@ -1205,7 +1216,7 @@ export function AdvisorChat({
     // `useServer` may have been switched off permanently by a 503; a retry is
     // an explicit request for the live advisor, so give it one more chance.
     useServer.current = API_MODE !== 'mock';
-    void sendLive(text);
+    void sendLive(text, failed.notice.requestId);
   };
 
   // Stable wrappers so `MessageBubble`'s props never change reference (see

@@ -5,7 +5,7 @@ import { getSession } from '@/lib/auth/session';
 import { assertSameOrigin } from '@/lib/auth/origin';
 import { requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
 import { aiEnabled, AiUnavailableError } from '@/lib/server/integrations/aiRelay';
-import { budgetExhausted } from '@/lib/server/ai/budget';
+import { reserveBudget, releaseBudgetReservation } from '@/lib/server/ai/budget';
 import { upstreamUnavailable, noteSlowTimeout } from '@/lib/server/ai/upstreamState';
 import { numbersInText } from '@/lib/server/ai/grounding';
 import { runAdvisorPipeline } from '@/lib/server/ai/pipeline';
@@ -52,6 +52,12 @@ const payload = z.object({
     .min(1)
     .max(40),
   conversationId: z.string().max(64).optional(),
+  // J-234: the client's id for this logical turn, unchanged across a retry of
+  // it — used as the ai_usage row's own primary key (onConflictDoNothing) so
+  // a retry can never insert a second usage row for the same exchange.
+  // Optional: an older/non-browser client omitting it just gets a fresh ulid,
+  // the prior (non-deduped) behavior.
+  requestId: z.string().max(64).optional(),
 });
 
 /** The AI_TIMEOUT_MS deadline firing, as opposed to a real failure. Matched by
@@ -170,9 +176,12 @@ async function POSTImpl(req: NextRequest) {
   const refusing = upstreamUnavailable();
   if (refusing) return unavailable();
 
-  // 2) The daily token budget (audit area 29). `ai_usage` recorded tokens for
-  //    months and nothing ever read them to enforce anything.
-  if (await budgetExhausted()) return unavailable();
+  // 2) The daily token budget (audit area 29; J-235/237 for the atomic
+  //    reserve/release — a plain SUM-and-compare here would race under
+  //    concurrent requests). Released in the stream's `finally` below, on
+  //    every exit path.
+  const reservation = await reserveBudget();
+  if (!reservation.ok) return unavailable();
 
   const session = await getSession();
   const conversationId = parsed.data.conversationId;
@@ -376,7 +385,12 @@ async function POSTImpl(req: NextRequest) {
         void getDb()
           .insert(aiUsage)
           .values({
-            id: ulid(),
+            // J-234: the client's own turn id, unchanged across a retry —
+            // onConflictDoNothing below means a retried request that finds
+            // its earlier attempt already recorded simply records nothing a
+            // second time, instead of double-counting against the daily
+            // budget. Falls back to a fresh ulid for a client that omitted it.
+            id: parsed.data.requestId ?? ulid(),
             conversationId: convId ?? null,
             promptTokens: result.usage.promptTokens,
             completionTokens: result.usage.completionTokens,
@@ -388,6 +402,7 @@ async function POSTImpl(req: NextRequest) {
             // ones are exactly the turns `ai_messages` above skips.
             answerTrace: result.trace,
           })
+          .onConflictDoNothing()
           .catch(() => {
             /* telemetry must never surface an error */
           });
@@ -437,6 +452,10 @@ async function POSTImpl(req: NextRequest) {
           }
         }
       } finally {
+        // J-235/237: release the reservation on every exit path (success,
+        // failure, abort) so the next request's budget check sees this one
+        // as done, not still in flight — best-effort, ages out on its own.
+        void releaseBudgetReservation(reservation.reservationId);
         if (!closed) {
           try {
             controller.close();

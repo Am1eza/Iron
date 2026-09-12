@@ -250,6 +250,12 @@ export const cleanupJob: Job = {
     // trend analysis, then drop.
     await db.execute(sql`DELETE FROM ai_usage WHERE created_at < now() - interval '180 days'`);
     await db.execute(sql`DELETE FROM ai_feedback WHERE created_at < now() - interval '180 days'`);
+    // J-235/237: a reservation is released the instant its request finishes;
+    // anything still here is one that crashed/hung without ever reaching its
+    // `finally`. `reserveBudget()` already ignores rows older than its own
+    // 5-minute TTL for the budget check itself — this just keeps the table
+    // from growing on those abandoned rows forever. 1 day is generous margin.
+    await db.execute(sql`DELETE FROM ai_budget_reservations WHERE created_at < now() - interval '1 day'`);
     // price_sync_runs (entries cascade via FK): the automated mirror writes
     // one entry per considered SKU per run, twice a day, so this is the
     // fastest-growing table after sms_log. 180 days is two full quarters of

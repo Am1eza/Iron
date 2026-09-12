@@ -1,5 +1,5 @@
 /**
- * Daily token budget for the AI relay (W29, audit area 29).
+ * Daily token budget for the AI relay (W29, audit area 29; hardened J-235/236/237).
  *
  * `ai_usage` has recorded every completion's token counts since the feature
  * shipped and NOTHING has ever read it to enforce anything — the table was
@@ -11,13 +11,29 @@
  * Deliberately a TOKEN budget, not a request budget: cost is tokens, and one
  * tool-heavy conversation can spend more than a hundred greetings.
  *
- * The count is cached briefly. The budget is a spend guard, not an accounting
- * ledger — being up to a minute stale can overspend by at most a minute of
- * traffic, which is far cheaper than an aggregate query on every request.
+ * ── The race this is designed around (J-235/237) ──────────────────────────
+ * A pre-flight check against a SUM of completed requests is inherently
+ * TOCTOU: the real cost of a request is only known AFTER it finishes, so N
+ * concurrent requests can all read "under budget" and all proceed. Cached for
+ * 60s and per-process besides, the original version raced across both time
+ * and workers. `reserveBudget()` closes this the same way `claimOtpSend` (in
+ * auth/store.pg.ts) closes the identical shape of problem for OTP sends: an
+ * advisory lock serializes every reservation attempt for the same day, so the
+ * "sum real usage + live reservations, then admit one more" decision is
+ * atomic instead of racy. The reservation itself is a conservative worst-case
+ * ceiling, ages out of the sum on its own if the request never completes
+ * (crash, deploy, hung upstream), and is deleted once real usage is recorded.
+ *
+ * ── Timezone (J-236) ───────────────────────────────────────────────────────
+ * "Daily" is the Tehran Jalali day everywhere else in this app (pricing
+ * staleness, quote validity) — this budget used Node's local/UTC midnight,
+ * ~3.5h off from Tehran with no `TZ` set in the Docker deploy.
  */
-import { gte, sql } from 'drizzle-orm';
+import { and, eq, gt, gte, sql } from 'drizzle-orm';
+import { ulid } from 'ulid';
 import { getDb, hasDb } from '@/lib/server/db/client';
-import { aiUsage } from '@/lib/server/db/schema';
+import { aiUsage, aiBudgetReservations } from '@/lib/server/db/schema';
+import { jalaliDayKey, startOfTehranDay } from '@/lib/server/utils/jalali';
 
 /** Generous enough that no honest day of traffic hits it, small enough that a
  *  scripted abuser cannot drain the account overnight. Tune with the real
@@ -25,6 +41,19 @@ import { aiUsage } from '@/lib/server/db/schema';
 export const DEFAULT_DAILY_TOKEN_BUDGET = 400_000;
 
 const CACHE_MS = 60_000;
+
+/** Conservative worst-case tokens for ONE request (prompt history + tool
+ *  round-trips + the relay's own `max_tokens: 2000` completion cap) — the
+ *  ceiling reserved before the real cost is known. Overstating this only
+ *  under-utilizes the budget slightly; understating it is what would let the
+ *  race back in. */
+const RESERVATION_CEILING = 6_000;
+
+/** A reservation older than this is either a genuinely abandoned request
+ *  (crash, deploy) or one that ran past AI_TIMEOUT_MS anyway — either way it
+ *  should stop counting against the live budget. Comfortably above the
+ *  relay's own timeout (45s default) plus its fallback-retry leg. */
+const RESERVATION_TTL_MS = 5 * 60_000;
 
 export function dailyTokenBudget(env: Partial<NodeJS.ProcessEnv> = process.env): number {
   const text = env.AI_DAILY_TOKEN_BUDGET?.trim();
@@ -42,11 +71,13 @@ export function dailyTokenBudget(env: Partial<NodeJS.ProcessEnv> = process.env):
 
 let cache: { at: number; tokens: number } | null = null;
 
-/** Prompt + completion tokens spent since local midnight. */
+/** Prompt + completion tokens spent since Tehran midnight — REPORTING only
+ *  (the admin usage console). `reserveBudget()` below re-reads this fresh,
+ *  inside its own locked transaction, for the actual spend decision; this
+ *  cached version must never be used to gate anything. */
 export async function tokensUsedToday(now = Date.now()): Promise<number> {
   if (cache && now - cache.at < CACHE_MS) return cache.tokens;
-  const since = new Date(now);
-  since.setHours(0, 0, 0, 0);
+  const since = startOfTehranDay(new Date(now));
   const rows = await getDb()
     .select({
       // Cache-hit tokens are a SUBSET of prompt tokens (they are the cached
@@ -62,11 +93,77 @@ export async function tokensUsedToday(now = Date.now()): Promise<number> {
   return tokens;
 }
 
+export type BudgetReservation = { ok: true; reservationId: string } | { ok: false };
+
 /**
- * True when today's spend has reached the cap. Fails OPEN on a DB error: the
- * budget protects a bill, and taking the advisor down because one aggregate
- * query blipped would trade a small cost risk for a real outage. The relay's
- * own 402 is the backstop in that (already unlikely) case.
+ * Atomically reserve `RESERVATION_CEILING` tokens against today's (Tehran)
+ * budget, or refuse if that would exceed the cap. Call BEFORE the upstream
+ * request starts; release with `releaseBudgetReservation` once real usage is
+ * recorded (success, failure, or abort — always).
+ *
+ * Fails OPEN on a DB error, same tradeoff `budgetExhausted` documented: the
+ * budget protects a bill, and taking the advisor down because one query
+ * blipped would trade a small cost risk for a real outage. The relay's own
+ * 402 is the backstop in that (already unlikely) case.
+ */
+export async function reserveBudget(now = Date.now()): Promise<BudgetReservation> {
+  const budget = dailyTokenBudget();
+  if (budget === 0) return { ok: false };
+  if (!hasDb()) return { ok: true, reservationId: '' };
+  const day = jalaliDayKey(new Date(now));
+  const since = startOfTehranDay(new Date(now));
+  try {
+    return await getDb().transaction(async (tx) => {
+      // Serializes every reservation attempt for THIS Tehran day across every
+      // worker/connection — the lock is released automatically at commit.
+      // hashtext() collapses the day string to a stable 32-bit lock key.
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${day}))`);
+
+      const usedRows = await tx
+        .select({ total: sql<number>`coalesce(sum(${aiUsage.promptTokens} + ${aiUsage.completionTokens}), 0)::int` })
+        .from(aiUsage)
+        .where(gte(aiUsage.createdAt, since));
+      const used = usedRows[0]?.total ?? 0;
+
+      const reservedRows = await tx
+        .select({ total: sql<number>`coalesce(sum(${aiBudgetReservations.tokens}), 0)::int` })
+        .from(aiBudgetReservations)
+        .where(
+          and(
+            eq(aiBudgetReservations.day, day),
+            gt(aiBudgetReservations.createdAt, new Date(now - RESERVATION_TTL_MS)),
+          ),
+        );
+      const reserved = reservedRows[0]?.total ?? 0;
+
+      if (used + reserved + RESERVATION_CEILING > budget) return { ok: false } as const;
+
+      const id = ulid();
+      await tx.insert(aiBudgetReservations).values({ id, day, tokens: RESERVATION_CEILING, createdAt: new Date(now) });
+      return { ok: true, reservationId: id } as const;
+    });
+  } catch {
+    return { ok: true, reservationId: '' };
+  }
+}
+
+/** Always call once the request is done, on every exit path (success,
+ *  failure, abort) — best-effort; a failed release just lets the reservation
+ *  age out of the sum on its own after RESERVATION_TTL_MS. */
+export async function releaseBudgetReservation(reservationId: string): Promise<void> {
+  if (!reservationId || !hasDb()) return;
+  try {
+    await getDb().delete(aiBudgetReservations).where(eq(aiBudgetReservations.id, reservationId));
+  } catch {
+    /* best-effort — see doc comment above */
+  }
+}
+
+/**
+ * True when today's spend has reached the cap. Reporting/back-compat only —
+ * the real request path uses `reserveBudget()`, which is race-free; this
+ * stays for callers that only need a point-in-time read (e.g. status
+ * displays), not a spend decision.
  */
 export async function budgetExhausted(now = Date.now()): Promise<boolean> {
   const budget = dailyTokenBudget();

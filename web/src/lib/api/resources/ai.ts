@@ -8,7 +8,7 @@ export const aiApi = {
    *  {type:'conversation'} frame, keeping continuity across turns. */
   async chatStream(
     messages: unknown[],
-    opts?: { conversationId?: string; signal?: AbortSignal },
+    opts?: { conversationId?: string; signal?: AbortSignal; requestId?: string },
   ): Promise<Response> {
     if (API_MODE === 'mock') {
       // The streaming UX + grounded tools are built in the AI section.
@@ -16,7 +16,15 @@ export const aiApi = {
     }
     return http.stream(
       '/api/ai/chat',
-      { messages, ...(opts?.conversationId ? { conversationId: opts.conversationId } : {}) },
+      {
+        messages,
+        ...(opts?.conversationId ? { conversationId: opts.conversationId } : {}),
+        // J-234: carried through unchanged across a client-initiated retry of
+        // the SAME logical turn, so the server can dedupe its usage/budget
+        // row if the original request actually completed server-side after
+        // the client gave up on it (network blip mid-stream).
+        ...(opts?.requestId ? { requestId: opts.requestId } : {}),
+      },
       { signal: opts?.signal },
     );
   },

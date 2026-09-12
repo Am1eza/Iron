@@ -10,8 +10,17 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from
 import { ulid } from 'ulid';
 import { createTestDb } from '@/test/db';
 import { getDb } from '@/lib/server/db/client';
-import { aiUsage } from '@/lib/server/db/schema';
-import { budgetExhausted, dailyTokenBudget, tokensUsedToday, resetBudgetCache, DEFAULT_DAILY_TOKEN_BUDGET } from './budget';
+import { aiUsage, aiBudgetReservations } from '@/lib/server/db/schema';
+import {
+  budgetExhausted,
+  dailyTokenBudget,
+  tokensUsedToday,
+  resetBudgetCache,
+  reserveBudget,
+  releaseBudgetReservation,
+  DEFAULT_DAILY_TOKEN_BUDGET,
+} from './budget';
+import { jalaliDayKey, startOfTehranDay } from '@/lib/server/utils/jalali';
 import {
   noteUpstreamFailure,
   noteUpstreamOk,
@@ -39,6 +48,7 @@ beforeEach(async () => {
   resetUpstreamState();
   delete process.env.AI_DAILY_TOKEN_BUDGET;
   await getDb().delete(aiUsage);
+  await getDb().delete(aiBudgetReservations);
 });
 afterEach(() => {
   delete process.env.AI_DAILY_TOKEN_BUDGET;
@@ -98,6 +108,62 @@ describe('budgetExhausted', () => {
     process.env.AI_DAILY_TOKEN_BUDGET = '100';
     await spend(5_000, 5_000, new Date(Date.now() - 36 * 60 * 60 * 1000));
     expect(await budgetExhausted()).toBe(false);
+  });
+
+  it('J-236: the day boundary is Tehran midnight, not UTC/local midnight', async () => {
+    process.env.AI_DAILY_TOKEN_BUDGET = '100';
+    // One minute before, and one minute after, this Tehran day's real start —
+    // a naive Node-local/UTC midnight check would put both on the same side
+    // of ITS boundary (~3.5h later), miscounting the earlier spend as "today".
+    const tehranMidnight = startOfTehranDay(new Date()).getTime();
+    await spend(5_000, 5_000, new Date(tehranMidnight - 60_000)); // yesterday's last minute, Tehran time
+    expect(await budgetExhausted(tehranMidnight + 60_000)).toBe(false);
+  });
+});
+
+describe('reserveBudget / releaseBudgetReservation (J-235/237)', () => {
+  it('admits reservations up to the cap, then refuses the one that would cross it', async () => {
+    process.env.AI_DAILY_TOKEN_BUDGET = '10000'; // room for exactly one 6000-token ceiling reservation
+    const first = await reserveBudget();
+    expect(first.ok).toBe(true);
+    const second = await reserveBudget();
+    expect(second.ok).toBe(false); // 6000 + 6000 > 10000
+  });
+
+  it('releasing a reservation frees room for the next one', async () => {
+    process.env.AI_DAILY_TOKEN_BUDGET = '10000';
+    const first = await reserveBudget();
+    expect(first.ok).toBe(true);
+    expect(await reserveBudget()).toEqual({ ok: false });
+    if (first.ok) await releaseBudgetReservation(first.reservationId);
+    expect((await reserveBudget()).ok).toBe(true);
+  });
+
+  it('a reservation counts against the cap even before any real usage is recorded', async () => {
+    process.env.AI_DAILY_TOKEN_BUDGET = '5000'; // below the 6000 ceiling on its own
+    expect((await reserveBudget()).ok).toBe(false);
+  });
+
+  it('an expired (stale) reservation no longer counts against the cap', async () => {
+    process.env.AI_DAILY_TOKEN_BUDGET = '10000';
+    const now = Date.now();
+    const day = jalaliDayKey(new Date(now));
+    // A reservation from 10 minutes ago — well past RESERVATION_TTL_MS (5min) —
+    // simulating a request that crashed/hung without ever releasing it.
+    await getDb().insert(aiBudgetReservations).values({
+      id: ulid(), day, tokens: 6_000, createdAt: new Date(now - 10 * 60_000),
+    });
+    expect((await reserveBudget(now)).ok).toBe(true);
+  });
+
+  it('a budget of 0 refuses every reservation', async () => {
+    process.env.AI_DAILY_TOKEN_BUDGET = '0';
+    expect(await reserveBudget()).toEqual({ ok: false });
+  });
+
+  it('releaseBudgetReservation on an unknown/empty id is a safe no-op', async () => {
+    await expect(releaseBudgetReservation('')).resolves.toBeUndefined();
+    await expect(releaseBudgetReservation('does-not-exist')).resolves.toBeUndefined();
   });
 });
 

@@ -43,6 +43,16 @@ export function isSameJalaliDay(a: Date, b: Date): boolean {
   return jalaliDayKey(a) === jalaliDayKey(b);
 }
 
+/** The real instant that is Tehran midnight of `date`'s Jalali day — for
+ *  "since the start of today" queries (J-236: the AI daily token budget used
+ *  to reset at Node's local/UTC midnight, ~3.5h off from the Tehran day every
+ *  other "daily" business rule in this app uses). */
+export function startOfTehranDay(date: Date): Date {
+  const wall = toTehranWallClock(date);
+  wall.setHours(0, 0, 0, 0);
+  return fromTehranWallClock(wall);
+}
+
 /**
  * The weekly closure, as JS `getDay()` numbers: Thursday (4) and Friday (5).
  *
