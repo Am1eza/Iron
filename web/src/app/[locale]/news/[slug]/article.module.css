@@ -1,0 +1,107 @@
+.article {
+  /* See the blog article page's identical rule for why this needs
+   * margin-inline:auto — without it the narrowed column hugs the RTL
+   * inline-start edge (the right) and leaves a blank gutter on the left. */
+  /* inline-size:100% forces the article to the flex line width; without it,
+   * margin-inline:auto cancels flex stretch and the item sizes to its table
+   * min-content (~597px), overflowing a 390px phone even with min-inline-size:0.
+   * With it: min(100%, prose) — 358px on mobile, centered prose width on desktop. */
+  inline-size: 100%;
+  max-inline-size: var(--container-prose);
+  margin-inline: auto;
+  /* The article is a flex item of the page's Stack, so it inherits the flex
+   * default min-inline-size:auto === min-CONTENT. A body table sets its
+   * headers white-space:nowrap, giving the article a min-content width of
+   * ~600px; on a 390px phone that forced the whole column 220px past the
+   * viewport (confirmed live: document scrollWidth 612 vs 390, the page
+   * scrolled sideways and rendered zoomed-out). min-inline-size:0 lets the
+   * flex item shrink to the line, which finally lets `.tableWrap`'s
+   * overflow-x:auto do its job — the wide table scrolls inside its own box
+   * instead of stretching the page. */
+  min-inline-size: 0;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-block-end: var(--space-5);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+}
+.meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.date {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}
+.kicker {
+  font: var(--t-overline);
+  color: var(--color-text-muted);
+  letter-spacing: 0.02em;
+}
+
+.cover {
+  inline-size: 100%;
+  block-size: auto;
+  aspect-ratio: 1200 / 630;
+  object-fit: cover;
+  border-radius: var(--radius-md, 8px);
+  margin-block-end: var(--space-2);
+}
+
+.body {
+  padding-block: var(--space-6);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font: var(--t-label);
+  color: var(--color-accent-text);
+  inline-size: fit-content;
+  margin-block-start: var(--space-4);
+  padding-block-start: var(--space-5);
+  border-block-start: var(--border-hairline) solid var(--color-hairline);
+}
+.back:hover {
+  text-decoration: underline;
+}
+
+/* ===== Related ===== */
+.related {
+  margin-block-start: var(--space-12);
+  padding-block-start: var(--space-8);
+  border-block-start: var(--border-hairline) solid var(--color-hairline);
+}
+.relatedTitle {
+  font: var(--t-h3);
+  color: var(--color-text-strong);
+  margin: 0 0 var(--space-5);
+}
+.relatedGrid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+}
+
+@media (max-width: 1023px) {
+  .relatedGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .relatedGrid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,44 @@
+/* The /ai app surface.
+
+   The chat shell fills the viewport that is left once the site's own chrome
+   has taken its share, so the composer is on screen at rest — which it was
+   not before (y=922 on a 900px laptop, 207px past the fold on a phone).
+
+   `svh`, not `vh`: on mobile `vh` is the LARGE viewport, so `100vh` minus a
+   fixed header still overflows while the browser's URL bar is showing, and
+   the composer sits just under the fold again — the exact bug, reintroduced
+   by the unit. `svh` is the small (toolbars-visible) viewport, so the shell
+   fits at rest and simply gains room as the bar retracts. The immersive
+   mobile mode uses `dvh` instead, because there the shell is fixed to the
+   visual viewport and SHOULD track the keyboard (see AdvisorChat.module.css). */
+
+.surface {
+  /* Ticker 36 + header 69 (68 + its hairline). Both are fixed, documented
+     heights (Ticker.module.css, Header.module.css); the ticker scrolls away
+     and the header is sticky, so once the visitor has scrolled past the
+     ticker the shell is exactly the space under the header. Measured against
+     the live page rather than read off the stylesheets — the border is the
+     kind of pixel that puts a composer back under the fold. */
+  --chat-chrome-block: 105px;
+
+  display: flex;
+  justify-content: center;
+  padding-inline: var(--space-4);
+  padding-block-start: var(--space-4);
+  block-size: calc(100svh - var(--chat-chrome-block));
+  /* Never collapse below a usable thread on a short window (a landscape phone,
+     a split-screen desktop): below this the page scrolls instead. */
+  min-block-size: 520px;
+}
+
+@media (max-width: 767px) {
+  .surface {
+    /* The compact header is 56px (+1 hairline), and the bottom tab bar
+       occupies the same lane the composer needs. */
+    --chat-chrome-block: calc(36px + 57px + var(--bottom-bar-h));
+
+    padding-inline: 0;
+    padding-block-start: 0;
+    min-block-size: 420px;
+  }
+}

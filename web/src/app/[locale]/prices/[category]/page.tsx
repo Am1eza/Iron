@@ -1,0 +1,164 @@
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { buildMetadata, itemListJsonLd } from '@/lib/seo';
+import { routes } from '@/lib/routes';
+import { categories as mockCategories } from '@/lib/mock/fixtures';
+import { getCategories, getRows, getFactoryOrder } from '@/lib/server/catalog';
+import { getSubsMap } from '@/lib/data/catalog';
+import { getSetting, getVatRate } from '@/lib/server/repos/settingsRepo';
+import { DEFAULT_LOGISTICS_CONFIG, type LogisticsConfig } from '@/lib/data/logistics';
+import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
+import { taxonomyIsIndexable } from '../_seo/indexability';
+import { Container, Section, Stack, Breadcrumbs } from '@/components/ui';
+import { EmptyCategoryState } from '@/components/catalog/EmptyCategoryState';
+import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
+import { PriceTable } from '@/components/catalog/PriceTable';
+import { BulkQuote } from '@/components/catalog/BulkQuote';
+import { PriceHeader } from '@/components/catalog/PriceHeader';
+import { FacetRail } from '@/components/catalog/FacetRail';
+import { factoryFacets, sizeFacets } from '@/lib/utils/catalogFacets';
+import { sizeLabel } from '@/lib/utils/catalogLabels';
+
+type Params = { params: Promise<{ category: string }> };
+
+// Prices change intraday (admin-entered) → revalidate often (ROUTING.md §6),
+// matching the [sub] and [sku] pages one level down.
+export const revalidate = 300;
+
+/** Fixture-derived — gated. See `lib/server/seo/prerenderParams.ts`. */
+export function generateStaticParams() {
+  if (!shouldPrerenderMockParams()) return [];
+  return mockCategories.map((c) => ({ category: c.slug }));
+}
+
+export async function generateMetadata({ params }: Params): Promise<Metadata> {
+  const { category } = await params;
+  const categories = await getCategories();
+  const cat = categories.find((c) => c.slug === category);
+  if (!cat) return buildMetadata({ title: 'دسته پیدا نشد', noindex: true });
+  const name = cat.name;
+  // Same rule as the sub-category one level down (`_seo/indexability.ts`): a
+  // category with no rows renders an EmptyState, so it must not be indexed
+  // promising a price list. No category is in that state today — the audit
+  // found the 17 empties one level down — but the panel creates a category
+  // before anything is filed under it, and that window is exactly when
+  // Googlebot is most likely to arrive from the mega-menu link.
+  //
+  // The extra `getRows` costs one query on a page that already runs it:
+  // `getRows` is not memoised across generateMetadata and the render, which
+  // is the same trade the [sub] page already makes for its own description.
+  const rows = await getRows(category);
+  if (!taxonomyIsIndexable(rows.length)) {
+    return buildMetadata({
+      title: name,
+      description: `هنوز کالایی در دستهٔ ${name} ثبت نشده است. برای استعلام قیمت و موجودی با کارشناسان آهن‌تایم تماس بگیرید.`,
+      path: routes.category(category),
+      noindex: true,
+    });
+  }
+  return buildMetadata({
+    title: `قیمت روز ${name}`,
+    description: `قیمت روز ${name} با نوسان، وزن شاخه و زمان تحویل در آهن‌تایم.`,
+    path: routes.category(category),
+  });
+}
+
+export default async function CategoryPage({ params }: Params) {
+  const { category } = await params;
+  const categories = await getCategories();
+  const cat = categories.find((c) => c.slug === category);
+  if (!cat) notFound();
+
+  const rows = await getRows(category);
+  const subs = (await getSubsMap())[category] ?? [];
+  // Built from `rows`, not re-queried — same list the facet landing pages
+  // resolve their own URL against, so a rail link can never point at a page
+  // that 404s.
+  const facets = { factories: factoryFacets(rows), sizes: sizeFacets(rows) };
+  const [logisticsConfig, vatRate, factoryOrder] = await Promise.all([
+    getSetting<LogisticsConfig>('LOGISTICS', DEFAULT_LOGISTICS_CONFIG),
+    getVatRate(),
+    // Admin-chosen order for the «بر اساس کارخانه» sections (US-18.2). Empty
+    // until the admin arranges this category, which the table reads as "keep
+    // sorting the way you did before".
+    getFactoryOrder(category),
+  ]);
+
+  const crumbs = [
+    { label: 'خانه', href: routes.home() },
+    { label: 'قیمت‌ها', href: routes.prices() },
+    { label: cat.name, href: routes.category(category) },
+  ];
+
+  return (
+    <Container>
+      <BreadcrumbJsonLd items={crumbs} />
+      {rows.length > 0 && (
+        <JsonLd
+          data={itemListJsonLd(
+            rows.map((r) => ({
+              name: r.name,
+              url: routes.sku(r.categoryId, r.subCategoryId, r.slug),
+            })),
+          )}
+        />
+      )}
+
+      <Section space={10}>
+        <Stack gap={6}>
+          <div>
+            <Breadcrumbs items={crumbs} />
+            <PriceHeader
+              categorySlug={category}
+              categoryName={cat.name}
+              id="cat-title"
+              {...(rows.length > 0
+                ? {
+                    title: `قیمت روز ${cat.name}`,
+                    description: `قیمت‌های لحظه‌ای ${cat.name} با نوسان، وزن شاخه و زمان تحویل.`,
+                  }
+                : {
+                    // Nothing to list — the heading and the intro say so, so
+                    // the visible page and the (noindex) metadata tell one
+                    // story. See `_seo/indexability.ts`.
+                    title: cat.name,
+                    description: `هنوز کالایی در دستهٔ ${cat.name} ثبت نشده است. برای استعلام قیمت، موجودی و زمان تحویل با کارشناسان ما تماس بگیرید.`,
+                  })}
+            />
+          </div>
+
+          {rows.length > 0 ? (
+            <>
+              <PriceTable
+                rows={rows}
+                subs={subs}
+                category={cat}
+                categorySlug={category}
+                vatRate={vatRate}
+                factoryOrder={factoryOrder}
+              />
+              <BulkQuote category={category} categoryName={cat.name} categoryEntity={cat} rows={rows} subs={subs} logisticsConfig={logisticsConfig} vatRate={vatRate} />
+              {/* The internal link graph into the per-factory / per-size
+                  landing pages. Without it those pages are reachable only from
+                  sitemap.xml, which is a discovery hint, not a crawl path. */}
+              <FacetRail
+                id="rail-factories"
+                title={`قیمت ${cat.name} بر اساس کارخانه`}
+                facets={facets.factories}
+                href={(slug) => routes.categoryByFactory(category, slug)}
+              />
+              <FacetRail
+                id="rail-sizes"
+                title={`قیمت ${cat.name} بر اساس ${sizeLabel(category)}`}
+                facets={facets.sizes}
+                href={(slug) => routes.categoryBySize(category, slug)}
+              />
+            </>
+          ) : (
+            <EmptyCategoryState />
+          )}
+        </Stack>
+      </Section>
+    </Container>
+  );
+}
