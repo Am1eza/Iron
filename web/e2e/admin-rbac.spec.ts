@@ -229,3 +229,80 @@ test('palette: sales role sees leads but never users', async ({ page }) => {
   await expect(page.getByRole('listbox')).not.toContainText('کاربران');
   await expect(page.getByRole('listbox').getByRole('option')).toHaveCount(0);
 });
+
+/* -------------------- G-151 / G-153 (docs/audit-rbac-panel-G.md) -------------------- */
+//
+// The audit scored both of these ~97/100 with the SAME caveat: the behavior
+// is proven by tests elsewhere in this file (and by auth.spec.ts's public-host
+// /admin check), but no test carries either ID by name, so a future audit
+// re-verifying G-151/G-153 has nothing to point at directly. These two tests
+// add nothing new to the assertions above; each names the existing claim
+// explicitly and, where the existing coverage was partial, extends it to the
+// paths the audit named (`/api/admin/*`, `/panel-login`) rather than
+// re-deriving new logic.
+
+test('G-151: panel access is decided by host, not by having a valid session — the same cookie that works on panel.ahantime.com is refused on the public host', async ({
+  page,
+  context,
+}) => {
+  await loginAs(page, '09120000001');
+
+  await test.step('panel host: the session actually works', async () => {
+    const resp = await page.goto('/admin/content');
+    expect(resp?.status()).toBe(200);
+  });
+
+  await test.step('public host: the SAME cookie, copied verbatim, still 404s', async () => {
+    // The access cookie is host-only (no `domain:` — see session.ts's
+    // baseCookie()), so a real browser would never send it to a different
+    // hostname on its own; `panel.ahantime.com` and `127.0.0.1` are two
+    // different Chromium cookie jars even though both resolve to the same
+    // loopback server (playwright.config.ts's host-resolver-rules). Adding
+    // it explicitly for the public host isolates exactly what this test
+    // claims: it is proxy.ts's unconditional public-host rewrite (checked
+    // BEFORE the cookie is ever read — see the "Admin gating" comment in
+    // src/proxy.ts) that hides the panel, not merely the cookie failing to
+    // travel. A byte-for-byte valid, correctly-signed token is rejected here.
+    const panelCookie = (await context.cookies()).find((c) => c.name === 'ahantime_at');
+    expect(panelCookie).toBeTruthy();
+    await context.addCookies([
+      {
+        name: 'ahantime_at',
+        value: panelCookie!.value,
+        domain: '127.0.0.1',
+        path: '/',
+        httpOnly: true,
+        secure: false,
+        sameSite: 'Lax',
+      },
+    ]);
+    const resp = await page.goto(`${BASE_URL}/admin/content`);
+    expect(resp?.status()).toBe(404);
+    await expect(page.getByText('این صفحه پیدا نشد')).toBeVisible();
+  });
+});
+
+test('G-153: /admin, /api/admin/*, and /panel-login all hard-404 on the public host', async ({
+  page,
+  request,
+}) => {
+  // No login anywhere in this test — the claim is that these paths are
+  // hidden unconditionally on the public host (see the "hide, don't reveal"
+  // comment above proxy.ts's /__admin_denied__ rewrite), independent of
+  // whether the visitor is staff at all.
+  await test.step('/admin — a page path', async () => {
+    const resp = await page.goto(`${BASE_URL}/admin`);
+    expect(resp?.status()).toBe(404);
+    await expect(page.getByText('این صفحه پیدا نشد')).toBeVisible();
+  });
+
+  await test.step('/api/admin/users — an API path, no page render involved', async () => {
+    const resp = await request.get(`${BASE_URL}/api/admin/users`);
+    expect(resp.status()).toBe(404);
+  });
+
+  await test.step('/panel-login — the panel host own entrance, hidden along with everything else panel-shaped', async () => {
+    const resp = await page.goto(`${BASE_URL}/panel-login`);
+    expect(resp?.status()).toBe(404);
+  });
+});
