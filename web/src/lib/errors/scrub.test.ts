@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { scrubMobile, scrubPii } from './scrub';
+import { randomToken } from '@/lib/auth/crypto';
 
 describe('scrubMobile', () => {
   it('redacts an Iranian mobile written as 09xxxxxxxxx', () => {
@@ -46,5 +47,30 @@ describe('scrubPii', () => {
     expect(scrubPii('next@15.5.22 failed, mail ops@ahantime.com')).toBe(
       'next@15.5.22 failed, mail [redacted-email]',
     );
+  });
+
+  // F-144: a real refresh token (auth/crypto.ts#randomToken — always 64
+  // lowercase hex chars) embedded bare in a freeform error message or URL path
+  // (not a `Bearer …` header, not a `?token=` query param — those were already
+  // covered) must never reach a log line or Sentry event unredacted.
+  it('redacts a bare refresh-token-shaped hex string in an arbitrary message', () => {
+    const token = randomToken(32);
+    expect(token).toMatch(/^[0-9a-f]{64}$/);
+    expect(scrubPii(`rotateRefresh failed for token ${token} — parent not found`)).toBe(
+      'rotateRefresh failed for token [redacted-token] — parent not found',
+    );
+  });
+
+  it('redacts the same shape appearing bare in a URL path (not just a query param)', () => {
+    const token = randomToken(32);
+    expect(scrubPii(`GET /internal/sessions/${token} -> 500`)).toBe(
+      'GET /internal/sessions/[redacted-token] -> 500',
+    );
+  });
+
+  it('does not touch a shorter hex-looking id (e.g. a git sha) or an order ref', () => {
+    const sha40 = 'a'.repeat(40);
+    expect(scrubPii(`build ${sha40} deployed`)).toBe(`build ${sha40} deployed`);
+    expect(scrubPii('PF-10023 total 1234567890')).toBe('PF-10023 total 1234567890');
   });
 });
