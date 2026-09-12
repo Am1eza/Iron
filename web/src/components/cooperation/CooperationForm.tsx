@@ -3,6 +3,8 @@ import { useId, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useToast } from '@/lib/hooks/useToast';
 import { parsePhone, DEFAULT_PHONE_COUNTRY, type CountryCode } from '@/lib/utils/phone';
+import { cooperationApi } from '@/lib/api/resources/misc';
+import { isApiError } from '@/lib/api/errors';
 import { Button } from '@/components/ui';
 import { PhoneField } from '@/components/forms/PhoneField';
 import type { TrackKey } from './tracks';
@@ -13,9 +15,12 @@ type Errors = { name?: string; mobile?: string };
 /**
  * CooperationForm — the همکاری lead form. Collects name, mobile (any
  * country — this is a lead-capture form, not OTP, so international numbers
- * work today unlike login) and notes. No backend: on a valid submit it
- * shows a success toast and resets. Inline errors are announced via
- * aria-describedby + role.
+ * work today unlike login) and notes, and posts to `/api/cooperation`
+ * (`cooperationApi.submit`), which turns it into a real CRM lead. The
+ * `name` input fills the schema's `company` field — the same freeform
+ * string either way, and adding a second "company name" field just to
+ * satisfy a backend label would be friction with no product upside.
+ * Inline errors are announced via aria-describedby + role.
  */
 export function CooperationForm({ track }: { track: TrackKey }) {
   const t = useTranslations('cooperation');
@@ -28,6 +33,7 @@ export function CooperationForm({ track }: { track: TrackKey }) {
   const [national, setNational] = useState('');
   const [note, setNote] = useState('');
   const [errors, setErrors] = useState<Errors>({});
+  const [submitting, setSubmitting] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
 
   const nameId = `${baseId}-name`;
@@ -41,7 +47,7 @@ export function CooperationForm({ track }: { track: TrackKey }) {
     return next;
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const next = validate();
     setErrors(next);
@@ -49,19 +55,33 @@ export function CooperationForm({ track }: { track: TrackKey }) {
       if (next.name) nameRef.current?.focus();
       return;
     }
+    const parsed = parsePhone(national, country);
+    if (!parsed) return;
 
-    // No backend — record the lead client-side only.
-    toast.success(t('success'));
-    setName('');
-    setNational('');
-    setCountry(DEFAULT_PHONE_COUNTRY);
-    setNote('');
-    setErrors({});
+    setSubmitting(true);
+    try {
+      await cooperationApi.submit({
+        track,
+        company: name.trim(),
+        mobile: parsed.normalized,
+        message: note.trim() || undefined,
+      });
+      toast.success(t('success'));
+      setName('');
+      setNational('');
+      setCountry(DEFAULT_PHONE_COUNTRY);
+      setNote('');
+      setErrors({});
+    } catch (err) {
+      toast.error(isApiError(err) ? err.message : tAuth('genericError'));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <form className={styles.form} onSubmit={handleSubmit} noValidate aria-label={t('formLabel')}>
-      {/* Track is implicit from the page; carried for completeness. */}
+      {/* Track drives the `track` field on the /api/cooperation payload above. */}
       <input type="hidden" name="track" value={track} />
 
       <div className={styles.field}>
@@ -120,7 +140,7 @@ export function CooperationForm({ track }: { track: TrackKey }) {
         />
       </div>
 
-      <Button type="submit" variant="primary" size="lg">
+      <Button type="submit" variant="primary" size="lg" loading={submitting}>
         {t('submit')}
       </Button>
 
