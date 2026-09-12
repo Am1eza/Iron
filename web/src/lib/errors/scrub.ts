@@ -44,6 +44,17 @@ const BOT_TOKEN_VALUE = /\d{5,16}:[A-Za-z0-9_-]{30,}/g;
 const JWT_VALUE = /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g;
 const BEARER_VALUE = /\bBearer\s+[A-Za-z0-9._~-]+/gi;
 const TOKEN_QUERY_VALUE = /([?&](?:access_token|refresh_token|token|jwt)=)[^&#\s]+/gi;
+// F-144: `auth/crypto.ts#randomToken` (refresh tokens, and every session-pepper
+// hash stored alongside them) is ALWAYS `toHex(32 random bytes)` — 64
+// lowercase hex characters, never shorter/longer, never mixed with `.`/`_`/`-`.
+// Unlike a JWT or a `Bearer …` header, that value has no distinguishing prefix
+// when it turns up bare inside a freeform error message, a thrown DB-driver
+// string, or a URL path segment (not just a query param, which
+// TOKEN_QUERY_VALUE already covers) — so none of the three patterns above ever
+// matched it. A 64-hex-char run is not a shape any legitimate business value in
+// this app takes (Toman prices/order refs are decimal + hyphenated, git SHAs
+// are 40 chars) — case-insensitive since some drivers/tools uppercase hex.
+const RAW_HEX_TOKEN_VALUE = /\b[0-9a-fA-F]{64}\b/g;
 
 function scrubBotToken<T>(v: T): T {
   return typeof v === 'string' ? (v.replace(BOT_TOKEN_VALUE, '[redacted-token]') as unknown as T) : v;
@@ -70,6 +81,12 @@ export function scrubPii<T>(v: T): T {
   const credentials = v
     .replace(BEARER_VALUE, 'Bearer [redacted-token]')
     .replace(JWT_VALUE, '[redacted-token]')
-    .replace(TOKEN_QUERY_VALUE, '$1[redacted-token]');
+    .replace(TOKEN_QUERY_VALUE, '$1[redacted-token]')
+    // Must run before scrubMobile below: a bare hex token can contain an
+    // 11-digit run that happens to look like `09…`, and scrubbing mobiles
+    // first would eat only that slice, leaving the rest of the secret in the
+    // clear instead of the whole token being redacted (same ordering
+    // rationale as BOT_TOKEN_VALUE's own comment above).
+    .replace(RAW_HEX_TOKEN_VALUE, '[redacted-token]');
   return scrubEmail(scrubMobile(scrubBotToken(credentials))) as T;
 }

@@ -3,7 +3,7 @@
  * otp_rate_limits. Same contract as the memory store; sessions and accounts
  * survive restarts and scale across instances.
  */
-import { and, eq, ilike, lt, or, sql } from 'drizzle-orm';
+import { and, eq, ilike, inArray, lt, or, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 
 import { getDb, type DbOrTx } from '@/lib/server/db/client';
@@ -15,6 +15,8 @@ import type { AuthStore, CreateUserInput, ListUsersQuery, UserPatch } from './st
 
 type UserRow = typeof users.$inferSelect;
 const MAX_SESSION_FAMILIES = 5;
+/** F-147: rows per DELETE in `cleanupExpired` — see that function's comment. */
+const CLEANUP_BATCH_SIZE = 5000;
 
 /** `db.execute(sql...)` returns a plain array under one driver (pglite, tests)
  *  and `{ rows: [...] }` under another (node-postgres, prod) — same ambiguity
@@ -434,17 +436,60 @@ export const pgStore: AuthStore = {
   async cleanupExpired() {
     const db = getDb();
     const now = Date.now();
-    await db.delete(otpCodes).where(lt(otpCodes.expiresAt, now));
-    await db.delete(refreshTokens).where(lt(refreshTokens.expiresAt, now));
-    // Rate rows: locked in the past AND no sends within the last hour.
-    await db.delete(otpRateLimits).where(
-      and(
-        or(sql`${otpRateLimits.lockedUntil} IS NULL`, lt(otpRateLimits.lockedUntil, now)),
-        sql`NOT EXISTS (
-          SELECT 1 FROM jsonb_array_elements(${otpRateLimits.sends}) AS s(v)
-          WHERE (s.v)::bigint > ${now - 60 * 60 * 1000}
-        )`,
-      ),
+
+    // F-147: batched, not one unbounded DELETE — a large backlog (a missed
+    // job run, sudden growth) must not hold a single lock across the whole
+    // table for as long as it takes to sweep it. `expiresAt` is written once
+    // and never changes, so a row selected as expired in this pass can never
+    // become "not expired" before its own DELETE runs a moment later —
+    // batching changes nothing about WHICH rows get deleted or WHEN, only how
+    // many rows one statement touches at a time.
+    for (;;) {
+      const batch = await db
+        .select({ id: otpCodes.mobile })
+        .from(otpCodes)
+        .where(lt(otpCodes.expiresAt, now))
+        .limit(CLEANUP_BATCH_SIZE);
+      if (batch.length === 0) break;
+      await db.delete(otpCodes).where(inArray(otpCodes.mobile, batch.map((r) => r.id)));
+      if (batch.length < CLEANUP_BATCH_SIZE) break;
+    }
+
+    for (;;) {
+      const batch = await db
+        .select({ id: refreshTokens.tokenHash })
+        .from(refreshTokens)
+        .where(lt(refreshTokens.expiresAt, now))
+        .limit(CLEANUP_BATCH_SIZE);
+      if (batch.length === 0) break;
+      await db.delete(refreshTokens).where(inArray(refreshTokens.tokenHash, batch.map((r) => r.id)));
+      if (batch.length < CLEANUP_BATCH_SIZE) break;
+    }
+
+    // Rate rows: locked in the past AND no sends within the last hour. Unlike
+    // the two loops above, `sends` CAN change between the SELECT and the
+    // DELETE (a concurrent OTP request can land mid-loop), so the DELETE
+    // re-checks the full condition — not just the id list — to guarantee a
+    // row that became active again is never removed underneath a live
+    // request racing this job.
+    const rateCondition = and(
+      or(sql`${otpRateLimits.lockedUntil} IS NULL`, lt(otpRateLimits.lockedUntil, now)),
+      sql`NOT EXISTS (
+        SELECT 1 FROM jsonb_array_elements(${otpRateLimits.sends}) AS s(v)
+        WHERE (s.v)::bigint > ${now - 60 * 60 * 1000}
+      )`,
     );
+    for (;;) {
+      const batch = await db
+        .select({ id: otpRateLimits.mobile })
+        .from(otpRateLimits)
+        .where(rateCondition)
+        .limit(CLEANUP_BATCH_SIZE);
+      if (batch.length === 0) break;
+      await db
+        .delete(otpRateLimits)
+        .where(and(inArray(otpRateLimits.mobile, batch.map((r) => r.id)), rateCondition));
+      if (batch.length < CLEANUP_BATCH_SIZE) break;
+    }
   },
 };

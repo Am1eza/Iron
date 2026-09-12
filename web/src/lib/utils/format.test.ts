@@ -63,6 +63,23 @@ describe('normalizeMobile', () => {
     expect(normalizeMobile(' ۰۹۱۲ ۱۳۹ ۵۹۵۴ ')).toBe('09121395954');
     expect(normalizeMobile('+98 (912) 139-5954')).toBe('09121395954');
   });
+
+  // F-133: a letter anywhere in the input must reject the WHOLE input rather
+  // than being silently stripped and turning garbled input into a "valid"
+  // number — e.g. a fat-fingered "091-two-1234567" must never normalize to a
+  // real-looking 09XXXXXXXXX. This is a value-level anchor check (every
+  // character must be a digit/+/space/paren/dash) that runs BEFORE any
+  // separator stripping, not an after-the-fact digit-count check.
+  it('rejects letters anywhere in the input instead of silently dropping them (F-133)', () => {
+    expect(normalizeMobile('091-two-1234567')).toBeNull();
+    expect(normalizeMobile('09121395954x')).toBeNull();
+    expect(normalizeMobile('O9121395954')).toBeNull(); // letter O, not digit 0
+    expect(normalizeMobile('09-1-2-1-3-9-5-9-5-4')).toBe('09121395954');
+  });
+
+  it('rejects two concatenated valid-looking numbers in one input (F-133)', () => {
+    expect(normalizeMobile('09121395954 09355512345')).toBeNull();
+  });
 });
 
 describe('isObviouslyFakeMobile (F-134)', () => {
