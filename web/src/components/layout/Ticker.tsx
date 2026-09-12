@@ -7,7 +7,7 @@ import { formatToman, localizeDigits, formatMovement } from '@/lib/utils/format'
 import type { MarketValue } from '@/lib/types/domain';
 import type { AppLocale } from '@/i18n/config';
 import styles from './Ticker.module.css';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 
 /**
  * N1 · نبض بازار — the slim moving ribbon at the very top of every page (home

@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
 import { useToast } from '@/lib/hooks/useToast';
 import { useCartStore } from '@/lib/stores/cart';
 import { useRequestsStore } from '@/lib/stores/requests';

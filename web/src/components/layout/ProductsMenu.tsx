@@ -1,8 +1,7 @@
 'use client';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { flushSync } from 'react-dom';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { Link, usePathname } from '@/i18n/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { routes } from '@/lib/routes';
 import type { SubsMap } from '@/lib/data/catalog';

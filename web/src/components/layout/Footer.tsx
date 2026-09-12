@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { routes } from '@/lib/routes';
 import { FOOTER_COLUMNS, CHANNELS } from '@/lib/data/nav';

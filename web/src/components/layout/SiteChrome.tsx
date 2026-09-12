@@ -1,5 +1,5 @@
 'use client';
-import { usePathname } from 'next/navigation';
+import { usePathname } from '@/i18n/navigation';
 import { useEffect, useState } from 'react';
 import { Ticker } from './Ticker';
 import { Header } from './Header';

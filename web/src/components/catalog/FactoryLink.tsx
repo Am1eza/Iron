@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { routes } from '@/lib/routes';
 import { factoryFacetSlug } from '@/lib/utils/catalogFacets';
 import styles from './FactoryLink.module.css';

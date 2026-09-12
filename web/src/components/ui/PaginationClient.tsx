@@ -1,5 +1,5 @@
 'use client';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { localizeDigits } from '@/lib/utils/format';
 import { ChevronStartIcon, ChevronEndIcon } from '@/components/primitives/icons';

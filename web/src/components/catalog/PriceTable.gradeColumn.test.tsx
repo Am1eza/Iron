@@ -13,6 +13,29 @@ vi.mock('next/navigation', async (importOriginal) => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+// PriceTable/FactoryLink now import Link/useRouter from the locale-aware
+// wrapper, not next/navigation directly — mock it too so `<Link>` renders a
+// plain, assertable <a> instead of throwing (createNavigation() needs a
+// real next-intl context to run for real, which this bare `render()` has
+// none of).
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
+  Link: ({
+    href,
+    children,
+    prefetch: _prefetch,
+    ...rest
+  }: {
+    href: string;
+    children?: React.ReactNode;
+    prefetch?: boolean;
+  }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
+}));
+
 function row(
   id: string,
   subCategoryId: string,
