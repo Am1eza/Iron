@@ -152,7 +152,17 @@ export default defineConfig({
           // panel.ahantime.com has no DNS entry here (and the real one points
           // at production) — resolve it to the loopback dev server instead of
           // faking the Host header, which a browser will not let us do.
-          args: [`--host-resolver-rules=MAP panel.ahantime.com 127.0.0.1`],
+          //
+          // The second MAP entry is G-168 (docs/audit-rbac-panel-G.md): the
+          // punycode/ASCII form of a Cyrillic-`а` homograph of this app's own
+          // domain (`аhantime.com` → `xn--hantime-1fg.com` — real IDNA
+          // ToASCII, not a made-up string; see e2e/idn-origin.spec.ts for how
+          // it was derived). Resolving it lets a REAL Chromium navigation
+          // exercise this, instead of only asserting on a hand-built request
+          // object the way src/lib/auth/origin.test.ts's unit coverage does.
+          args: [
+            `--host-resolver-rules=MAP panel.ahantime.com 127.0.0.1,MAP xn--hantime-1fg.com 127.0.0.1`,
+          ],
           // …but only when that symlink is really there. The official
           // `mcr.microsoft.com/playwright` image ALSO sets
           // PLAYWRIGHT_BROWSERS_PATH, and lays the browser down as
