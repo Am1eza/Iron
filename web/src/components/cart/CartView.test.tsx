@@ -6,7 +6,14 @@ import { useCartStore } from '@/lib/stores/cart';
 import { useAuthStore } from '@/lib/stores/auth';
 
 
+// `@/components/ui` (and SearchBar, for not-found's case) transitively
+// import `@/i18n/navigation`, whose `createNavigation()` runs at module
+// load and destructures `redirect`/`permanentRedirect` off next/navigation
+// unconditionally — a mock missing them throws before this file's own
+// tests (which never call either) ever run.
 vi.mock('next/navigation', () => ({
+  redirect: vi.fn(),
+  permanentRedirect: vi.fn(),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
 }));
 

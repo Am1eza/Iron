@@ -7,7 +7,16 @@ import { useUiStore } from '@/lib/stores/ui';
 
 
 const pathname = vi.hoisted(() => ({ current: '/prices' }));
-vi.mock('next/navigation', () => ({ usePathname: () => pathname.current }));
+// `@/components/ui` (imported below via CartReminder's own `Alert`) transitively
+// imports `@/i18n/navigation`, whose `createNavigation()` runs at module load
+// and destructures `redirect`/`permanentRedirect` off next/navigation
+// unconditionally — a mock missing them throws before this file's own tests
+// (which never call either) ever run.
+vi.mock('next/navigation', () => ({
+  usePathname: () => pathname.current,
+  redirect: vi.fn(),
+  permanentRedirect: vi.fn(),
+}));
 
 const NOW = new Date('2026-08-27T12:00:00.000Z').getTime();
 const TWO_HOURS = 2 * 60 * 60 * 1000;

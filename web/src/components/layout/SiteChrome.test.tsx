@@ -14,19 +14,26 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import type * as NextNavigation from 'next/navigation';
 import { SiteChromeBottom } from './SiteChrome';
 
 const pathname = vi.hoisted(() => ({ current: '/' }));
-// Importing SiteChrome.tsx transitively imports Header.tsx → LocaleSwitcher
-// → i18n/navigation.ts, whose `createNavigation()` runs at module load and
-// needs the REAL `next/navigation` exports (redirect, useRouter, ...) beside
-// the mocked `usePathname` — a full replacement (rather than merging with
-// importOriginal) leaves those missing and createNavigation throws before
-// this file's own tests ever run.
-vi.mock('next/navigation', async (importOriginal) => ({
-  ...(await importOriginal<typeof NextNavigation>()),
+// SiteChrome (and Header.tsx, transitively imported here too) now call
+// usePathname from the locale-aware `@/i18n/navigation` wrapper, not
+// next/navigation directly. Mocking that module wholesale — rather than
+// mocking next/navigation and merging in the real exports, as this used to
+// do — is what's needed AND sufficient: it replaces the wrapper before its
+// own `createNavigation()` ever runs at module load, so there's no real
+// next-intl navigation needing a real intl/App Router context in the first
+// place. `Link` is provided too, only so any transitively-imported (but
+// never rendered, in the Bottom-only tests below) component that destructures
+// it at module scope has a defined binding.
+vi.mock('@/i18n/navigation', () => ({
   usePathname: () => pathname.current,
+  Link: ({ href, children, ...rest }: { href: string; children?: React.ReactNode }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
 }));
 
 vi.mock('./Footer', () => ({ Footer: () => <footer data-testid="footer" /> }));

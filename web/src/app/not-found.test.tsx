@@ -5,8 +5,20 @@ import { renderWithIntl } from '@/test/renderWithIntl';
 import NotFound from './not-found';
 
 
-vi.mock('next/navigation', () => ({
+// This page renders the real SearchBar, which imports `useRouter` (and
+// `Link`) from the locale-aware `@/i18n/navigation` wrapper, not
+// next/navigation directly — its real `useRouter` in turn needs
+// next/navigation's own `usePathname`, which this bare-bones mock never
+// provided. Mocking `@/i18n/navigation` itself sidesteps that whole real
+// next-intl navigation chain (and the App Router context it would need)
+// instead of trying to stub every next/navigation export it touches.
+vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
+  Link: ({ href, children, ...rest }: { href: string; children?: React.ReactNode }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
 }));
 
 function renderNotFound() {

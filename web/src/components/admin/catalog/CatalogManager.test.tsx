@@ -19,7 +19,14 @@ import type { AdminCategory, AdminSku, AdminSubCategory } from '@/lib/api/resour
 import { CatalogManager } from './CatalogManager';
 import { ApiError } from '@/lib/api/errors';
 
+// `@/components/ui` (and SearchBar, for not-found's case) transitively
+// import `@/i18n/navigation`, whose `createNavigation()` runs at module
+// load and destructures `redirect`/`permanentRedirect` off next/navigation
+// unconditionally — a mock missing them throws before this file's own
+// tests (which never call either) ever run.
 vi.mock('next/navigation', () => ({
+  redirect: vi.fn(),
+  permanentRedirect: vi.fn(),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
   usePathname: () => '/admin/catalog',
   useSearchParams: () => new URLSearchParams(),

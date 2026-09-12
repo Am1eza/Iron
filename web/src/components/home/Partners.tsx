@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { clientLogos, type ClientLogo } from '../../../public/assets/logos/clients';
 import { useIntersectionObserver } from '@/lib/hooks/useIntersectionObserver';

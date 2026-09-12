@@ -16,6 +16,17 @@ import { ProductsMenu, columnsFor } from './ProductsMenu';
 import type { Category } from '@/lib/types/domain';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/' }));
+// ProductsMenu now imports Link/usePathname from the locale-aware wrapper,
+// not next/navigation directly — mock it too, same reasoning as
+// MobileDrawer.test.tsx's identical block.
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/',
+  Link: ({ href, children, ...rest }: { href: string; children?: React.ReactNode }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
+}));
 vi.mock('@/components/catalog/ProductImage', () => ({ ProductImage: () => null }));
 vi.mock('@/components/catalog/CategoryArt', () => ({ CategoryArt: () => null }));
 

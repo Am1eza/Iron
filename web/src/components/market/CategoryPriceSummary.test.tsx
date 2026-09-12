@@ -1,7 +1,22 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { CategoryPriceSummary } from './CategoryPriceSummary';
 import type { Category, PriceRow } from '@/lib/types/domain';
+
+// CategoryPriceSummary renders FactoryLink, which imports `Link` from the
+// locale-aware `@/i18n/navigation` wrapper. That real `Link` calls
+// `useLocale()` (from `use-intl`, not the `next-intl` re-export the global
+// vitest.setup.ts fallback wraps) unconditionally, which throws without a
+// real `NextIntlClientProvider` — and this file renders bare, like the rest
+// of this component's tests. A plain, assertable <a> is enough: every
+// assertion here only checks `href`, never anything locale-specific.
+vi.mock('@/i18n/navigation', () => ({
+  Link: ({ href, children, ...rest }: { href: string; children?: React.ReactNode }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
+}));
 
 const categories = [
   { id: 'c1', slug: 'rebar', name: 'میلگرد', order: 1, isActive: true },

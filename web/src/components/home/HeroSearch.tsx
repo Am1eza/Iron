@@ -1,7 +1,6 @@
 'use client';
 import { useState, type ReactNode } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { routes } from '@/lib/routes';
 import { AiMarkIcon, ArrowEndIcon, ChevronStartIcon } from '@/components/primitives/icons';

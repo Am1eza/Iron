@@ -20,6 +20,18 @@ import type { Category } from '@/lib/types/domain';
 // it, and so one test can put the drawer on a real category page.
 const nav = vi.hoisted(() => ({ path: '/' }));
 vi.mock('next/navigation', () => ({ usePathname: () => nav.path }));
+// MobileDrawer now imports Link/usePathname from the locale-aware wrapper,
+// not next/navigation directly — mock it too (createNavigation() needs a
+// real next-intl context to run for real, and mocking just the exported
+// `usePathname` here wouldn't reach `Link`'s own internal calls to it).
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => nav.path,
+  Link: ({ href, children, ...rest }: { href: string; children?: React.ReactNode }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
+}));
 
 afterEach(() => {
   nav.path = '/';

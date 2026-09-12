@@ -13,6 +13,17 @@ const push = vi.fn();
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push, replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
 }));
+// SearchBar now imports Link/useRouter from the locale-aware wrapper, not
+// next/navigation directly — mock it too so `<Link>` renders a plain,
+// assertable <a> instead of throwing.
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push, replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
+  Link: ({ href, children, ...rest }: { href: string; children?: React.ReactNode }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
+}));
 
 const search = vi.fn();
 vi.mock('@/lib/api/resources/catalog', () => ({

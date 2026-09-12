@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { toPersianDigits } from '@/lib/utils/format';
 import type { Facet } from '@/lib/utils/catalogFacets';
 import styles from './FacetRail.module.css';

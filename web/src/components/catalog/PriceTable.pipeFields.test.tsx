@@ -12,6 +12,29 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+// PriceTable/FactoryLink now import Link/useRouter from the locale-aware
+// wrapper, not next/navigation directly — mock it too so `<Link>` renders a
+// plain, assertable <a> instead of throwing (createNavigation() needs a
+// real next-intl context to run for real, which this bare `render()` has
+// none of).
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
+  Link: ({
+    href,
+    children,
+    prefetch: _prefetch,
+    ...rest
+  }: {
+    href: string;
+    children?: React.ReactNode;
+    prefetch?: boolean;
+  }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
+}));
+
 /**
  * لوله after the owner's 1405/06 requests: a «رده» (pipe schedule) column on
  * مانیسمان, and «کارخانه» renamed to «برند» there too, where the product is

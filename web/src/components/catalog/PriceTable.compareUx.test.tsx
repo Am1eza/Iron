@@ -13,6 +13,29 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+// PriceTable/FactoryLink now import Link/useRouter from the locale-aware
+// wrapper, not next/navigation directly — mock it too so `<Link>` renders a
+// plain, assertable <a> instead of throwing (createNavigation() needs a
+// real next-intl context to run for real, which this bare `render()` has
+// none of).
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
+  Link: ({
+    href,
+    children,
+    prefetch: _prefetch,
+    ...rest
+  }: {
+    href: string;
+    children?: React.ReactNode;
+    prefetch?: boolean;
+  }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
+}));
+
 // priceBasis defaults to 'kg' — that's what real rebar rows are (see
 // PriceTable.tsx's addToCart), and a fixture that leaves it undefined is
 // exactly the gap that let the compare CTA's kg-basis bug ship unnoticed

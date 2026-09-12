@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname } from '@/i18n/navigation';
 import { ChevronDownIcon } from '@/components/primitives/icons';
 import styles from './Header.module.css';
 
