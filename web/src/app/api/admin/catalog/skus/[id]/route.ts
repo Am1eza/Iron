@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { deleteSku, skuImpact, updateSku } from '@/lib/server/repos/catalogAdminRepo';
+import { deleteSkuGuarded, skuImpact, updateSku } from '@/lib/server/repos/catalogAdminRepo';
 import {
   catalogErrorResponse,
   clearRedirectShadow,
@@ -160,19 +160,41 @@ async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string 
   if ('response' in auth) return auth.response;
   const { id } = await ctx.params;
   const impact = await skuImpact(id);
+  // Cheap, informational rejection for the common case — this is also the
+  // preview the confirm dialog reads. NOT the actual guard against a race
+  // (see below): impact was read outside any lock, so it can be stale by
+  // the time the delete runs.
   const blocked = openOrdersBlock(req, impact);
   if (blocked) return blocked;
+  const override = req.nextUrl.searchParams.get('override') === 'true';
   // Before the delete: the public path is built from the parent slugs, and
   // this is the last moment the row exists to read them from.
   const tombstone = await planDeletedNodeRedirects('sku', id);
-  const removed = await deleteSku(id);
-  if (!removed) return NextResponse.json({ error: 'not_found', message: 'محصول یافت نشد.' }, { status: 404 });
+  // The actual guard (G-164): re-checked, LOCKED, atomically with the
+  // delete itself — deleteSku()+the check above used to be two independent
+  // queries, so a createOrder() landing between them could commit a new
+  // open order the check never saw, and the delete removed the sku anyway.
+  const result = await deleteSkuGuarded(id, { override });
+  if (result.status === 'not_found') {
+    return NextResponse.json({ error: 'not_found', message: 'محصول یافت نشد.' }, { status: 404 });
+  }
+  if (result.status === 'blocked') {
+    return NextResponse.json(
+      {
+        error: 'open_orders',
+        message: `${result.openOrders} سفارش باز به این مورد وابسته است. برای حذف قطعی، درخواست را با override=true دوباره بفرست.`,
+        impact: { ...impact, openOrders: result.openOrders },
+      },
+      { status: 409 },
+    );
+  }
+  const removed = result.removed;
   // The WHOLE row, not `{ name, slug }`. Nothing else keeps it: the row is
   // gone, price history went with it by cascade, and there is no trash and no
   // undo — so `size`, `grade`, `factory`, `theoreticalWeightKg`,
   // `branchLengthM`, `priceBasis`, `imageUrl`, `crossListedCategoryIds` and
   // `seo` existed nowhere at all after a mistaken delete, even though
-  // `deleteSku` hands the complete row back for free. Rebuilding from an audit
+  // `deleteSkuGuarded` hands the complete row back for free. Rebuilding from an audit
   // entry is not a good recovery story; rebuilding from two of eighteen
   // columns is not a recovery story at all.
   await audit(auth.session.id, 'catalog.sku.delete', { type: 'sku', id }, removed, null);

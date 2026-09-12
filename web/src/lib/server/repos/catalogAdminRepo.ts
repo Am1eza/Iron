@@ -929,6 +929,50 @@ export async function deleteSku(id: string) {
   return rows[0] ?? null;
 }
 
+export type DeleteSkuGuardedResult =
+  | { status: 'removed'; removed: typeof skus.$inferSelect }
+  | { status: 'blocked'; openOrders: number }
+  | { status: 'not_found' };
+
+/**
+ * The atomic form the single-SKU DELETE route calls (G-164) — same fix,
+ * same shape, as `deleteSkusBulkGuarded`, sized for the one-row case.
+ *
+ * `skuImpact()` + the route's own early `openOrdersBlock()` check stay
+ * exactly as they were: a cheap, informational preview (used by the confirm
+ * dialog too) that rules out the common case before anything here runs.
+ * This is the actual guard — locks the sku row with `FOR UPDATE` and
+ * re-checks open orders INSIDE that lock, atomically with the delete, so a
+ * `createOrder()` racing between the preview and the delete (which takes a
+ * `FOR SHARE` lock on the same row before it inserts `orderItems` — see
+ * ordersRepo.createOrder) can no longer land in the gap the two-query
+ * version had.
+ */
+export async function deleteSkuGuarded(
+  id: string,
+  opts: { override: boolean },
+): Promise<DeleteSkuGuardedResult> {
+  return getDb().transaction(async (tx) => {
+    const [locked] = await tx.select({ id: skus.id }).from(skus).where(eq(skus.id, id)).for('update');
+    if (!locked) return { status: 'not_found' as const };
+
+    if (!opts.override) {
+      const openCount = sql<number>`count(*)::int`;
+      const [row] = await tx
+        .select({ n: openCount })
+        .from(orderItems)
+        .innerJoin(orders, eq(orderItems.orderId, orders.id))
+        .where(and(eq(orderItems.skuId, id), inArray(orders.status, [...OPEN_ORDER_STATUSES])));
+      const openOrders = row?.n ?? 0;
+      if (openOrders > 0) return { status: 'blocked' as const, openOrders };
+    }
+
+    const [removed] = await tx.delete(skus).where(eq(skus.id, id)).returning();
+    if (!removed) return { status: 'not_found' as const };
+    return { status: 'removed' as const, removed };
+  });
+}
+
 /**
  * Delete many products in ONE transaction — the panel's only bulk operation
  * used to be N independent `DELETE` requests via `Promise.allSettled`, so a
