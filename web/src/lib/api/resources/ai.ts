@@ -50,6 +50,13 @@ export const aiApi = {
     return http.get(`/api/ai/conversations/${encodeURIComponent(id)}`);
   },
 
+  /** Delete one of this visitor's own conversations immediately, rather than
+   *  waiting on the 90-day auto-purge (J-228). 404 for someone else's id or
+   *  one that never existed — never a 403, same reasoning as `conversation`. */
+  async deleteConversation(id: string): Promise<void> {
+    await http.del(`/api/ai/conversations/${encodeURIComponent(id)}`);
+  },
+
   /**
    * The visitor edited the advisor's پیش‌فاکتور card — quantity, unit or
    * delivery city. Sends only WHAT (sku, qty, unit), never how much: the

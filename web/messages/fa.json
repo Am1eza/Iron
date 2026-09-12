@@ -1029,6 +1029,11 @@
       "loadFailed": "فهرست گفتگوها بارگذاری نشد.",
       "retry": "دوباره تلاش کن",
       "empty": "هنوز گفتگوی ذخیره‌شده‌ای نداری.",
+      "deleteConversation": "حذف گفتگو",
+      "deleteConfirmTitle": "حذف این گفتگو؟",
+      "deleteConfirmBody": "این گفتگو برای همیشه حذف می‌شود و قابل بازگشت نیست.",
+      "deleteConfirmAction": "حذف کن",
+      "deleteFailed": "حذف گفتگو انجام نشد.",
       "bucket": {
         "today": "امروز",
         "yesterday": "دیروز",

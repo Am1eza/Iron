@@ -170,3 +170,26 @@ export async function conversationForUser(
     })),
   };
 }
+
+/**
+ * Delete one of this user's own conversations immediately (J-228 — the
+ * self-service counterpart to `cleanup.job.ts`'s 90-day auto-purge, for a
+ * visitor who wants a sensitive thread gone NOW, not in 90 days).
+ *
+ * Scoped by `userId` in the WHERE clause itself, same rule as every other
+ * function here — never a separate ownership check after an unscoped read.
+ * `ai_messages` cascades via its FK (`onDelete: 'cascade'`, schema/system.ts),
+ * so this is the one statement that removes the whole thread.
+ *
+ * Returns whether a row was actually deleted, so the route can 404 (not
+ * silently succeed) on someone else's id or an id that never existed —
+ * "not yours" and "doesn't exist" must look identical to the caller.
+ */
+export async function deleteConversationForUser(conversationId: string, userId: string): Promise<boolean> {
+  const db = getDb();
+  const deleted = await db
+    .delete(aiConversations)
+    .where(and(eq(aiConversations.id, conversationId), eq(aiConversations.userId, userId)))
+    .returning({ id: aiConversations.id });
+  return deleted.length > 0;
+}

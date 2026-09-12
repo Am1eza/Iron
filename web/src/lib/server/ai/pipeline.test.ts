@@ -402,3 +402,52 @@ describe('runAdvisorPipeline — the answer trace attributes an empty answer', (
     expect(result.trace.emptyAt).toBeNull();
   });
 });
+
+/**
+ * J-238: `usage.reasoningTokens` has to accumulate the same way
+ * promptTokens/completionTokens/cacheHitTokens already do — across every
+ * completion round of a turn, tool rounds included — so the eventual
+ * `ai_usage` row reflects the WHOLE request, not just its last round.
+ */
+describe('runAdvisorPipeline — reasoning-token accounting (J-238)', () => {
+  it('sums usage.reasoningTokens across every completion round of the turn', async () => {
+    let call = 0;
+    const stream: StreamCompletionFn = async function* () {
+      call += 1;
+      if (call === 1) {
+        yield {
+          type: 'tool_calls',
+          calls: [{ id: 'c1', type: 'function', function: { name: 'getGuide', arguments: '{}' } }],
+        };
+        yield { type: 'usage', usage: { promptTokens: 100, completionTokens: 5, cacheHitTokens: 0, reasoningTokens: 40 } };
+        yield { type: 'done' };
+      } else {
+        yield { type: 'token', text: 'راهنما را برایت خلاصه کردم.' };
+        yield { type: 'usage', usage: { promptTokens: 150, completionTokens: 20, cacheHitTokens: 0, reasoningTokens: 60 } };
+        yield { type: 'done' };
+      }
+    };
+    const result = await runAdvisorPipeline({
+      messages: baseMessages(),
+      userNumbers: new Set(),
+      session: null,
+      stream,
+    });
+    expect(result.usage.reasoningTokens).toBe(100);
+    expect(result.usage.promptTokens).toBe(250);
+  });
+
+  it('defaults to 0 when the relay never reports it', async () => {
+    const stream: StreamCompletionFn = async function* () {
+      yield { type: 'token', text: 'قیمت را کارشناس اعلام می‌کند.' };
+      yield { type: 'done' };
+    };
+    const result = await runAdvisorPipeline({
+      messages: baseMessages(),
+      userNumbers: new Set(),
+      session: null,
+      stream,
+    });
+    expect(result.usage.reasoningTokens).toBe(0);
+  });
+});

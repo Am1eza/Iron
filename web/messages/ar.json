@@ -1029,6 +1029,11 @@
       "loadFailed": "تعذّر تحميل قائمة المحادثات.",
       "retry": "إعادة المحاولة",
       "empty": "لا توجد محادثات محفوظة بعد.",
+      "deleteConversation": "حذف المحادثة",
+      "deleteConfirmTitle": "حذف هذه المحادثة؟",
+      "deleteConfirmBody": "سيتم حذف هذه المحادثة نهائيًا ولا يمكن استعادتها.",
+      "deleteConfirmAction": "حذف",
+      "deleteFailed": "تعذّر حذف المحادثة.",
       "bucket": {
         "today": "اليوم",
         "yesterday": "أمس",

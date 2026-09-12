@@ -376,3 +376,67 @@ export function stripFalseProcessClaimsDetailed(text: string): { text: string; r
 export function stripFalseProcessClaims(text: string): string {
   return stripFalseProcessClaimsDetailed(text).text;
 }
+
+/* ------------------------------------------------------------------ */
+/* Staleness caveat enforcement (J-217)                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Rule 2 of the system prompt requires that a STALE priced quote
+ * (`getPrice`'s `isStale:true` with a non-null `price`) always be shown WITH
+ * its `updatedAtJalali` date and the کارشناس-confirms caveat. Grounding
+ * (`sanitizeGrounded`) cannot catch a model that silently drops that caveat:
+ * the bare price is itself a real, tool-produced number, so nothing about it
+ * looks wrong to the validator — this is invisible to it by construction
+ * (see the audit's own framing).
+ *
+ * This does not try to recognize the caveat SENTENCE (paraphrase-proof is
+ * unnecessary work) — the date itself is a fixed string every stale row
+ * carries, so the check is just: is that string literally present in the
+ * answer. Multiple stale rows in one turn all have to be dated.
+ */
+export function missingStaleCaveat(text: string, staleDates: ReadonlySet<string>): boolean {
+  if (staleDates.size === 0) return false;
+  for (const date of staleDates) if (!text.includes(date)) return true;
+  return false;
+}
+
+/** Last-resort fix when even a second attempt drops the caveat: append it in
+ *  code rather than let a bare, undated stale price reach the customer. */
+export function appendStaleCaveat(text: string, staleDates: ReadonlySet<string>): string {
+  const dates = [...staleDates];
+  const dateList = dates.join('، ');
+  const sentence =
+    dates.length === 1
+      ? `(این قیمت مربوط به تاریخ ${dateList} است؛ قیمت به‌روز را کارشناس تأیید می‌کند.)`
+      : `(این قیمت‌ها مربوط به تاریخ‌های ${dateList} هستند؛ قیمت به‌روز را کارشناس تأیید می‌کند.)`;
+  const trimmed = text.trim();
+  return trimmed ? `${trimmed}\n\n${sentence}` : sentence;
+}
+
+/* ------------------------------------------------------------------ */
+/* Delivery-city clarification enforcement (J-220)                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * When `compareFactories` runs without a known delivery city (`ctx.city`
+ * absent), it flags its own result `missingCity:true` (aiTools.ts) rather
+ * than silently comparing ex-works prices only. Rule 8 already tells the
+ * model to ask once for the city in that case; this is the structural check
+ * that it actually did, not just that the prompt asked it to.
+ *
+ * A structural signature (a sentence naming «شهر» that ends as a question),
+ * not a fixed phrase — any natural phrasing of "which city?" passes.
+ */
+const CITY_QUESTION_SENTENCE = /[^.!؟\n]*شهر[^.!؟\n]*؟/u;
+
+export function answerAsksAboutCity(text: string): boolean {
+  return CITY_QUESTION_SENTENCE.test(text);
+}
+
+/** Last-resort fix when even a second attempt never asks for the city. */
+export function appendCityQuestion(text: string): string {
+  const sentence = 'محصول قرار است به کدام شهر تحویل داده شود؟ با دانستن آن می‌توانم هزینهٔ حمل را هم مقایسه کنم.';
+  const trimmed = text.trim();
+  return trimmed ? `${trimmed}\n\n${sentence}` : sentence;
+}

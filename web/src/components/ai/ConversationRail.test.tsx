@@ -15,7 +15,7 @@ import { renderWithIntl as render } from '@/test/renderWithIntl';
 
 vi.mock('@/lib/api', () => ({
   API_MODE: 'live',
-  api: { ai: { conversations: vi.fn() } },
+  api: { ai: { conversations: vi.fn(), deleteConversation: vi.fn() } },
   isApiError: (e: unknown) => e instanceof ApiError,
 }));
 
@@ -25,9 +25,11 @@ vi.mock('@/lib/stores/auth', () => ({
 }));
 
 import { api } from '@/lib/api';
+import { useUiStore } from '@/lib/stores/ui';
 import { ConversationRail } from './ConversationRail';
 
 const conversations = api.ai.conversations as unknown as ReturnType<typeof vi.fn>;
+const deleteConversation = api.ai.deleteConversation as unknown as ReturnType<typeof vi.fn>;
 
 // `bucketOf` (ConversationRail.tsx) diffs CALENDAR days (both timestamps
 // truncated to local midnight before subtracting), so a raw hour-offset like
@@ -47,6 +49,8 @@ const lastMonth = daysAgo(20);
 beforeEach(() => {
   authStatus = 'authenticated';
   conversations.mockReset();
+  deleteConversation.mockReset();
+  useUiStore.setState({ toasts: [] });
 });
 
 describe('ConversationRail', () => {
@@ -130,5 +134,53 @@ describe('ConversationRail', () => {
     conversations.mockResolvedValue({ conversations: [] });
     render(<ConversationRail onOpen={vi.fn()} onNew={vi.fn()} />);
     await waitFor(() => expect(conversations).not.toHaveBeenCalled());
+  });
+});
+
+describe('ConversationRail — deleting a conversation (J-228)', () => {
+  it('does nothing until the confirm dialog is accepted', async () => {
+    conversations.mockResolvedValue({
+      conversations: [{ id: 'a', title: 'قیمت میلگرد ۱۴', updatedAt: today, messageCount: 2 }],
+    });
+    render(<ConversationRail onOpen={vi.fn()} onNew={vi.fn()} />);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'حذف گفتگو' }));
+    expect(await screen.findByText('حذف این گفتگو؟')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'انصراف' }));
+
+    expect(deleteConversation).not.toHaveBeenCalled();
+    expect(screen.getByText('قیمت میلگرد ۱۴')).toBeInTheDocument();
+  });
+
+  it('deletes on confirm, removes the row, and reports it to the caller', async () => {
+    conversations.mockResolvedValue({
+      conversations: [{ id: 'a', title: 'قیمت میلگرد ۱۴', updatedAt: today, messageCount: 2 }],
+    });
+    deleteConversation.mockResolvedValue(undefined);
+    const onDeleted = vi.fn();
+    render(<ConversationRail onOpen={vi.fn()} onNew={vi.fn()} onDeleted={onDeleted} />);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'حذف گفتگو' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'حذف کن' }));
+
+    await waitFor(() => expect(deleteConversation).toHaveBeenCalledWith('a'));
+    await waitFor(() => expect(onDeleted).toHaveBeenCalledWith('a'));
+    await waitFor(() => expect(screen.queryByText('قیمت میلگرد ۱۴')).not.toBeInTheDocument());
+  });
+
+  it('keeps the row and surfaces an error toast when the delete request fails', async () => {
+    conversations.mockResolvedValue({
+      conversations: [{ id: 'a', title: 'قیمت میلگرد ۱۴', updatedAt: today, messageCount: 2 }],
+    });
+    deleteConversation.mockRejectedValue(new ApiError(500, 'خطا'));
+    render(<ConversationRail onOpen={vi.fn()} onNew={vi.fn()} />);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'حذف گفتگو' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'حذف کن' }));
+
+    await waitFor(() =>
+      expect(useUiStore.getState().toasts.map((x) => x.message)).toContain('حذف گفتگو انجام نشد.'),
+    );
+    expect(screen.getByText('قیمت میلگرد ۱۴')).toBeInTheDocument();
   });
 });

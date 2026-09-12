@@ -1029,6 +1029,11 @@
       "loadFailed": "对话列表加载失败。",
       "retry": "重试",
       "empty": "暂无已保存的对话。",
+      "deleteConversation": "删除对话",
+      "deleteConfirmTitle": "删除此对话？",
+      "deleteConfirmBody": "此对话将被永久删除，且无法恢复。",
+      "deleteConfirmAction": "删除",
+      "deleteFailed": "对话删除失败。",
       "bucket": {
         "today": "今天",
         "yesterday": "昨天",

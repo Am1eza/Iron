@@ -1358,6 +1358,12 @@ export function AdvisorChat({
           onOpen={(id) => void openConversation(id)}
           onNew={resetChat}
           onDismiss={() => setRailOpen(false)}
+          onDeleted={(id) => {
+            // The OPEN conversation was just deleted from under the visitor —
+            // start a fresh one rather than leaving stale messages on screen
+            // for an id that no longer exists server-side.
+            if (id === conversationIdRef.current) resetChat();
+          }}
         />
       </div>
       {railOpen ? (

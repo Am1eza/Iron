@@ -26,6 +26,10 @@ import {
   looksLikeLeakedReasoning,
   looksLikeLeakedSystemPrompt,
   stripFalseProcessClaimsDetailed,
+  missingStaleCaveat,
+  appendStaleCaveat,
+  answerAsksAboutCity,
+  appendCityQuestion,
 } from './answerGuard';
 import { toInformalSecondPerson } from './informalVoice';
 
@@ -171,7 +175,7 @@ export interface PipelineResult {
    *  aiTaxonomy.EstimateFacts). Undefined unless estimateProject ran. */
   estimate?: EstimateFacts;
   toolsUsed: Set<string>;
-  usage: { promptTokens: number; completionTokens: number; cacheHitTokens: number };
+  usage: { promptTokens: number; completionTokens: number; cacheHitTokens: number; reasoningTokens: number };
   /** Per-stage record of what post-processing removed (see AnswerTrace). */
   trace: AnswerTrace;
   /** Exposed so callers/tests can re-verify the final text independently. */
@@ -209,9 +213,18 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
   let draftCalls = 0;
   const MAX_DRAFT_CALLS = 2;
 
+  // J-217: every stale-but-priced getPrice row this turn, keyed by its own
+  // updatedAtJalali date — the answer has to literally carry each one.
+  const staleDates = new Set<string>();
+  // J-220: at least one compareFactories call this turn ran without a known
+  // delivery city (aiTools.ts flags its own result — see `missingCity`).
+  let missingCityFlagged = false;
+
   // Token cost accumulated across ALL completion rounds (tool rounds + the
-  // correction retry) — one aiUsage row per request.
-  const usage = { promptTokens: 0, completionTokens: 0, cacheHitTokens: 0 };
+  // correction retry) — one aiUsage row per request. reasoningTokens (J-238)
+  // rides along here too but is deliberately NOT part of the daily budget sum
+  // (budget.ts) — that needs a separate owner decision on whether to count it.
+  const usage = { promptTokens: 0, completionTokens: 0, cacheHitTokens: 0, reasoningTokens: 0 };
 
   // Counters the answering rounds fill in; the rest of the trace is assembled
   // stage by stage at the bottom of this function.
@@ -262,6 +275,7 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
           usage.promptTokens += ev.usage.promptTokens;
           usage.completionTokens += ev.usage.completionTokens;
           usage.cacheHitTokens += ev.usage.cacheHitTokens;
+          usage.reasoningTokens += ev.usage.reasoningTokens;
         }
       }
     } catch {
@@ -293,6 +307,7 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
           usage.promptTokens += ev.usage.promptTokens;
           usage.completionTokens += ev.usage.completionTokens;
           usage.cacheHitTokens += ev.usage.cacheHitTokens;
+          usage.reasoningTokens += ev.usage.reasoningTokens;
         }
       }
       if (!pendingCalls || !allowTools) {
@@ -351,6 +366,19 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
               ? (result as { choiceChips?: unknown }).choiceChips
               : [];
             choiceChips = Array.isArray(choice) ? choice.filter((c): c is string => typeof c === 'string') : [];
+          }
+          if (call.function.name === 'getPrice') {
+            const gp = result as {
+              results?: Array<{ isStale?: boolean; price?: unknown; updatedAtJalali?: string }>;
+            } | null;
+            for (const row of gp?.results ?? []) {
+              if (row?.isStale === true && typeof row.price === 'number' && row.updatedAtJalali) {
+                staleDates.add(row.updatedAtJalali);
+              }
+            }
+          }
+          if (call.function.name === 'compareFactories') {
+            if ((result as { missingCity?: boolean } | null)?.missingCity) missingCityFlagged = true;
           }
           if (call.function.name === 'estimateProject') {
             const r = result as {
@@ -463,6 +491,70 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
     }
   }
   trace.groundedChars = checked.text.trim().length;
+
+  // J-217: a stale-but-priced quote must carry its date + کارشناس caveat —
+  // grounding cannot see this gap (the bare number is itself real), so this
+  // is the structural backstop rule 2 has no enforcement for otherwise. One
+  // retry (tools withheld — the date is already in `messages`), then a
+  // code-appended caveat rather than a bare undated number reaching anyone.
+  if (staleDates.size > 0 && missingStaleCaveat(checked.text, staleDates) && !signal?.aborted) {
+    try {
+      messages.push(
+        { role: 'assistant', content: checked.text },
+        {
+          role: 'user',
+          content:
+            '[یادداشت داخلی سیستم؛ این را کاربر ننوشته و کاربر آن را نمی‌بیند]: پاسخ قبلی یک قیمت کهنه (isStale=true) را بدون تاریخ به‌روزرسانی و بدون گفتن این‌که قیمت به‌روز را کارشناس تأیید می‌کند نوشت. همان پاسخ را با اضافه‌کردن دقیقاً همین دو چیز (تاریخ updatedAtJalali همان ابزار و جملهٔ کارشناس) دوباره بنویس؛ به این یادداشت اشاره نکن.',
+        },
+      );
+      const retry = await runLoop(0);
+      if (retry.trim()) {
+        const retryChecked = sanitizeGrounded(retry, ledger, userNumbers);
+        // Only take the retry if it actually fixed the gap — a retry that is
+        // itself missing the caveat (or came back a generic fallback line
+        // once the tool result scrolled out of context) must not overwrite
+        // a perfectly good first answer; the code-appended caveat below is
+        // then applied to THAT answer instead.
+        if (!missingStaleCaveat(retryChecked.text, staleDates)) checked = retryChecked;
+      }
+    } catch {
+      /* fall through to the code-appended caveat below */
+    }
+    if (missingStaleCaveat(checked.text, staleDates)) {
+      checked = { text: appendStaleCaveat(checked.text, staleDates), violations: checked.violations };
+    }
+  }
+
+  // J-220: a bulk factory comparison without a known delivery city has to
+  // actually ask for it (rule 8), not just silently compare ex-works prices.
+  // Same shape as the staleness backstop above: one retry, then a
+  // code-appended question rather than letting the visitor assume ex-works
+  // was the final delivered price.
+  if (missingCityFlagged && !answerAsksAboutCity(checked.text) && !signal?.aborted) {
+    try {
+      messages.push(
+        { role: 'assistant', content: checked.text },
+        {
+          role: 'user',
+          content:
+            '[یادداشت داخلی سیستم؛ این را کاربر ننوشته و کاربر آن را نمی‌بیند]: پاسخ قبلی مقایسهٔ کارخانه‌ها را بدون پرسیدن شهر تحویل داد. همان پاسخ را نگه دار ولی حتماً در پایان با یک جملهٔ پرسشی دربارهٔ این‌که محصول به کدام شهر تحویل داده شود تمام کن؛ به این یادداشت اشاره نکن.',
+        },
+      );
+      const retry = await runLoop(0);
+      if (retry.trim()) {
+        const retryChecked = sanitizeGrounded(retry, ledger, userNumbers);
+        // Same reasoning as the staleness backstop above: only take the
+        // retry if it actually asks, so a weaker/generic retry never
+        // overwrites a perfectly good comparison answer.
+        if (answerAsksAboutCity(retryChecked.text)) checked = retryChecked;
+      }
+    } catch {
+      /* fall through to the code-appended question below */
+    }
+    if (!answerAsksAboutCity(checked.text)) {
+      checked = { text: appendCityQuestion(checked.text), violations: checked.violations };
+    }
+  }
 
   // The model thinking out loud instead of answering (see answerGuard.ts —
   // this shipped to a real visitor as 60 lines of English deliberation about

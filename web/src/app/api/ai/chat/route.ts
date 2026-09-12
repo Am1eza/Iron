@@ -15,7 +15,8 @@ import {
   identityFact,
   persistTurn,
 } from '@/lib/server/ai/conversation';
-import { getPromptVersions, resolvePromptText } from '@/lib/server/ai/promptVersions';
+import { getPromptVersions, resolvePromptText, hashPromptText } from '@/lib/server/ai/promptVersions';
+import { AI_SYSTEM_PROMPT } from '@/lib/server/services/aiTools';
 import { getDomainFacts } from '@/lib/server/ai/domainFacts';
 import {
   detectCity,
@@ -395,6 +396,13 @@ async function POSTImpl(req: NextRequest) {
             promptTokens: result.usage.promptTokens,
             completionTokens: result.usage.completionTokens,
             cacheHitTokens: result.usage.cacheHitTokens,
+            reasoningTokens: result.usage.reasoningTokens,
+            // J-241: the hash of the EXACT text actually sent as the system
+            // prompt for this request — `systemPrompt` mirrors the same
+            // fallback buildChatMessages itself applies (its default
+            // parameter), so this is never out of sync with what the model
+            // really saw.
+            promptTextHash: hashPromptText(systemPrompt ?? AI_SYSTEM_PROMPT),
             violations: result.violationsCaught,
             // What each post-processor removed, and whether it left nothing
             // (ai/pipeline.ts#AnswerTrace). This row is written even when the

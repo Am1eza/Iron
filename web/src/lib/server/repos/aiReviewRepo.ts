@@ -114,3 +114,20 @@ export async function conversationExists(conversationId: string): Promise<boolea
     .limit(1);
   return Boolean(row);
 }
+
+/**
+ * True only if at least one `aiFeedback` row (👍/👎) points at this
+ * conversation (J-227). The admin review UI only ever reaches a thread
+ * through real customer feedback — a staff member typing/guessing a ULID
+ * must not be able to bypass that and read an un-flagged conversation
+ * straight from the API, which `conversationExists` alone allowed.
+ */
+export async function conversationHasFeedback(conversationId: string): Promise<boolean> {
+  const db = getDb();
+  const [row] = await db
+    .select({ id: aiFeedback.id })
+    .from(aiFeedback)
+    .where(eq(aiFeedback.conversationId, conversationId))
+    .limit(1);
+  return Boolean(row);
+}
