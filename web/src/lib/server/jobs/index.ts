@@ -11,6 +11,7 @@ import { publishArticlesJob } from './publishArticles.job';
 import { smsAutomationJob } from './smsAutomation.job';
 import { weeklyReportJob } from './weeklyReport.job';
 import { searchConsoleRefreshJob } from './searchConsoleRefresh.job';
+import { catalogAuditJob } from './catalogAudit.job';
 
 export const jobs: Job[] = [operationOutboxJob, marketPollJob, billetPollJob, stalenessJob, alertsJob, publishArticlesJob, proformaExpireJob, smsAutomationJob,
-  weeklyReportJob, searchConsoleRefreshJob, cleanupJob];
+  weeklyReportJob, searchConsoleRefreshJob, cleanupJob, catalogAuditJob];

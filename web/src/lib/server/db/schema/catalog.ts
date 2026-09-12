@@ -228,6 +228,20 @@ export const skus = pgTable(
     // per row. Also the length a `branch`/`coil` price basis refers to.
     branchLengthM: doublePrecision('branch_length_m'),
     imageUrl: text('image_url'),
+    // B-22 (audit-catalog-B-FINAL) — moderation metadata for `imageUrl`. A
+    // technically-valid photo (right MIME, right dimensions, uploaded through
+    // the hardened `/api/admin/upload` path) can still be the WRONG variant's
+    // photo — nothing before this recorded who confirmed it matches this SKU,
+    // or where it came from. Both nullable with NO backfill: every existing
+    // image stays unapproved-by-default rather than retroactively flagged as
+    // wrong, which is exactly as safe as the status quo (nothing reads these
+    // columns to hide or downrank an image yet — see catalogAdminRepo).
+    // `updateSku` clears both whenever `imageUrl` itself changes without the
+    // same write also setting approval, because an approval is a fact about
+    // ONE photo: it must not silently survive onto whatever the admin swaps
+    // the picture to next.
+    imageApprovedBy: text('image_approved_by'),
+    imageApprovedAt: timestamp('image_approved_at', { withTimezone: true }),
     // Manual price override — «قیمت این کالا دستی است، خودکار به‌روزرسانی نشود».
     // The automated mirror (priceSync.service.ts) skips any SKU flagged here
     // and records the skip, so a deliberately hand-entered price is never
@@ -349,5 +363,65 @@ export const factoryOrder = pgTable(
     // this is the same b-tree, but the read is order-by-order and worth
     // stating as its own covering index.
     index('factory_order_category_order_idx').on(t.categoryId, t.order),
+  ],
+);
+
+/** B-06 (audit-catalog-B-FINAL) status a registered factory name can hold. */
+export const FACTORY_REGISTRY_STATUS_VALUES = ['verified', 'unverified'] as const;
+export type FactoryRegistryStatus = (typeof FACTORY_REGISTRY_STATUS_VALUES)[number];
+
+/**
+ * The factory REGISTRY — a source of truth for "is this a real mill?",
+ * separate from `skus.factory` and from `factoryOrder` above.
+ *
+ * `skus.factory` stays free text on purpose (see `factoryOrder`'s own
+ * doc comment: ~470 live values, no migration forces a foreign key onto an
+ * admin overnight). That freedom is exactly B-06's finding: nothing stops a
+ * typo or a fabricated name from becoming a "real" factory in search facets
+ * or AI grounding once ANY SKU carries it — `normalizeFactoryName` only
+ * collapses spelling variants of a name, it never asks whether the name
+ * refers to a mill that exists.
+ *
+ * This table does not enforce anything by itself — `skus.factory` is not a
+ * foreign key into it, and no existing write path is blocked by an absent
+ * row here. It is deliberately the minimal missing piece: a queryable place
+ * to record which factory names have actually been confirmed (by whom/what
+ * source, and when), so a future gate — a search facet, the AI grounding
+ * context, an admin warning badge — has something real to check against
+ * instead of trusting every string that has ever been typed into `factory`.
+ * Building that gate is out of scope here; recording the fact is not.
+ */
+export const factoryRegistry = pgTable(
+  'factory_registry',
+  {
+    id: text('id').primaryKey(),
+    /** Display spelling — what an admin typed, after the same
+     *  `normalizeFactoryName` every `skus.factory` write already goes
+     *  through, so the registry can never itself invent a ZWNJ/spacing
+     *  variant of a name already in use. */
+    name: text('name').notNull(),
+    /** The de-duplication key. Currently identical to `name` (both are
+     *  already `normalizeFactoryName`'s output) — kept as its own column,
+     *  not a derived read, so a future stricter fold (e.g. case/prefix
+     *  insensitivity) changes one column instead of every comparison site,
+     *  and so the unique index below has an explicit column to name. */
+    normalizedName: text('normalized_name').notNull(),
+    status: text('status', { enum: FACTORY_REGISTRY_STATUS_VALUES }).notNull().default('unverified'),
+    /** Free text: where the verification came from (owner confirmation, the
+     *  mill's own published listing, a phone call, …). Null for an
+     *  unverified entry — there is nothing to source yet. */
+    source: text('source'),
+    /** Set only when `status` moves to `'verified'`; null otherwise. Not a
+     *  DB CHECK against `status` on purpose — `upsertFactoryRegistry` is the
+     *  single write path and already keeps the two in lockstep, and a two-
+     *  column CHECK here would duplicate that rule for no caller that
+     *  bypasses the repo. */
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('factory_registry_normalized_name_uq').on(t.normalizedName),
+    check('factory_registry_status_ck', sql`${t.status} in ('verified','unverified')`),
   ],
 );
