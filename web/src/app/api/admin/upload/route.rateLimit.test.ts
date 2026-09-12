@@ -75,7 +75,6 @@ describe('POST /api/admin/upload — real rate limit, not mocked (G-163)', () =>
       // rateLimit.ts is a plain module-level Map, not a lock — sequential
       // calls are what makes "request #31" a meaningful, deterministic
       // position rather than a race between concurrent increments.
-      // eslint-disable-next-line no-await-in-loop
       const res = await upload(`f${i}.jpg`);
       statuses.push(res.status);
     }
