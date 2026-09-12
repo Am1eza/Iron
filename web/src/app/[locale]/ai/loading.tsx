@@ -1,16 +1,16 @@
 /** AI advisor route loading — a chat-bubble shape, not a price table. This is
  *  the product's flagship page (EP-04); the generic table skeleton it was
- *  falling back to made no sense here (US-26.6). Persian, like every other
- *  server-rendered string on this route — this app never resolves locale
- *  server-side (see `LocaleProvider`'s header comment). */
+ *  falling back to made no sense here (US-26.6). */
+import { getTranslations } from 'next-intl/server';
 import { Container, Section, Stack, Skeleton } from '@/components/ui';
 
-export default function Loading() {
+export default async function Loading() {
+  const t = await getTranslations('common.state');
   return (
     <Container width="narrow">
       <Section space={10}>
         <span className="visually-hidden" role="status" aria-live="polite">
-          در حال بارگذاری…
+          {t('loading')}
         </span>
         <Stack gap={4}>
           <div style={{ display: 'flex', gap: 'var(--space-2)' }}>

@@ -1,10 +1,12 @@
 'use client';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Button } from '@/components/primitives/Button';
 
 /** Logout control — revokes the session (server) then clears client state. */
 export function LogoutButton({ redirectTo = '/' }: { redirectTo?: string }) {
+  const t = useTranslations('common.action');
   const { logout } = useAuth();
   const [busy, setBusy] = useState(false);
   return (
@@ -16,7 +18,7 @@ export function LogoutButton({ redirectTo = '/' }: { redirectTo?: string }) {
         await logout(redirectTo);
       }}
     >
-      خروج از حساب
+      {t('logout')}
     </Button>
   );
 }

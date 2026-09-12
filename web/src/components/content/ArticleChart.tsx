@@ -22,6 +22,7 @@
  * legend and the `<details>` data table are always present for the same
  * reason: nothing here is conveyed by colour alone (WCAG 1.4.1).
  */
+import { useTranslations } from 'next-intl';
 import type { ChartAttrs, ChartSeries } from '@/lib/content/richDoc';
 import { toPersianDigits } from '@/lib/utils/format';
 import styles from './ArticleChart.module.css';
@@ -108,6 +109,7 @@ function barPath(x: number, y: number, w: number, h: number, up: boolean): strin
 }
 
 export function ArticleChart({ attrs, idBase }: { attrs: ChartAttrs; idBase: string }) {
+  const t = useTranslations('articleChart');
   const labels = (attrs.labels ?? []).map((l) => l ?? '');
   const series: ChartSeries[] = (attrs.series ?? []).slice(0, SERIES_COLORS.length);
   const numbers = series.flatMap((s) => s.values.filter((v): v is number => typeof v === 'number' && Number.isFinite(v)));
@@ -120,7 +122,7 @@ export function ArticleChart({ attrs, idBase }: { attrs: ChartAttrs; idBase: str
     return (
       <figure className={styles.figure}>
         {heading ? <figcaption className={styles.title}>{heading}</figcaption> : null}
-        <p className={styles.empty}>هنوز داده‌ای برای این نمودار ثبت نشده است.</p>
+        <p className={styles.empty}>{t('noData')}</p>
       </figure>
     );
   }
@@ -144,10 +146,10 @@ export function ArticleChart({ attrs, idBase }: { attrs: ChartAttrs; idBase: str
 
   const unit = attrs.unit?.trim();
   const summary = [
-    heading || 'نمودار',
-    unit ? `بر حسب ${unit}` : '',
-    `${toPersianDigits(labels.length)} دسته`,
-    `${toPersianDigits(series.length)} سری داده`,
+    heading || t('defaultHeading'),
+    unit ? t('unitSuffix', { unit }) : '',
+    t('categoriesCount', { count: toPersianDigits(labels.length) }),
+    t('seriesCount', { count: toPersianDigits(series.length) }),
   ]
     .filter(Boolean)
     .join('؛ ');
@@ -185,7 +187,7 @@ export function ArticleChart({ attrs, idBase }: { attrs: ChartAttrs; idBase: str
                   </>
                 )}
               </svg>
-              <span>{s.label?.trim() || `سری ${toPersianDigits(i + 1)}`}</span>
+              <span>{s.label?.trim() || t('seriesFallback', { index: toPersianDigits(i + 1) })}</span>
             </li>
           ))}
         </ul>
@@ -337,22 +339,22 @@ export function ArticleChart({ attrs, idBase }: { attrs: ChartAttrs; idBase: str
         </svg>
       </div>
 
-      {attrs.source?.trim() ? <p className={styles.source}>منبع: {attrs.source.trim()}</p> : null}
+      {attrs.source?.trim() ? <p className={styles.source}>{t('source', { source: attrs.source.trim() })}</p> : null}
 
       {/* WCAG 1.1.1 — the numbers themselves, not just a trend summary. This
           is also what relieves the amber series' sub-3:1 contrast on a white
           surface: no value here is available only by looking at a colour. */}
       <details className={styles.dataToggle}>
-        <summary>جدول داده‌های نمودار</summary>
+        <summary>{t('dataTable')}</summary>
         <div className={styles.tableScroll}>
           <table className={styles.dataTable}>
             <caption className="visually-hidden">{summary}</caption>
             <thead>
               <tr>
-                <th scope="col">دسته</th>
+                <th scope="col">{t('categoryColumn')}</th>
                 {series.map((s, i) => (
                   <th key={i} scope="col">
-                    {s.label?.trim() || `سری ${toPersianDigits(i + 1)}`}
+                    {s.label?.trim() || t('seriesFallback', { index: toPersianDigits(i + 1) })}
                     {unit ? <span className={styles.unit}> ({unit})</span> : null}
                   </th>
                 ))}
@@ -361,12 +363,12 @@ export function ArticleChart({ attrs, idBase }: { attrs: ChartAttrs; idBase: str
             <tbody>
               {labels.map((label, i) => (
                 <tr key={i}>
-                  <th scope="row">{label || 'نامشخص'}</th>
+                  <th scope="row">{label || t('unknown')}</th>
                   {series.map((s, si) => {
                     const v = s.values[i];
                     return (
                       <td key={si} className="tnum">
-                        {v === null || v === undefined || !Number.isFinite(v) ? 'نامشخص' : faNumber(v)}
+                        {v === null || v === undefined || !Number.isFinite(v) ? t('unknown') : faNumber(v)}
                       </td>
                     );
                   })}

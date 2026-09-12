@@ -18,7 +18,8 @@
       "next": "Next",
       "call": "Call Us",
       "remove": "Remove",
-      "continue": "Continue"
+      "continue": "Continue",
+      "logout": "Log out"
     },
     "state": {
       "loading": "Loading…",
@@ -55,6 +56,17 @@
     "priceHidden": {
       "callForPrice": "Call for price",
       "estimated": "Market estimate — call for a firm price"
+    },
+    "chunkRecovery": {
+      "waitingForConnection": "Waiting for connection…",
+      "autoRetrying": "Retrying automatically…",
+      "offlineStatus": "Your internet connection is down — we'll retry automatically once it's back.",
+      "autoRetryingStatus": "Retrying the connection automatically…"
+    },
+    "archiveError": {
+      "blogHeadline": "The article list is unavailable",
+      "newsHeadline": "The news list is unavailable",
+      "body": "A temporary problem occurred. Please try again in a moment."
     }
   },
   "nav": {
@@ -2276,8 +2288,7 @@
     "backToNews": "Back to news",
     "relatedBlog": "Related posts",
     "relatedNews": "Related news"
-  }
-,
+  },
   "meta": {
     "home": {
       "title": "Ahantime — Iran's Smart Marketplace for Buying and Selling Iron and Steel",
@@ -2364,6 +2375,36 @@
       "page": "Page not found",
       "category": "Category not found",
       "tools": "Tools"
-    }
+    },
+    "blogIndex": {
+      "title": "Ahantime Blog",
+      "description": "A buying guide, market analysis and education on iron and steel. Practical articles for contractors and builders."
+    },
+    "newsIndex": {
+      "title": "Iron & Steel Market News",
+      "description": "The latest iron and steel market news: production, supply and billet rates, updated for an informed purchase."
+    },
+    "pageSuffix": ", page {page}"
+  },
+  "articleToc": {
+    "heading": "Table of contents",
+    "subsectionsAria": "Show subsections of {group}",
+    "subsectionsCount": "{count} subsections",
+    "moreCount": "{count} more"
+  },
+  "articleChart": {
+    "noData": "No data has been recorded for this chart yet.",
+    "defaultHeading": "Chart",
+    "unitSuffix": "in {unit}",
+    "categoriesCount": "{count} categories",
+    "seriesCount": "{count} data series",
+    "seriesFallback": "Series {index}",
+    "source": "Source: {source}",
+    "dataTable": "Chart data table",
+    "categoryColumn": "Category",
+    "unknown": "Unknown"
+  },
+  "richContent": {
+    "tableRegion": "Article table"
   }
 }

@@ -26,7 +26,7 @@ export function generateStaticParams(): { n: string }[] {
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { n } = await params;
-  return indexMetadata('news', parsePageParam(n) ?? 1);
+  return await indexMetadata('news', parsePageParam(n) ?? 1);
 }
 
 export default async function NewsArchivePage({ params }: Params) {

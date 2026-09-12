@@ -18,7 +18,8 @@
       "next": "التالي",
       "call": "اتصل بنا",
       "remove": "إزالة",
-      "continue": "متابعة"
+      "continue": "متابعة",
+      "logout": "تسجيل الخروج"
     },
     "state": {
       "loading": "جارٍ التحميل…",
@@ -55,6 +56,17 @@
     "priceHidden": {
       "callForPrice": "اتصل للسعر",
       "estimated": "تقدير السوق — اتصل للسعر النهائي"
+    },
+    "chunkRecovery": {
+      "waitingForConnection": "في انتظار الاتصال بالإنترنت…",
+      "autoRetrying": "جارٍ إعادة المحاولة تلقائيًا…",
+      "offlineStatus": "انقطع اتصال الإنترنت — سنعيد المحاولة تلقائيًا فور عودته.",
+      "autoRetryingStatus": "جارٍ إعادة محاولة الاتصال تلقائيًا…"
+    },
+    "archiveError": {
+      "blogHeadline": "قائمة المقالات غير متاحة",
+      "newsHeadline": "قائمة الأخبار غير متاحة",
+      "body": "حدثت مشكلة مؤقتة. يرجى المحاولة مرة أخرى بعد قليل."
     }
   },
   "nav": {
@@ -2276,8 +2288,7 @@
     "backToNews": "العودة إلى الأخبار",
     "relatedBlog": "مقالات ذات صلة",
     "relatedNews": "أخبار ذات صلة"
-  }
-,
+  },
   "meta": {
     "home": {
       "title": "آهن‌تايم؛ السوق الذكي لبيع وشراء الحديد والصلب في إيران",
@@ -2364,6 +2375,36 @@
       "page": "الصفحة غير موجودة",
       "category": "التصنيف غير موجود",
       "tools": "الأدوات"
-    }
+    },
+    "blogIndex": {
+      "title": "مدونة آهن‌تايم",
+      "description": "دليل شراء وتحليل للسوق وتثقيف حول الحديد والصلب. مقالات عملية للمقاولين والبنّائين."
+    },
+    "newsIndex": {
+      "title": "أخبار سوق الحديد والصلب",
+      "description": "أحدث أخبار سوق الحديد والصلب؛ الإنتاج والعرض وأسعار السبائك، محدّثة لشراء واعٍ."
+    },
+    "pageSuffix": "، الصفحة {page}"
+  },
+  "articleToc": {
+    "heading": "جدول المحتويات",
+    "subsectionsAria": "عرض الأقسام الفرعية لـ {group}",
+    "subsectionsCount": "{count} قسم فرعي",
+    "moreCount": "{count} أخرى"
+  },
+  "articleChart": {
+    "noData": "لم يتم تسجيل أي بيانات لهذا الرسم البياني بعد.",
+    "defaultHeading": "الرسم البياني",
+    "unitSuffix": "بوحدة {unit}",
+    "categoriesCount": "{count} فئة",
+    "seriesCount": "{count} سلسلة بيانات",
+    "seriesFallback": "السلسلة {index}",
+    "source": "المصدر: {source}",
+    "dataTable": "جدول بيانات الرسم البياني",
+    "categoryColumn": "الفئة",
+    "unknown": "غير معروف"
+  },
+  "richContent": {
+    "tableRegion": "جدول المقال"
   }
 }

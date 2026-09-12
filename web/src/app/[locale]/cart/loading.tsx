@@ -1,13 +1,15 @@
 /** Cart route loading — a short line-item list, not the full 6-row/5-col
  *  price-table skeleton the site-wide fallback was showing here (US-26.6). */
+import { getTranslations } from 'next-intl/server';
 import { Container, Section, Stack, Skeleton } from '@/components/ui';
 
-export default function Loading() {
+export default async function Loading() {
+  const t = await getTranslations('common.state');
   return (
     <Container>
       <Section space={10}>
         <span className="visually-hidden" role="status" aria-live="polite">
-          در حال بارگذاری…
+          {t('loading')}
         </span>
         <Stack gap={6}>
           <Skeleton variant="text" width="30%" height={28} />

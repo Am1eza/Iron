@@ -1,5 +1,6 @@
 'use client';
 import { useId, type ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import { useFocusTrap } from '@/lib/hooks/useFocusTrap';
 import { CloseIcon } from '@/components/primitives/icons';
 import styles from './Modal.module.css';
@@ -22,6 +23,7 @@ export function Modal({
   children: ReactNode;
   footer?: ReactNode;
 }) {
+  const t = useTranslations('common.action');
   const panelRef = useFocusTrap<HTMLDivElement>(open, onClose);
   const titleId = useId();
 
@@ -43,7 +45,7 @@ export function Modal({
           <button
             type="button"
             className={styles.close}
-            aria-label="بستن"
+            aria-label={t('close')}
             data-autofocus
             onClick={onClose}
           >

@@ -22,6 +22,7 @@
  * Rendered only when the article has real structure (>= 3 headings); a
  * one- or two-line list is noise.
  */
+import { useTranslations } from 'next-intl';
 import type { RichDoc, InlineNode } from '@/lib/content/richDoc';
 import { toPersianDigits } from '@/lib/utils/format';
 import { ChevronDownIcon } from '@/components/primitives/icons';
@@ -64,6 +65,7 @@ function groupByH2(items: TocItem[]): TocGroup[] {
 const MAX_VISIBLE_GROUPS = 8;
 
 function TocGroupItem({ group }: { group: TocGroup }) {
+  const t = useTranslations('articleToc');
   return (
     <li className={styles.item}>
       <a href={`#${group.id}`} className={styles.link}>
@@ -71,9 +73,9 @@ function TocGroupItem({ group }: { group: TocGroup }) {
       </a>
       {group.children.length > 0 ? (
         <details className={styles.group}>
-          <summary className={styles.groupSummary} aria-label={`نمایش زیربخش‌های ${group.text}`}>
+          <summary className={styles.groupSummary} aria-label={t('subsectionsAria', { group: group.text })}>
             <span aria-hidden="true" className={styles.groupSummaryText}>
-              {toPersianDigits(group.children.length)} زیربخش
+              {t('subsectionsCount', { count: toPersianDigits(group.children.length) })}
             </span>
             <ChevronDownIcon size={14} className={styles.chevron} aria-hidden="true" />
           </summary>
@@ -93,6 +95,7 @@ function TocGroupItem({ group }: { group: TocGroup }) {
 }
 
 export function TableOfContents({ doc }: { doc: RichDoc }) {
+  const t = useTranslations('articleToc');
   const items = tocItems(doc);
   if (items.length < 3) return null;
   const groups = groupByH2(items);
@@ -102,7 +105,7 @@ export function TableOfContents({ doc }: { doc: RichDoc }) {
   return (
     <nav className={styles.toc} aria-labelledby="toc-title">
       <p id="toc-title" className={styles.title}>
-        فهرست مطالب
+        {t('heading')}
       </p>
       <ol className={styles.list}>
         {visible.map((g) => (
@@ -113,7 +116,7 @@ export function TableOfContents({ doc }: { doc: RichDoc }) {
             <details className={styles.group}>
               <summary className={styles.groupSummary}>
                 <span className={styles.groupSummaryText}>
-                  {toPersianDigits(rest.length)} مورد دیگر
+                  {t('moreCount', { count: toPersianDigits(rest.length) })}
                 </span>
                 <ChevronDownIcon size={14} className={styles.chevron} aria-hidden="true" />
               </summary>

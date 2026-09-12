@@ -1,9 +1,13 @@
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { routes } from '@/lib/routes';
 import { factoryFacetSlug } from '@/lib/utils/catalogFacets';
 import styles from './FactoryLink.module.css';
 
-/** What a row shows when the mill is not recorded. Not a place — nothing to link to. */
+/** The DB/server-side sentinel for "mill not recorded" (see
+ *  `lib/server/services/tenderEstimate.ts`'s own copy of this constant) — a
+ *  data value compared against below, not UI text, so it stays fa regardless
+ *  of locale. The rendered fallback for it is `t('priceTable.unknown')`. */
 export const UNKNOWN_FACTORY = 'نامشخص';
 
 /**
@@ -46,8 +50,13 @@ export function FactoryLink({
   className?: string;
   prefetch?: boolean;
 }) {
+  // `useTranslations` (not the async `getTranslations`) on purpose: this
+  // component is imported into both Server AND Client Component trees
+  // (PriceTable is 'use client') — the hook form works in either, an async
+  // component would break every client caller.
+  const t = useTranslations('priceTable');
   const name = factory?.trim();
-  if (!name || name === UNKNOWN_FACTORY) return <>{UNKNOWN_FACTORY}</>;
+  if (!name || name === UNKNOWN_FACTORY) return <>{t('unknown')}</>;
   return (
     <Link
       href={routes.categoryByFactory(categorySlug, factoryFacetSlug(name))}

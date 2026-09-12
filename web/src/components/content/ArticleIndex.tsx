@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getLocale } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
@@ -23,34 +23,14 @@ import styles from './ArticleIndex.module.css';
  * already begun to drift.
  */
 
-// The breadcrumb label — the one piece of INDEX_COPY still needed
-// server-side. Everything else a reader sees (overline/h1/lede, empty
-// state, section headings) is translated by `ArticleIndexChrome`'s Client
-// Components instead; breadcrumbs stay fa, the established SSR-shell
-// exception this whole app uses.
-export const INDEX_CRUMB: Record<'blog' | 'news', string> = {
-  blog: 'وبلاگ',
-  news: 'اخبار بازار',
-};
-
 // How many of the already-fetched (recency-ordered) blog articles surface as
 // the featured strip above the category rail — a preview, not the full
 // «همهٔ مطالب» list (see the render-site comment on why that stays hidden).
 const FEATURED_COUNT = 4;
 
-const META: Record<'blog' | 'news', { title: string; description: string; feed: string }> = {
-  blog: {
-    title: 'وبلاگ آهن‌تایم',
-    description:
-      'راهنمای خرید، تحلیل بازار و آموزش آهن و فولاد. مطالب کاربردی برای پیمانکاران و سازندگان.',
-    feed: '/blog/rss.xml',
-  },
-  news: {
-    title: 'اخبار بازار آهن و فولاد',
-    description:
-      'تازه‌ترین اخبار بازار آهن و فولاد؛ تولید، عرضه و نرخ شمش به‌روزرسانی‌شده برای خرید آگاهانه.',
-    feed: '/news/rss.xml',
-  },
+const FEED: Record<'blog' | 'news', string> = {
+  blog: '/blog/rss.xml',
+  news: '/news/rss.xml',
 };
 
 /**
@@ -64,11 +44,15 @@ const META: Record<'blog' | 'news', { title: string; description: string; feed: 
  * reason spelled out in the original blog/page.tsx comment — a site-wide
  * alternate would advertise the blog feed on /prices/rebar, which is false.)
  */
-export function indexMetadata(type: 'blog' | 'news', page: number): Metadata {
-  const m = META[type];
+export async function indexMetadata(type: 'blog' | 'news', page: number): Promise<Metadata> {
+  const [t, tMeta] = await Promise.all([
+    getTranslations(type === 'blog' ? 'meta.blogIndex' : 'meta.newsIndex'),
+    getTranslations('meta'),
+  ]);
+  const title = t('title');
   const base = buildMetadata({
-    title: page > 1 ? `${m.title}، صفحهٔ ${page}` : m.title,
-    description: m.description,
+    title: page > 1 ? `${title}${tMeta('pageSuffix', { page })}` : title,
+    description: t('description'),
     path: archiveHref(type, page),
   });
   if (page > 1) return base;
@@ -76,13 +60,14 @@ export function indexMetadata(type: 'blog' | 'news', page: number): Metadata {
     ...base,
     alternates: {
       ...base.alternates,
-      types: { 'application/rss+xml': [{ url: m.feed, title: m.title }] },
+      types: { 'application/rss+xml': [{ url: FEED[type], title }] },
     },
   };
 }
 
 export async function ArticleIndex({ type, page }: { type: 'blog' | 'news'; page: number }) {
-  const crumbLabel = INDEX_CRUMB[type];
+  const t = await getTranslations();
+  const crumbLabel = type === 'blog' ? t('articleDetail.crumbBlog') : t('articleDetail.crumbNews');
   // Category rail (product-based, میلگرد/ورق/…) stays /blog-only — a
   // category page still surfaces both types together (see
   // `listPublishedByCategory`), but the ARCHIVE rail itself answers "what
@@ -113,7 +98,7 @@ export async function ArticleIndex({ type, page }: { type: 'blog' | 'news'; page
   if (page > pageCount) redirect({ href: archiveHref(type, pageCount), locale: await getLocale() });
 
   const crumbs = [
-    { label: 'خانه', href: routes.home() },
+    { label: t('nav.home'), href: routes.home() },
     { label: crumbLabel, href: archiveHref(type, page) },
   ];
 

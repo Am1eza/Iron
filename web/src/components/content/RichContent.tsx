@@ -15,6 +15,7 @@
  * `components/admin/content/editor` and is loaded only inside the panel.
  */
 import type { ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import type {
   BlockNode,
   InlineNode,
@@ -92,7 +93,7 @@ function renderCell(cell: TableCellNode, key: string, inHead: boolean): ReactNod
   );
 }
 
-function renderTable(node: Extract<BlockNode, { type: 'table' }>, key: string): ReactNode {
+function renderTable(node: Extract<BlockNode, { type: 'table' }>, key: string, tableRegionLabel: string): ReactNode {
   const rows = node.content ?? [];
   if (rows.length === 0) return null;
   const first = rows[0]!;
@@ -103,7 +104,7 @@ function renderTable(node: Extract<BlockNode, { type: 'table' }>, key: string): 
     // or a keyboard-only user can never see the columns past the fold.
     // tabindex="0" makes it focusable; role + name mean the focus stop
     // announces itself instead of being a silent, empty one.
-    <div key={key} className={styles.tableWrap} role="region" aria-label="جدول مطلب" tabIndex={0}>
+    <div key={key} className={styles.tableWrap} role="region" aria-label={tableRegionLabel} tabIndex={0}>
       <table className={styles.table}>
         {hasHeadRow ? (
           <thead>
@@ -122,7 +123,7 @@ function renderTable(node: Extract<BlockNode, { type: 'table' }>, key: string): 
 
 /* -------------------------------- blocks ------------------------------- */
 
-function renderBlock(node: BlockNode, index: number, eagerImage = false): ReactNode {
+function renderBlock(node: BlockNode, index: number, eagerImage: boolean, tableRegionLabel: string): ReactNode {
   const key = `b${index}`;
   switch (node.type) {
     case 'heading':
@@ -206,7 +207,7 @@ function renderBlock(node: BlockNode, index: number, eagerImage = false): ReactN
       );
     }
     case 'table':
-      return renderTable(node, key);
+      return renderTable(node, key, tableRegionLabel);
     case 'chart':
       return <ArticleChart key={key} attrs={node.attrs} idBase={`chart-${index}`} />;
     case 'horizontalRule':
@@ -228,11 +229,12 @@ function renderBlock(node: BlockNode, index: number, eagerImage = false): ReactN
 }
 
 export function RichContent({ doc, className }: { doc: RichDoc; className?: string }) {
+  const t = useTranslations('richContent');
   const blocks = doc.content ?? [];
   const firstImageIndex = blocks.findIndex((b) => b.type === 'image');
   return (
     <div className={className ? `${styles.prose} ${className}` : styles.prose}>
-      {blocks.map((node, i) => renderBlock(node, i, i === firstImageIndex))}
+      {blocks.map((node, i) => renderBlock(node, i, i === firstImageIndex, t('tableRegion')))}
     </div>
   );
 }

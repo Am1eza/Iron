@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 import { ArticleIndex, indexMetadata } from '@/components/content/ArticleIndex';
 
-export const metadata: Metadata = indexMetadata('blog', 1);
+export async function generateMetadata(): Promise<Metadata> {
+  return indexMetadata('blog', 1);
+}
 
 /** Page one is request-rendered because CI has no content DB. This prevents
  * an empty or fixture index from being baked into every production image.

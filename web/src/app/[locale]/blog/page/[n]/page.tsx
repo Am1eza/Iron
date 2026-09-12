@@ -34,7 +34,7 @@ export function generateStaticParams(): { n: string }[] {
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { n } = await params;
-  return indexMetadata('blog', parsePageParam(n) ?? 1);
+  return await indexMetadata('blog', parsePageParam(n) ?? 1);
 }
 
 export default async function BlogArchivePage({ params }: Params) {

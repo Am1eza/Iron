@@ -18,7 +18,8 @@
       "next": "下一个",
       "call": "致电我们",
       "remove": "移除",
-      "continue": "继续"
+      "continue": "继续",
+      "logout": "退出登录"
     },
     "state": {
       "loading": "加载中…",
@@ -55,6 +56,17 @@
     "priceHidden": {
       "callForPrice": "致电询价",
       "estimated": "市场估价——最终价格请致电确认"
+    },
+    "chunkRecovery": {
+      "waitingForConnection": "正在等待网络连接…",
+      "autoRetrying": "正在自动重试…",
+      "offlineStatus": "网络连接已断开——恢复后将自动重试。",
+      "autoRetryingStatus": "正在自动重试连接…"
+    },
+    "archiveError": {
+      "blogHeadline": "文章列表暂不可用",
+      "newsHeadline": "资讯列表暂不可用",
+      "body": "出现临时问题，请稍后重试。"
     }
   },
   "nav": {
@@ -2276,8 +2288,7 @@
     "backToNews": "返回资讯",
     "relatedBlog": "相关文章",
     "relatedNews": "相关资讯"
-  }
-,
+  },
   "meta": {
     "home": {
       "title": "安挺时代（Ahantime）——伊朗钢铁智能交易市场",
@@ -2364,6 +2375,36 @@
       "page": "未找到该页面",
       "category": "未找到该分类",
       "tools": "工具"
-    }
+    },
+    "blogIndex": {
+      "title": "安挺时代博客",
+      "description": "钢铁采购指南、市场分析与知识科普，为承包商与建筑商提供实用文章。"
+    },
+    "newsIndex": {
+      "title": "钢铁市场资讯",
+      "description": "最新钢铁市场资讯：产量、供应与钢坯价格更新，助您明智采购。"
+    },
+    "pageSuffix": "，第 {page} 页"
+  },
+  "articleToc": {
+    "heading": "目录",
+    "subsectionsAria": "显示{group}的子章节",
+    "subsectionsCount": "{count} 个子章节",
+    "moreCount": "还有 {count} 项"
+  },
+  "articleChart": {
+    "noData": "此图表暂无数据。",
+    "defaultHeading": "图表",
+    "unitSuffix": "单位：{unit}",
+    "categoriesCount": "{count} 个类别",
+    "seriesCount": "{count} 个数据系列",
+    "seriesFallback": "系列 {index}",
+    "source": "来源：{source}",
+    "dataTable": "图表数据表",
+    "categoryColumn": "类别",
+    "unknown": "未知"
+  },
+  "richContent": {
+    "tableRegion": "文章表格"
   }
 }

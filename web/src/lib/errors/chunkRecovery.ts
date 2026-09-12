@@ -66,6 +66,27 @@ function writeAutoReloadGuard(): void {
   }
 }
 
+export type ChunkRecoveryLabels = {
+  retry: string;
+  waitingForConnection: string;
+  autoRetrying: string;
+  offlineStatus: string;
+  autoRetryingStatus: string;
+};
+
+// `global-error.tsx` renders completely outside the root layout (Next.js
+// requirement for a global-error boundary — it owns its own <html><body>),
+// so it has no NextIntlClientProvider to read from and falls back to these.
+// The two [locale]-nested boundaries (blog/news index) DO have provider
+// access and pass their own translated `labels`.
+const DEFAULT_LABELS: ChunkRecoveryLabels = {
+  retry: 'تلاش دوباره',
+  waitingForConnection: 'در انتظار اتصال اینترنت…',
+  autoRetrying: 'در حال تلاش خودکار…',
+  offlineStatus: 'اتصال اینترنت قطع است — به‌محض وصل‌شدن دوباره تلاش می‌کنیم.',
+  autoRetryingStatus: 'در حال تلاش خودکار برای اتصال…',
+};
+
 export type ChunkRecovery = {
   /** True when the error is the reload-recoverable class described above. */
   reloadable: boolean;
@@ -75,9 +96,9 @@ export type ChunkRecovery = {
   autoRetrying: boolean;
   /** The retry control should be disabled — offline, or an auto-retry is pending. */
   disabled: boolean;
-  /** Persian label for the retry control, reflecting the state above. */
+  /** Label for the retry control, reflecting the state above. */
   retryLabel: string;
-  /** Persian live-region text; empty string when there is nothing to announce. */
+  /** Live-region text; empty string when there is nothing to announce. */
   statusText: string;
   /** Reload for the reloadable class, `reset()` for everything else. */
   retry: () => void;
@@ -87,8 +108,15 @@ export type ChunkRecovery = {
  * @param error the boundary's error
  * @param reset the boundary's `reset` — used only for NON-reloadable errors,
  *              where re-rendering genuinely can recover.
+ * @param labels defaults to the fa strings `global-error.tsx` has always
+ *               used (no provider there); a `[locale]`-nested boundary
+ *               should pass its own `useTranslations()` output instead.
  */
-export function useChunkRecovery(error: Error, reset: () => void): ChunkRecovery {
+export function useChunkRecovery(
+  error: Error,
+  reset: () => void,
+  labels: ChunkRecoveryLabels = DEFAULT_LABELS,
+): ChunkRecovery {
   const reloadable = isReloadableError(error);
   const [isOnline, setIsOnline] = useState(true);
   const [autoRetrying, setAutoRetrying] = useState(false);
@@ -130,15 +158,15 @@ export function useChunkRecovery(error: Error, reset: () => void): ChunkRecovery
   const disabled = reloadable && (!isOnline || autoRetrying);
   const retryLabel =
     reloadable && !isOnline
-      ? 'در انتظار اتصال اینترنت…'
+      ? labels.waitingForConnection
       : autoRetrying
-        ? 'در حال تلاش خودکار…'
-        : 'تلاش دوباره';
+        ? labels.autoRetrying
+        : labels.retry;
   const statusText =
     reloadable && !isOnline
-      ? 'اتصال اینترنت قطع است — به‌محض وصل‌شدن دوباره تلاش می‌کنیم.'
+      ? labels.offlineStatus
       : autoRetrying
-        ? 'در حال تلاش خودکار برای اتصال…'
+        ? labels.autoRetryingStatus
         : '';
 
   return {

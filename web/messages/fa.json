@@ -18,7 +18,8 @@
       "next": "بعدی",
       "call": "تماس بگیرید",
       "remove": "حذف",
-      "continue": "ادامه"
+      "continue": "ادامه",
+      "logout": "خروج از حساب"
     },
     "state": {
       "loading": "در حال بارگذاری…",
@@ -55,6 +56,17 @@
     "priceHidden": {
       "callForPrice": "تماس بگیرید",
       "estimated": "برآورد بازار — قیمت قطعی با استعلام"
+    },
+    "chunkRecovery": {
+      "waitingForConnection": "در انتظار اتصال اینترنت…",
+      "autoRetrying": "در حال تلاش خودکار…",
+      "offlineStatus": "اتصال اینترنت قطع است — به‌محض وصل‌شدن دوباره تلاش می‌کنیم.",
+      "autoRetryingStatus": "در حال تلاش خودکار برای اتصال…"
+    },
+    "archiveError": {
+      "blogHeadline": "فهرست مطالب در دسترس نیست",
+      "newsHeadline": "فهرست اخبار در دسترس نیست",
+      "body": "مشکلی موقتی پیش آمده است. لطفاً چند لحظه بعد دوباره تلاش کنید."
     }
   },
   "nav": {
@@ -2276,8 +2288,7 @@
     "backToNews": "بازگشت به اخبار",
     "relatedBlog": "مطالب مرتبط",
     "relatedNews": "اخبار مرتبط"
-  }
-,
+  },
   "meta": {
     "home": {
       "title": "آهن‌تایم؛ بازار هوشمند خرید و فروش آهن‌آلات و فولاد ایران",
@@ -2364,6 +2375,36 @@
       "page": "صفحه پیدا نشد",
       "category": "دسته پیدا نشد",
       "tools": "ابزارها"
-    }
+    },
+    "blogIndex": {
+      "title": "وبلاگ آهن‌تایم",
+      "description": "راهنمای خرید، تحلیل بازار و آموزش آهن و فولاد. مطالب کاربردی برای پیمانکاران و سازندگان."
+    },
+    "newsIndex": {
+      "title": "اخبار بازار آهن و فولاد",
+      "description": "تازه‌ترین اخبار بازار آهن و فولاد؛ تولید، عرضه و نرخ شمش به‌روزرسانی‌شده برای خرید آگاهانه."
+    },
+    "pageSuffix": "، صفحهٔ {page}"
+  },
+  "articleToc": {
+    "heading": "فهرست مطالب",
+    "subsectionsAria": "نمایش زیربخش‌های {group}",
+    "subsectionsCount": "{count} زیربخش",
+    "moreCount": "{count} مورد دیگر"
+  },
+  "articleChart": {
+    "noData": "هنوز داده‌ای برای این نمودار ثبت نشده است.",
+    "defaultHeading": "نمودار",
+    "unitSuffix": "بر حسب {unit}",
+    "categoriesCount": "{count} دسته",
+    "seriesCount": "{count} سری داده",
+    "seriesFallback": "سری {index}",
+    "source": "منبع: {source}",
+    "dataTable": "جدول داده‌های نمودار",
+    "categoryColumn": "دسته",
+    "unknown": "نامشخص"
+  },
+  "richContent": {
+    "tableRegion": "جدول مطلب"
   }
 }
