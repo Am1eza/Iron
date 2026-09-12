@@ -123,3 +123,69 @@ describe('POST /api/admin/upload — server-side re-encode boundary (I-206/207/2
     expect(res.status).toBe(201);
   });
 });
+
+// I-202 (docs/audit-upload-media-I.md) — the audit's exact gap: the route's
+// own MAX_BYTES check was read but never exercised AT the boundary. A real
+// decodable JPEG is padded with trailing zero bytes to land at an EXACT byte
+// count — JPEG decoders (including sharp/libvips) ignore bytes after the
+// EOI marker, so this controls `file.size` precisely without inflating pixel
+// data or affecting decodability, letting the "accepted" case genuinely
+// reach 201 (not merely "did not hit the too_large branch").
+describe('POST /api/admin/upload — I-202 5MB per-file size boundary', () => {
+  const MAX_BYTES = 5 * 1024 * 1024;
+
+  async function paddedJpeg(totalBytes: number): Promise<Buffer> {
+    const base = await sharp({ create: { width: 40, height: 30, channels: 3, background: { r: 3, g: 3, b: 3 } } })
+      .jpeg()
+      .toBuffer();
+    if (base.length > totalBytes) throw new Error('base JPEG already exceeds target size');
+    return Buffer.concat([base, Buffer.alloc(totalBytes - base.length)]);
+  }
+
+  it('accepts a file of exactly MAX_BYTES', async () => {
+    const buf = await paddedJpeg(MAX_BYTES);
+    const res = await upload(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer, 'at-limit.jpg');
+    expect(res.status).toBe(201);
+  });
+
+  it('rejects a file one byte over MAX_BYTES with a clean 400, before any sniff/decode work', async () => {
+    const buf = await paddedJpeg(MAX_BYTES + 1);
+    const res = await upload(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer, 'over-limit.jpg');
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('too_large');
+    expect(await fs.readdir(tmpDir)).toHaveLength(0);
+  });
+});
+
+// I-203 — the GET-side traversal regex (UPLOAD_FILENAME_RE, see
+// uploads/[filename]/route.test.ts) was already covered, but the audit
+// flagged that the POST/write side had no EXPLICIT test of its own proving a
+// crafted multipart filename (including one with an encoded slash) can't
+// escape the upload directory — even though reading the route's source shows
+// the client-supplied filename is never read at all (uploadStorage.ts always
+// mints `${ulid()}.${ext}`). This makes that "even if it were read, it would
+// be harmless" claim an executable fact instead of something only provable
+// by re-reading the source each time.
+describe('POST /api/admin/upload — I-203 path traversal via a crafted multipart filename', () => {
+  it.each([
+    '../../etc/passwd.jpg',
+    '..%2f..%2fetc%2fpasswd.jpg',
+    '....//....//etc/passwd.jpg',
+    '/etc/passwd.jpg',
+    'C:\\Windows\\system32\\evil.jpg',
+    '..\\..\\..\\evil.jpg',
+  ])('never lets the client filename %s influence the on-disk name or escape the upload dir', async (evilName) => {
+    const jpeg = await sharp({ create: { width: 20, height: 15, channels: 3, background: { r: 7, g: 7, b: 7 } } })
+      .jpeg()
+      .toBuffer();
+    const res = await upload(jpeg.buffer.slice(jpeg.byteOffset, jpeg.byteOffset + jpeg.byteLength), evilName);
+    expect(res.status).toBe(201);
+    const { url } = await res.json();
+    // The stored/returned name is ALWAYS exactly ulid.ext — never any
+    // fragment of the client-supplied name, traversal sequence included.
+    expect(url).toMatch(/^\/uploads\/[0-9A-HJKMNP-TV-Z]{26}\.jpg$/);
+    const written = await fs.readdir(tmpDir);
+    expect(written).toHaveLength(1);
+    expect(written[0]).toBe(path.basename(url));
+  });
+});

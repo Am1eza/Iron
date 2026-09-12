@@ -72,3 +72,47 @@ describe('GET /uploads/:filename', () => {
     expect(res.status).toBe(404);
   });
 });
+
+// I-211 (docs/audit-upload-media-I.md) — the audit's own words on the ONE
+// documented, theoretical risk on an otherwise "effectively fully sound"
+// (96/100) control: "چون Content-Type از پسوند مشتق می‌شود ... این وابستگی
+// به‌درستی مستند شده" — i.e. the ENTIRE Content-Type safety property rests on
+// two facts staying true together: (1) `MIME_FOR_EXT`'s key set is EXACTLY
+// the three extensions `sniffImageExt` can ever produce (never a fourth,
+// broader allowlist that could accept something sniffImageExt itself would
+// reject), and (2) every value in it is a real image MIME type, never
+// something a browser could execute (e.g. text/html). Regressing either one
+// — e.g. widening MIME_FOR_EXT for a new extension without sniffImageExt
+// gaining a matching magic-byte case first — is exactly the "sniffImageExt
+// bypassed at upload time" scenario the audit's finding describes, made
+// concrete and CI-checkable instead of only a documented assumption. The
+// audit's own Acceptance Criteria for I-211 is the second assertion below:
+// "هیچ پاسخ /uploads/* بدون nosniff یا با Content-Type خارج از سه مقدار مجاز
+// سرویس داده نمی‌شود" — the sitewide `X-Content-Type-Options: nosniff` half
+// of that is set in next.config.mjs (CLAUDE.md: the ONE place headers are
+// set), so it's checked structurally here rather than re-implemented.
+describe('I-211 — Content-Type derivation stays locked to exactly the sniffed image formats', () => {
+  it('MIME_FOR_EXT has exactly the three extensions sniffImageExt can produce, each mapped to a real image MIME type', async () => {
+    const { MIME_FOR_EXT } = await import('@/lib/server/utils/uploadStorage');
+    expect(Object.keys(MIME_FOR_EXT).sort()).toEqual(['jpg', 'png', 'webp']);
+    for (const mime of Object.values(MIME_FOR_EXT)) {
+      expect(mime).toMatch(/^image\/(jpeg|png|webp)$/);
+    }
+  });
+
+  it("next.config.mjs still sets X-Content-Type-Options: nosniff sitewide (source: '/:path*', unconditional)", async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const config = fs.readFileSync(path.join(process.cwd(), 'next.config.mjs'), 'utf8');
+    // Sitewide baseline security-headers block: `source: '/:path*'` with no
+    // `has:` host/path restriction, containing the nosniff header. A version
+    // scoped only to /uploads/* or gated behind a `has:` clause would no
+    // longer cover every response the way I-211's evidence (a live curl
+    // against /uploads/nonexistent.jpg) demonstrated.
+    const sitewideBlockMatch = /source:\s*'\/:path\*',\s*headers:\s*\[([\s\S]*?)\]\s*,?\s*\}/.exec(config);
+    expect(sitewideBlockMatch, 'could not find the sitewide `/:path*` headers() block in next.config.mjs').toBeTruthy();
+    expect(sitewideBlockMatch![1]).toMatch(
+      /key:\s*'X-Content-Type-Options',\s*value:\s*'nosniff'/,
+    );
+  });
+});
