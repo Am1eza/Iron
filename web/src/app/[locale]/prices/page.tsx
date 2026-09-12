@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { getCategories, getSubsMap } from '@/lib/data/catalog';
@@ -8,11 +9,10 @@ import { Container, Section } from '@/components/ui';
 import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { PricesPageContent } from './PricesPageContent';
 
-export const metadata: Metadata = buildMetadata({
-  title: 'قیمت روز آهن و فولاد',
-  description: 'قیمت روز میلگرد، تیرآهن، پروفیل، ورق و سایر مقاطع فولادی در آهن‌تایم.',
-  path: routes.prices(),
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta.prices');
+  return buildMetadata({ title: t('title'), description: t('description'), path: routes.prices() });
+}
 
 // Category list is admin-curated and rarely changes, but without a revalidate
 // window this page would otherwise cache forever after build (no
@@ -22,18 +22,18 @@ export const revalidate = 300;
 // hub against the live DB instead of baking an empty/fixture snapshot.
 export const dynamic = 'force-dynamic';
 
-const crumbs = [
-  { label: 'خانه', href: routes.home() },
-  { label: 'قیمت‌ها', href: routes.prices() },
-];
-
 export default async function PriceHubPage() {
-  const [categories, subs, headlineRows, rebarAll] = await Promise.all([
+  const [categories, subs, headlineRows, rebarAll, t] = await Promise.all([
     getCategories(),
     getSubsMap(),
     getHeadlineRows(),
     getRows('rebar'),
+    getTranslations(),
   ]);
+  const crumbs = [
+    { label: t('nav.home'), href: routes.home() },
+    { label: t('meta.prices.title'), href: routes.prices() },
+  ];
   // Same headline row count the previous mock fixture happened to show.
   const rebarRows = rebarAll.slice(0, 6);
   // The catalog taxonomy as structured data — see catalogNavigationJsonLd.

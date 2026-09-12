@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { buildMetadata, localBusinessJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { Container, Section, Stack } from '@/components/ui';
@@ -7,21 +8,19 @@ import { ContactCard } from '@/components/company/ContactCard';
 import { ContactIntro } from '@/components/company/ContactIntro';
 import { ContactForm } from '@/components/forms/ContactForm';
 
-export const metadata: Metadata = buildMetadata({
-  title: 'تماس با ما',
-  description:
-    'آدرس دفتر، شماره تماس ثابت و همراه آهن‌تایم و فرم ارسال پیام؛ برای مشاوره، استعلام قیمت یا همکاری با ما در تماس باشید.',
-  path: routes.contact(),
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta.contact');
+  return buildMetadata({ title: t('title'), description: t('description'), path: routes.contact() });
+}
 
-/** Crumb labels for BreadcrumbList only — the visible, translated breadcrumbs
- *  are rendered by `ContactIntro`. */
-const crumbs = [
-  { label: 'خانه', href: routes.home() },
-  { label: 'تماس با ما', href: routes.contact() },
-];
-
-export default function ContactPage() {
+export default async function ContactPage() {
+  const t = await getTranslations();
+  /** Crumb labels for BreadcrumbList only — the visible, translated breadcrumbs
+   *  are rendered by `ContactIntro`. */
+  const crumbs = [
+    { label: t('nav.home'), href: routes.home() },
+    { label: t('meta.contact.title'), href: routes.contact() },
+  ];
   return (
     <Container>
       <BreadcrumbJsonLd items={crumbs} />

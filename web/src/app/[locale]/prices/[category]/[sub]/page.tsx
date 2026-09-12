@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { buildMetadata, itemListJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { categories as mockCategories } from '@/lib/mock/fixtures';
@@ -46,7 +47,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const cat = categories.find((c) => c.slug === category);
   const name = ((await getSubsMap())[category] ?? []).find((x) => x.slug === sub)?.name;
   if (!cat || !name) {
-    return buildMetadata({ title: 'صفحه پیدا نشد', noindex: true });
+    const t = await getTranslations('meta.notFound');
+    return buildMetadata({ title: t('page'), noindex: true });
   }
   // «میلگرد آجدار», not «میلگرد آجدار میلگرد» — see subCategorySubject.
   const subject = subCategorySubject(name, cat.name);

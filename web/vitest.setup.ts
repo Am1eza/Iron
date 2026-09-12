@@ -85,6 +85,38 @@ vi.mock('next-intl', async (importOriginal) => {
   };
 });
 
+// Server-only counterpart of the mock above. `getTranslations`/`getLocale`
+// from `next-intl/server` need Next's RSC ("react-server") module condition
+// to resolve to their real implementation; vitest never sets that condition,
+// so the package resolves to a stub that unconditionally throws "`...` is
+// not supported in Client Components" — surfaced the moment I-09's metadata
+// localization work (generateMetadata/crumbs reading `getTranslations()`
+// server-side) got its first unit test coverage. Same fallback strategy as
+// the `next-intl` mock above: try the real export, and on that throw, serve
+// the fa catalog directly.
+vi.mock('next-intl/server', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('next-intl/server')>();
+  return {
+    ...actual,
+    getTranslations: async (...args: Parameters<typeof actual.getTranslations>) => {
+      try {
+        return await actual.getTranslations(...args);
+      } catch {
+        const arg = args[0];
+        const namespace = typeof arg === 'string' ? arg : arg?.namespace;
+        return fallbackTranslator(namespace);
+      }
+    },
+    getLocale: async (...args: Parameters<typeof actual.getLocale>) => {
+      try {
+        return await actual.getLocale(...args);
+      } catch {
+        return 'fa';
+      }
+    },
+  };
+});
+
 // `@/i18n/navigation` (next-intl/navigation's `createNavigation`, used by the
 // URL-locale migration — I-07/I-08) calls `useLocale` from the `use-intl`
 // PACKAGE directly, not through next-intl's own re-export above — mocking

@@ -36,12 +36,11 @@ export type CatWithCount = { cat: Category; count: number };
 
 /**
  * The translated half of the search page — everything below the
- * breadcrumbs. `page.tsx` (a Server Component, needed for `metadata` and
- * the actual DB search) stays fa-only for its own shell text, matching the
- * SSR-shell exception every other page in this app uses; this component
- * does the real work of rendering results in the visitor's locale. Data
- * only, no functions — sort/filter/pagination are plain `?query=` links,
- * not client state (see `page.tsx`'s `sortProductHits` comment for why).
+ * breadcrumbs (which `page.tsx` already builds locale-aware, via
+ * `getTranslations()`). This component does the real work of rendering
+ * results in the visitor's locale. Data only, no functions —
+ * sort/filter/pagination are plain `?query=` links, not client state (see
+ * `page.tsx`'s `sortProductHits` comment for why).
  */
 export function SearchPageContent({
   emptyQuery,

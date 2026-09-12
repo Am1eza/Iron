@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { listCategories, listAllSubCategories } from '@/lib/server/repos/catalogRepo';
@@ -8,12 +9,10 @@ import { Container, Section, Stack, Grid, Heading, Text, Card, Breadcrumbs } fro
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { TenderEstimator } from '@/components/tender/TenderEstimator';
 
-export const metadata: Metadata = buildMetadata({
-  title: 'برآورد مناقصات و استعلام‌ها',
-  description:
-    'چند ده قلم مناقصه را یک‌جا برآورد کنید: هر قلم را از محصولات آهن‌تایم انتخاب کنید، سیستم ارزان‌ترین کارخانه را پیشنهاد می‌دهد، وزن و قیمت روز را حساب می‌کند و جمع کل و پیش‌فاکتور رسمی را به شما می‌دهد.',
-  path: routes.tender(),
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta.tender');
+  return buildMetadata({ title: t('title'), description: t('description'), path: routes.tender() });
+}
 
 // Same cadence as the price pages this reads from — the catalog list feeding
 // the form changes about as often.
@@ -38,17 +37,16 @@ const BENEFITS: { title: string; body: string }[] = [
   },
 ];
 
-const crumbs = [
-  { label: 'خانه', href: routes.home() },
-  { label: 'برآورد مناقصات', href: routes.tender() },
-];
-
 export default async function TenderPage() {
   // No DB at build/prerender → an empty form shell; the client still renders
   // and repopulates once the ISR revalidate lands with real data.
-  const [categories, subsByCat] = hasDb()
-    ? await Promise.all([listCategories(), listAllSubCategories()])
-    : [[], {} as Record<string, SubCat[]>];
+  const [categories, subsByCat, t] = hasDb()
+    ? await Promise.all([listCategories(), listAllSubCategories(), getTranslations()])
+    : [[], {} as Record<string, SubCat[]>, await getTranslations()];
+  const crumbs = [
+    { label: t('nav.home'), href: routes.home() },
+    { label: t('meta.tender.title'), href: routes.tender() },
+  ];
 
   const catOptions = categories.map((c) => ({
     slug: c.slug,

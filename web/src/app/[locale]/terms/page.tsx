@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { buildMetadata, ORG_NAME } from '@/lib/seo';
 import { getContact } from '@/lib/server/contact';
 import { routes } from '@/lib/routes';
@@ -6,20 +7,17 @@ import { Container, Section } from '@/components/ui';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { TermsPageContent } from './TermsPageContent';
 
-export const metadata: Metadata = buildMetadata({
-  title: 'قوانین و مقررات',
-  description:
-    'قوانین و مقررات استفاده از آهن‌تایم؛ ماهیت خدمات استعلام، قیمت‌ها و ارزش افزوده، ثبت درخواست و تحویل. در آهن‌تایم پرداخت آنلاین وجود ندارد.',
-  path: routes.terms(),
-});
-
-const crumbs = [
-  { label: 'خانه', href: routes.home() },
-  { label: 'قوانین و مقررات', href: routes.terms() },
-];
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta.terms');
+  return buildMetadata({ title: t('title'), description: t('description'), path: routes.terms() });
+}
 
 export default async function TermsPage() {
-  const CONTACT = await getContact();
+  const [CONTACT, t] = await Promise.all([getContact(), getTranslations()]);
+  const crumbs = [
+    { label: t('nav.home'), href: routes.home() },
+    { label: t('meta.terms.title'), href: routes.terms() },
+  ];
 
   return (
     <Container>

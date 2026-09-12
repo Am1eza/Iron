@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { buildMetadata, itemListJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { categories as mockCategories } from '@/lib/mock/fixtures';
@@ -35,7 +36,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { category } = await params;
   const categories = await getCategories();
   const cat = categories.find((c) => c.slug === category);
-  if (!cat) return buildMetadata({ title: 'دسته پیدا نشد', noindex: true });
+  if (!cat) {
+    const t = await getTranslations('meta.notFound');
+    return buildMetadata({ title: t('category'), noindex: true });
+  }
   const name = cat.name;
   // Same rule as the sub-category one level down (`_seo/indexability.ts`): a
   // category with no rows renders an EmptyState, so it must not be indexed

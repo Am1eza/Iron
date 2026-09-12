@@ -1,10 +1,14 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
+import { getTranslations } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { LoginForm } from '@/components/forms/LoginForm';
 import styles from '@/components/forms/LoginForm.module.css';
 
-export const metadata: Metadata = buildMetadata({ title: 'ورود', noindex: true });
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta.login');
+  return buildMetadata({ title: t('title'), noindex: true });
+}
 
 export default function LoginPage() {
   // The form is a self-contained card with its own title/subtitle — the page is

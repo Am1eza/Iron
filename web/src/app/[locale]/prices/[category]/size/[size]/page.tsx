@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { buildMetadata, itemListJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { getCategories, getCategoryFacets, getRowsBySize, getFactoryOrder } from '@/lib/server/catalog';
@@ -33,7 +34,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const [categories, facets] = await Promise.all([getCategories(), getCategoryFacets(category)]);
   const cat = categories.find((c) => c.slug === category);
   const facet = facets.sizes.find((f) => f.slug === size);
-  if (!cat || !facet) return buildMetadata({ title: 'صفحه پیدا نشد', noindex: true });
+  if (!cat || !facet) {
+    const t = await getTranslations('meta.notFound');
+    return buildMetadata({ title: t('page'), noindex: true });
+  }
   const measure = sizeLabel(category);
   // «به تفکیک کارخانه» only where a mill name is actually published — on
   // استیل (imported, no mill at all) the page has no factory column, no

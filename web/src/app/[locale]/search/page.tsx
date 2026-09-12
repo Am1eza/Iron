@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { getCategories, getSkuCounts, searchAll } from '@/lib/server/catalog';
@@ -16,11 +17,10 @@ import {
 
 // noindex'd (thin/duplicate search-results content) — no canonical `path` is
 // set since canonical is meaningless on a page that's never indexed.
-export const metadata: Metadata = buildMetadata({
-  title: 'جستجو',
-  description: 'جستجوی محصولات، دسته‌بندی‌ها و مقالات آهن‌تایم.',
-  noindex: true,
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta.search');
+  return buildMetadata({ title: t('title'), description: t('description'), noindex: true });
+}
 
 type Props = { searchParams: Promise<{ q?: string; type?: string; sort?: string }> };
 
@@ -73,17 +73,6 @@ async function withCounts(cats: Category[]): Promise<CatWithCount[]> {
   return cats.map((cat) => ({ cat, count: counts.get(cat.slug) ?? 0 }));
 }
 
-/**
- * Breadcrumbs and metadata stay fa — the established SSR-shell exception
- * (see `prices/[category]/page.tsx` etc.): locale resolves client-side
- * only, so this Server Component's own text can't localize. The page's
- * actual content is `SearchPageContent`, a Client Component that does.
- */
-const crumbs = [
-  { label: 'خانه', href: routes.home() },
-  { label: 'جستجو' },
-];
-
 export default async function SearchPage({ searchParams }: Props) {
   const { q: rawQ, type: rawType, sort: rawSort } = await searchParams;
   const q = (rawQ ?? '').trim();
@@ -95,7 +84,15 @@ export default async function SearchPage({ searchParams }: Props) {
   // catalog — a search page previously sourced these from `@/lib/mock/*`
   // even in production, so it could show categories/counts an admin had
   // since renamed, removed, or added.
-  const [categories, subsMap] = await Promise.all([getCategories(), getSubsMap()]);
+  const [categories, subsMap, t] = await Promise.all([
+    getCategories(),
+    getSubsMap(),
+    getTranslations(),
+  ]);
+  const crumbs = [
+    { label: t('nav.home'), href: routes.home() },
+    { label: t('meta.search.title') },
+  ];
   const catBySlug = new Map(categories.map((c) => [c.slug, c] as const));
 
   // ----- Empty query: prompt + popular categories -----

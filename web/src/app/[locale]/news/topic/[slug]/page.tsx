@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { findNewsTopic, NEWS_TOPICS } from '@/lib/data/newsTopics';
@@ -28,7 +29,10 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
   const topic = findNewsTopic(slug);
-  if (!topic) return buildMetadata({ title: 'موضوع پیدا نشد', noindex: true });
+  if (!topic) {
+    const t = await getTranslations('meta.notFound');
+    return buildMetadata({ title: t('newsTopic'), noindex: true });
+  }
   return buildMetadata({
     title: `اخبار ${topic.name}`,
     description: topic.description,

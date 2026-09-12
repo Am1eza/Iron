@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { Container, Section, Stack, Breadcrumbs } from '@/components/ui';
@@ -45,7 +46,8 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { tool } = await params;
   if (!isToolSlug(tool)) {
-    return buildMetadata({ title: 'ابزارها', path: routes.tool('weight') });
+    const t = await getTranslations('meta.notFound');
+    return buildMetadata({ title: t('tools'), path: routes.tool('weight') });
   }
   const t = TOOLS[tool];
   return buildMetadata({
@@ -60,9 +62,10 @@ export default async function ToolPage({ params }: Params) {
   if (!isToolSlug(tool)) notFound();
 
   const t = TOOLS[tool];
+  const tNav = await getTranslations();
   const crumbs = [
-    { label: 'خانه', href: routes.home() },
-    { label: 'ابزارها' },
+    { label: tNav('nav.home'), href: routes.home() },
+    { label: tNav('meta.notFound.tools') },
     { label: t.title, href: routes.tool(tool) },
   ];
 

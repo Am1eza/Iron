@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { API_MODE } from '@/lib/api/config';
 import { hasDb } from '@/lib/server/db/client';
@@ -13,7 +14,10 @@ import { formatJalali } from '@/lib/utils/jalali';
 import { formatTehranJalaliDateTime } from '@/lib/server/utils/jalali';
 import { ProformaSheet, type CustomLetterhead } from './ProformaSheet';
 
-export const metadata: Metadata = buildMetadata({ title: 'پیش‌فاکتور', noindex: true });
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta.proforma');
+  return buildMetadata({ title: t('title'), noindex: true });
+}
 
 type Params = { params: Promise<{ ref: string }> };
 

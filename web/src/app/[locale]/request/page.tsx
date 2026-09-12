@@ -1,11 +1,15 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { requireUser } from '@/lib/auth/guards';
 import { RequestFlow } from '@/components/forms/RequestFlow';
 import { RequestPageHeading } from '@/components/forms/RequestPageHeading';
 
-export const metadata: Metadata = buildMetadata({ title: 'ثبت درخواست', noindex: true });
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta.request');
+  return buildMetadata({ title: t('title'), noindex: true });
+}
 
 /**
  * ثبت درخواست — auth-gated. Guests are redirected to the OTP login (and come

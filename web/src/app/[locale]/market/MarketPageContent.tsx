@@ -13,12 +13,12 @@ const CHAIN_COUNT = 4;
 
 /**
  * The /market page's actual visible content — extracted from the Server
- * Component `page.tsx` (which keeps only `metadata`, `revalidate`, the
- * server-fetched `relatedArticle`, and the fa breadcrumb labels, per the
- * established SSR-shell exception) so this substantial explainer/FAQ copy
- * can localize. Every FAQ answer/explainer paragraph is genuinely
- * page-authored copy (not CMS article content, which stays fa elsewhere in
- * this app), so it translates in full here.
+ * Component `page.tsx` (which keeps only `metadata`, `revalidate`, and the
+ * server-fetched `relatedArticle`; `crumbs` is already locale-aware, built
+ * there via `getTranslations()`) so this substantial explainer/FAQ copy can
+ * localize. Every FAQ answer/explainer paragraph is genuinely page-authored
+ * copy (not CMS article content, which stays fa elsewhere in this app), so
+ * it translates in full here.
  */
 export function MarketPageContent({
   crumbs,

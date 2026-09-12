@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { getCategories, getSubsMap } from '@/lib/data/catalog';
 import { getRows } from '@/lib/server/catalog';
 
@@ -27,13 +28,15 @@ import { getSetting } from '@/lib/server/repos/settingsRepo';
 import { hasDb } from '@/lib/server/db/client';
 import { HeroVideo } from '@/components/home/HeroVideo';
 
-export const metadata: Metadata = buildMetadata({
-  title: 'آهن‌تایم؛ بازار هوشمند خرید و فروش آهن‌آلات و فولاد ایران',
-  description:
-    'آهن‌تایم، بازار هوشمند خرید و فروش آهن‌آلات و فولاد ایران: مشاور هوش مصنوعی، قیمت‌های شفاف و لحظه‌ای، پیش‌فاکتور رسمی و زمان تحویل مشخص. اول مشورت، بعد خرید.',
-  path: routes.home(),
-  absoluteTitle: true,
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta.home');
+  return buildMetadata({
+    title: t('title'),
+    description: t('description'),
+    path: routes.home(),
+    absoluteTitle: true,
+  });
+}
 
 // A price-marketplace homepage must never be frozen at build time — without
 // this the hero board's latest published prices and freshness stamp were whatever

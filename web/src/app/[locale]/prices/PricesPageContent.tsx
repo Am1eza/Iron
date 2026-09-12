@@ -12,9 +12,9 @@ const FAQ_COUNT = 5;
 
 /**
  * The /prices hub's actual visible content — extracted from the Server
- * Component `page.tsx` (which keeps only `metadata`, `revalidate`, the
- * server-fetched catalog/JSON-LD data, and the fa breadcrumb labels, per
- * the established SSR-shell exception) so the H1/intro/FAQ can localize.
+ * Component `page.tsx` (which keeps only `metadata`, `revalidate`, and the
+ * server-fetched catalog/JSON-LD data; `crumbs` is already locale-aware,
+ * built there via `getTranslations()`) so the H1/intro/FAQ can localize.
  * `CategoryPriceSummary`/`CategoryGrid`/`FeaturedPrices` are already
  * translated Client Components from an earlier commit.
  */

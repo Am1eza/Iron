@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { articlesByType } from '@/lib/mock/catalogData';
@@ -30,9 +31,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const slug = decodeArticleSlugParam(rawSlug);
   const article = await getArticle(slug);
   if (!article || article.type !== 'blog') {
-    // fa — the established SSR-shell exception; the translated 404 UI a
-    // visitor actually sees lives in NotFoundEmptyState.tsx.
-    return buildMetadata({ title: 'مطلب یافت نشد', noindex: true, path: routes.blog(slug) });
+    // The visible 404 UI itself lives in NotFoundEmptyState.tsx (already
+    // localized); this is just the <title> for the same case.
+    const t = await getTranslations('meta.notFound');
+    return buildMetadata({ title: t('blogArticle'), noindex: true, path: routes.blog(slug) });
   }
   // Admin-authored SEO overrides (title/description/canonical/ogImage) win when set.
   const seo = article.seo;

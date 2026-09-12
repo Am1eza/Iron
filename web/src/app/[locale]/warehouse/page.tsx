@@ -1,28 +1,22 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { Container, Section, Stack, Breadcrumbs } from '@/components/ui';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { WarehouseLanding } from '@/components/warehouse/WarehouseLanding';
 
-export const metadata: Metadata = buildMetadata({
-  title: 'انبار مشتریان',
-  description:
-    'کالای خود را با هزینه‌ای اندک نزد آهن‌تایم نگهداری کنید و هر زمان که بازار مناسب بود بفروشید؛ امنیت، بیمه و نقدشوندگی تضمین‌شده.',
-  path: routes.warehouse(),
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta.warehouse');
+  return buildMetadata({ title: t('title'), description: t('description'), path: routes.warehouse() });
+}
 
-// Breadcrumb labels stay fa — the established SSR-shell exception (see
-// `prices/[category]/page.tsx` etc.): locale resolves client-side only, so
-// this Server Component's own text can't localize. The page's actual
-// content — benefits, steps, the form — is `WarehouseLanding`, a Client
-// Component that does.
-const crumbs = [
-  { label: 'خانه', href: routes.home() },
-  { label: 'انبار مشتریان', href: routes.warehouse() },
-];
-
-export default function WarehousePage() {
+export default async function WarehousePage() {
+  const t = await getTranslations();
+  const crumbs = [
+    { label: t('nav.home'), href: routes.home() },
+    { label: t('meta.warehouse.title'), href: routes.warehouse() },
+  ];
   return (
     <Container>
       <BreadcrumbJsonLd items={crumbs} />

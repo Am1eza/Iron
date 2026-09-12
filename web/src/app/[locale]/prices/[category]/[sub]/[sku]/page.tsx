@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { buildMetadata, productJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { allRows } from '@/lib/mock/catalogData';
@@ -24,7 +25,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { category, sub, sku } = await params;
   const row = await findSku(sku);
   if (!row || row.categoryId !== category || row.subCategoryId !== sub) {
-    return buildMetadata({ title: 'محصول پیدا نشد', noindex: true });
+    const t = await getTranslations('meta.notFound');
+    return buildMetadata({ title: t('product'), noindex: true });
   }
   // W25 audit fix: this said «برای هر کیلوگرم» for every SKU. 47 active SKUs
   // are priced per قطعه / کلاف / شاخه / برگ / متر مربع, so the snippet Google

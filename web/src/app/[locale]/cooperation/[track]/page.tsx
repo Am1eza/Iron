@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { Container, Section, Stack, Breadcrumbs } from '@/components/ui';
@@ -19,30 +20,34 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { track } = await params;
+  const tMeta = await getTranslations('meta.cooperation');
   if (!isTrackKey(track)) {
-    return buildMetadata({ title: 'همکاری با ما', path: routes.cooperation() });
+    return buildMetadata({ title: tMeta('title'), path: routes.cooperation() });
   }
   const t = TRACKS[track];
   return buildMetadata({
-    title: `همکاری · ${t.title}`,
+    title: `${tMeta('title')} · ${t.title}`,
     description: t.metaDescription,
     path: routes.cooperation(t.key),
   });
 }
 
 /**
- * Breadcrumbs stay fa (reading `TRACKS[track].title`, unchanged) — the
- * established SSR-shell exception. The page's actual content is
- * `CooperationTrackContent`, a Client Component that translates.
+ * The «خانه»/«همکاری با ما» crumb levels localize via next-intl; the track's
+ * own label (`TRACKS[track].title`) stays fa — that object is fixed
+ * page-copy with no locale variants yet (unlike DB category names, which
+ * carry nameEn/nameAr/nameZh). `CooperationTrackContent` is the Client
+ * Component that translates the rest of the page.
  */
 export default async function CooperationTrackPage({ params }: Params) {
   const { track } = await params;
   if (!isTrackKey(track)) notFound();
   const t = TRACKS[track];
+  const tNav = await getTranslations();
 
   const crumbs = [
-    { label: 'خانه', href: routes.home() },
-    { label: 'همکاری با ما', href: routes.cooperation() },
+    { label: tNav('nav.home'), href: routes.home() },
+    { label: tNav('meta.cooperation.title'), href: routes.cooperation() },
     { label: t.title, href: routes.cooperation(t.key) },
   ];
 

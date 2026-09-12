@@ -1,28 +1,22 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { Container, Section, Stack, Breadcrumbs } from '@/components/ui';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { CutToSizeLanding } from '@/components/cut-to-size/CutToSizeLanding';
 
-export const metadata: Metadata = buildMetadata({
-  title: 'کالا با ابعاد درخواستی',
-  description:
-    'کالای خود را به آهن‌تایم بسپارید تا به ابعاد دقیقی که می‌خواهید برش و آماده تحویل شود، از ورق و تسمه تا میلگرد و مقاطع دیگر؛ اول مشورت و اعلام هزینه، بعد اجرا.',
-  path: routes.cutToSize(),
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta.cutToSize');
+  return buildMetadata({ title: t('title'), description: t('description'), path: routes.cutToSize() });
+}
 
-// Breadcrumb labels stay fa — the established SSR-shell exception (see
-// `prices/[category]/page.tsx` etc.): locale resolves client-side only, so
-// this Server Component's own text can't localize. The page's actual
-// content — benefits, steps, the form — is `CutToSizeLanding`, a Client
-// Component that does.
-const crumbs = [
-  { label: 'خانه', href: routes.home() },
-  { label: 'کالا با ابعاد درخواستی', href: routes.cutToSize() },
-];
-
-export default function CutToSizePage() {
+export default async function CutToSizePage() {
+  const t = await getTranslations();
+  const crumbs = [
+    { label: t('nav.home'), href: routes.home() },
+    { label: t('meta.cutToSize.title'), href: routes.cutToSize() },
+  ];
   return (
     <Container>
       <BreadcrumbJsonLd items={crumbs} />

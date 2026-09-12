@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { Container, Section } from '@/components/ui';
@@ -6,22 +7,15 @@ import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { getArticle } from '@/lib/server/catalog';
 import { MarketPageContent } from './MarketPageContent';
 
-export const metadata: Metadata = buildMetadata({
-  title: 'طلا، ارز و شمش فولاد',
-  description:
-    'نرخ لحظه‌ای دلار، یورو، طلای ۱۸ عیار، انس جهانی و شمش فولاد در آهن‌تایم: همان متغیرهایی که قیمت روز آهن‌آلات را جابه‌جا می‌کنند.',
-  path: routes.market(),
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta.market');
+  return buildMetadata({ title: t('title'), description: t('description'), path: routes.market() });
+}
 
 // Category list is admin-curated and rarely changes, but without a revalidate
 // window this page would otherwise cache forever after build (no
 // revalidatePath call exists for category admin writes yet).
 export const revalidate = 300;
-
-const crumbs = [
-  { label: 'خانه', href: routes.home() },
-  { label: 'طلا، ارز و شمش', href: routes.market() },
-];
 
 /** The one published article that actually walks through how دلار moves a
  *  finished-product price (سازوکار قیمت ورق) — closest existing match to
@@ -31,7 +25,11 @@ const crumbs = [
 const RELATED_ARTICLE_SLUG = 'عوامل-موثر-بر-قیمت-ورق-فولادی';
 
 export default async function MarketPage() {
-  const relatedArticle = await getArticle(RELATED_ARTICLE_SLUG);
+  const [relatedArticle, t] = await Promise.all([getArticle(RELATED_ARTICLE_SLUG), getTranslations()]);
+  const crumbs = [
+    { label: t('nav.home'), href: routes.home() },
+    { label: t('meta.market.title'), href: routes.market() },
+  ];
 
   return (
     <Container>

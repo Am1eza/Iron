@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { getCategories, getArticlesPageByCategory, getBlogCategoryRailItems } from '@/lib/server/catalog';
@@ -29,7 +30,10 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
   const cat = (await getCategories()).find((c) => c.slug === slug);
-  if (!cat) return buildMetadata({ title: 'دسته پیدا نشد', noindex: true });
+  if (!cat) {
+    const t = await getTranslations('meta.notFound');
+    return buildMetadata({ title: t('blogCategory'), noindex: true });
+  }
   return buildMetadata({
     title: `مقالات ${cat.name}`,
     description: `راهنمای خرید، تحلیل بازار و اخبار ${cat.name}. مطالب آهن‌تایم دربارهٔ این محصول.`,

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import dynamic from 'next/dynamic';
+import { getTranslations } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { requireUser } from '@/lib/auth/guards';
@@ -48,10 +49,10 @@ const AlertsList = dynamic(() =>
   import('@/components/account/AlertsList').then((m) => m.AlertsList),
 );
 
-// SEO shell metadata: never resolved through next-intl (locale is a client-side
-// cookie here, not server-known — see LocaleProvider.tsx) and this route is
-// noindex besides, so it stays fa like every other page's metadata this session.
-export const metadata: Metadata = buildMetadata({ title: 'حساب من', noindex: true });
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta.account');
+  return buildMetadata({ title: t('title'), noindex: true });
+}
 
 /**
  * Account IA (redesigned): overview-first. `/account` lands on a glanceable

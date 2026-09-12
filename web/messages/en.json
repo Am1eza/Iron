@@ -2277,4 +2277,93 @@
     "relatedBlog": "Related posts",
     "relatedNews": "Related news"
   }
+,
+  "meta": {
+    "home": {
+      "title": "Ahantime — Iran's Smart Marketplace for Buying and Selling Iron and Steel",
+      "description": "Ahantime, Iran's smart marketplace for iron and steel: an AI advisor, transparent live pricing, an official proforma invoice and a clear delivery window. Consult first, then buy."
+    },
+    "about": {
+      "title": "About Us",
+      "description": "Ahantime — Iran's online marketplace for iron and steel prices, with an AI advisor and direct factory supply: cheaper without middlemen, 24-hour delivery, transparent pricing and real support. Consult first, then buy."
+    },
+    "account": {
+      "title": "My Account"
+    },
+    "ai": {
+      "title": "Smart Iron & Steel Buying Advisor",
+      "description": "Ahantime's AI advisor answers using the site's real prices: today's price for every product, the exact weight of each bar, a factory comparison for your tonnage, and a proforma request — all in the same conversation."
+    },
+    "cart": {
+      "title": "Inquiry Cart",
+      "description": "Collect your selected products in the inquiry cart and get one combined proforma invoice. Ahantime has no online payment — an expert calls to finalize the price and delivery."
+    },
+    "club": {
+      "title": "Ahantime Customer Club",
+      "description": "Level up in the Ahantime customer club with every inquiry and purchase: priority supply, price alerts on multiple products and a dedicated advisor — plus automatic volume-based discounts for every customer."
+    },
+    "contact": {
+      "title": "Contact Us",
+      "description": "Ahantime's office address, landline and mobile numbers, and a message form — reach out for advice, a price quote, or a partnership."
+    },
+    "cooperation": {
+      "title": "Partner With Us",
+      "description": "Three ways to partner with Ahantime: a dedicated steel-market analysis, supplying your product to us, or becoming a sales representative for us."
+    },
+    "cutToSize": {
+      "title": "Custom-Cut Products",
+      "description": "Send your material to Ahantime to be cut and prepared to the exact dimensions you need, from sheet and strip to rebar and other sections — a quote first, then the work."
+    },
+    "login": {
+      "title": "Log In"
+    },
+    "market": {
+      "title": "Gold, Currency & Steel Billet",
+      "description": "Live rates for the dollar, euro, 18-karat gold, the global ounce and steel billet on Ahantime — the same variables that move today's iron and steel prices."
+    },
+    "prices": {
+      "title": "Today's Iron & Steel Prices",
+      "description": "Today's prices for rebar, I-beam, profile, sheet and other steel sections on Ahantime."
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "description": "Ahantime's privacy policy: what information we collect, how we use it, how the AI advisor's conversations are processed, SMS delivery via SMS.ir, and your rights. We never sell your data."
+    },
+    "proforma": {
+      "title": "Proforma Invoice"
+    },
+    "request": {
+      "title": "Submit a Request"
+    },
+    "search": {
+      "title": "Search",
+      "description": "Search Ahantime's products, categories and articles."
+    },
+    "tender": {
+      "title": "Tender & Bulk Quote Estimator",
+      "description": "Estimate dozens of tender line items at once: pick each item from Ahantime's products, the system suggests the cheapest factory, calculates weight and today's price, and gives you the grand total and a real proforma invoice."
+    },
+    "terms": {
+      "title": "Terms & Conditions",
+      "description": "Ahantime's terms of use: the nature of the inquiry service, prices and value added, submitting a request, and delivery. Ahantime has no online payment."
+    },
+    "track": {
+      "title": "Track Your Order",
+      "description": "Enter your tracking code to see the live status of your shipment."
+    },
+    "warehouse": {
+      "title": "Customer Warehouse",
+      "description": "Store your goods with Ahantime for a small fee and sell whenever the market is right — guaranteed security, insurance and liquidity."
+    },
+    "notFound": {
+      "blogArticle": "Post not found",
+      "blogCategory": "Category not found",
+      "newsArticle": "News item not found",
+      "newsTopic": "Topic not found",
+      "product": "Product not found",
+      "page": "Page not found",
+      "category": "Category not found",
+      "tools": "Tools"
+    }
+  }
 }

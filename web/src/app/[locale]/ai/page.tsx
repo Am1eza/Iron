@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { Container } from '@/components/ui';
@@ -9,17 +10,10 @@ import styles from './page.module.css';
 import { PURPOSE_CHIPS } from '@/lib/data/aiTaxonomy';
 import { getContact } from '@/lib/server/contact';
 
-export const metadata: Metadata = buildMetadata({
-  title: 'مشاور هوشمند خرید آهن و فولاد',
-  description:
-    'مشاور هوشمند آهن‌تایم بر پایهٔ قیمت‌های واقعی سایت جواب می‌دهد: قیمت روز مقاطع، وزن دقیق هر شاخه، مقایسهٔ کارخانه‌ها روی تناژ شما و ثبت درخواست پیش‌فاکتور در همان گفتگو.',
-  path: routes.ai(),
-});
-
-const crumbs = [
-  { label: 'خانه', href: routes.home() },
-  { label: 'مشاور هوشمند', href: routes.ai() },
-];
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta.ai');
+  return buildMetadata({ title: t('title'), description: t('description'), path: routes.ai() });
+}
 
 type Search = { searchParams: Promise<{ q?: string }> };
 
@@ -28,21 +22,21 @@ export default async function AiPage({ searchParams }: Search) {
   const initialQuestion = typeof q === 'string' ? q : undefined;
   // The real, admin-editable numbers — read here (server) and passed down, so
   // the advisor's «گفتگو با کارشناس» row can never drift from the footer's.
-  const contact = await getContact();
-  // Rendered server-side so the advisor's opening message is real, crawlable
-  // HTML on first load instead of only appearing after client-side hydration.
-  // Persian, like every other server-rendered string on this page (metadata,
-  // crumbs) — this app never resolves locale server-side (LocaleProvider's
-  // header comment), so the server always renders the static fa shell.
-  // AdvisorChat's own client-side greeting (used on "new chat" / reopening an
-  // empty conversation) already localizes; the FAQ below (`AdvisorAbout`) is
-  // client-rendered for the same reason, same as `ArticleFaq`'s FAQPage
-  // JSON-LD elsewhere on the site.
+  const [contact, t] = await Promise.all([getContact(), getTranslations()]);
+  const crumbs = [
+    { label: t('nav.home'), href: routes.home() },
+    { label: t('meta.ai.title'), href: routes.ai() },
+  ];
+  // Rendered server-side (now locale-aware — [locale]/layout.tsx resolves the
+  // locale before this renders) so the advisor's opening message is real,
+  // crawlable HTML on first load instead of only appearing after client-side
+  // hydration. Reuses the same `ai.chat.greeting` string AdvisorChat's own
+  // client-side greeting falls back to, so the two never drift.
   const initialMessages = [
     {
       id: 'greeting',
       role: 'ai' as const,
-      text: 'سلام! من مشاور هوشمند آهن‌تایم‌ام.\nمثل یک دوستِ کاربلد کمکت می‌کنم بهترین خرید را بکنی؛ اول مشورت، بعد خرید.',
+      text: t('ai.chat.greeting'),
       chips: initialQuestion ? undefined : PURPOSE_CHIPS,
     },
   ];
@@ -72,7 +66,7 @@ export default async function AiPage({ searchParams }: Search) {
           initialMessages={initialMessages}
           contact={{ phoneLandline: contact.phoneLandline, phoneMobile: contact.phoneMobile }}
           crumbs={crumbs}
-          heading="مشاور هوشمند خرید آهن و فولاد"
+          heading={t('meta.ai.title')}
         />
       </div>
 
