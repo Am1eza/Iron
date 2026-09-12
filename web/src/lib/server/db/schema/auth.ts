@@ -122,6 +122,9 @@ export const refreshTokens = pgTable(
     index('refresh_tokens_user_idx').on(t.userId),
     // revokeFamily() is on the hot path of a detected reuse — never a scan.
     index('refresh_tokens_family_idx').on(t.familyId),
+    // F-147: cleanupExpired's hourly `WHERE expires_at < now` had no covering
+    // index — a full table scan every run, worse as the table grows.
+    index('refresh_tokens_expires_idx').on(t.expiresAt),
   ],
 );
 
@@ -159,15 +162,20 @@ export const adminAllowlist = pgTable(
 /** One active OTP per mobile (upsert semantics, matches `setOtp`).
  * Legacy prev_* columns remain nullable for migration compatibility; the
  * service never writes or accepts them, so a resend invalidates the old code. */
-export const otpCodes = pgTable('otp_codes', {
-  mobile: text('mobile').primaryKey(),
-  codeHash: text('code_hash').notNull(),
-  expiresAt: bigint('expires_at', { mode: 'number' }).notNull(),
-  attempts: integer('attempts').notNull().default(0),
-  name: text('name'),
-  prevHash: text('prev_hash'),
-  prevExpiresAt: bigint('prev_expires_at', { mode: 'number' }),
-});
+export const otpCodes = pgTable(
+  'otp_codes',
+  {
+    mobile: text('mobile').primaryKey(),
+    codeHash: text('code_hash').notNull(),
+    expiresAt: bigint('expires_at', { mode: 'number' }).notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    name: text('name'),
+    prevHash: text('prev_hash'),
+    prevExpiresAt: bigint('prev_expires_at', { mode: 'number' }),
+  },
+  // F-147: same rationale as refresh_tokens_expires_idx above.
+  (t) => [index('otp_codes_expires_idx').on(t.expiresAt)],
+);
 
 /** OTP send rate-limiting, mirrors RateRecord `{ sends: number[], lockedUntil? }`. */
 export const otpRateLimits = pgTable('otp_rate_limits', {
