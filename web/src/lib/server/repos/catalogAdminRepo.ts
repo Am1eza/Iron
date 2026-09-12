@@ -954,6 +954,52 @@ export async function skuIdsWithOpenOrders(ids: string[]): Promise<string[]> {
   return rows.map((r) => r.id).filter((id): id is string => id !== null);
 }
 
+export type BulkDeleteSkusResult =
+  | { ok: true; removed: (typeof skus.$inferSelect)[] }
+  | { ok: false; blockedIds: string[] };
+
+/**
+ * The atomic form the bulk-delete ROUTE actually calls (G-164).
+ *
+ * `skuIdsWithOpenOrders` + `deleteSkusBulk`, called back-to-back as two
+ * independent, unlocked queries, had a real TOCTOU: a `createOrder` landing
+ * between the check and the delete could commit a brand-new open order on
+ * one of these ids that the check never saw, and the delete removed it
+ * anyway — the exact thing the guard exists to prevent, just not under real
+ * concurrency (proved with two live PostgreSQL connections in
+ * `scripts/skuDeleteOrderRaceProbe.ts`).
+ *
+ * The fix is a shared lock, not a shared table: `FOR UPDATE` here is
+ * exactly what `createOrder`'s own `FOR SHARE` (taken on the same sku rows
+ * before it inserts `orderItems`) blocks against. Whichever transaction's
+ * lock request loses the race simply waits for the other to commit, so by
+ * the time either one reads "does this sku have an open order", that read
+ * reflects reality, not a stale pre-lock snapshot — no explicit retry loop
+ * needed, Postgres's row lock does the serializing.
+ */
+export async function deleteSkusBulkGuarded(
+  ids: string[],
+  opts: { override: boolean },
+): Promise<BulkDeleteSkusResult> {
+  if (ids.length === 0) return { ok: true, removed: [] };
+  return getDb().transaction(async (tx) => {
+    await tx.select({ id: skus.id }).from(skus).where(inArray(skus.id, ids)).for('update');
+
+    if (!opts.override) {
+      const rows = await tx
+        .selectDistinct({ id: orderItems.skuId })
+        .from(orderItems)
+        .innerJoin(orders, eq(orderItems.orderId, orders.id))
+        .where(and(inArray(orderItems.skuId, ids), inArray(orders.status, [...OPEN_ORDER_STATUSES])));
+      const blockedIds = rows.map((r) => r.id).filter((id): id is string => id !== null);
+      if (blockedIds.length > 0) return { ok: false, blockedIds };
+    }
+
+    const removed = await tx.delete(skus).where(inArray(skus.id, ids)).returning();
+    return { ok: true, removed };
+  });
+}
+
 export type SubCategorySubtreeSnapshot = {
   skus: (typeof skus.$inferSelect)[];
   /** Not the rows themselves — see the module header on why. */

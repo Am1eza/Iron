@@ -233,7 +233,15 @@ export async function createOrder(input: {
     const skuIds = [...new Set(items.map(item => item.skuId).filter((id): id is string => Boolean(id)))];
     const skuCodeById = new Map<string, string>();
     if (skuIds.length) {
-      const skuRows = await tx.select({ id: skus.id, slug: skus.slug }).from(skus).where(inArray(skus.id, skuIds));
+      // `.for('share')` — G-164: the lock a concurrent catalog bulk-delete's
+      // `FOR UPDATE` (deleteSkusBulkGuarded) blocks against. Whichever of the
+      // two transactions asks for its lock first wins the race; the other
+      // waits and then sees a state that already reflects it (the order
+      // committed, or the sku is already gone) instead of racing past the
+      // open-order guard. Multiple concurrent orders on the same sku don't
+      // block each other — FOR SHARE locks are mutually compatible, only a
+      // FOR UPDATE conflicts with them.
+      const skuRows = await tx.select({ id: skus.id, slug: skus.slug }).from(skus).where(inArray(skus.id, skuIds)).for('share');
       for (const s of skuRows) skuCodeById.set(s.id, s.slug);
     }
     const lines = items.length ? await tx.insert(orderItems).values(items.map(item => ({

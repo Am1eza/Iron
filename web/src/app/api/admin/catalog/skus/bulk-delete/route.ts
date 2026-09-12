@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { deleteSkusBulk, skuIdsWithOpenOrders } from '@/lib/server/repos/catalogAdminRepo';
+import { deleteSkusBulkGuarded } from '@/lib/server/repos/catalogAdminRepo';
 import { planDeletedNodeRedirects, revalidateCatalog, writeCatalogRedirects } from '@/lib/server/utils/catalogRoute';
 
 const MAX_BULK_DELETE = 200;
@@ -23,6 +23,11 @@ const payload = z.object({
  * and the caller didn't pass `override`, the whole batch is rejected so the
  * admin can see exactly which ones and decide, rather than half the
  * selection disappearing silently around the blocked ones.
+ *
+ * The check and the delete happen inside ONE locked transaction
+ * (`deleteSkusBulkGuarded`, G-164) — not two independent queries — so a
+ * `createOrder` racing this request on the same sku cannot land between
+ * "checked" and "deleted" and get silently overridden either way.
  */
 async function POSTImpl(req: NextRequest) {
   const guard = requireDb();
@@ -34,23 +39,23 @@ async function POSTImpl(req: NextRequest) {
   const ids = [...new Set(v.data.ids)];
 
   const override = req.nextUrl.searchParams.get('override') === 'true';
-  if (!override) {
-    const blockedIds = await skuIdsWithOpenOrders(ids);
-    if (blockedIds.length > 0) {
-      return NextResponse.json(
-        {
-          error: 'open_orders',
-          message: `${blockedIds.length} کالا سفارش باز دارد. برای حذف قطعی، درخواست را با override=true دوباره بفرست.`,
-          blockedIds,
-        },
-        { status: 409 },
-      );
-    }
-  }
-
-  // Tombstones read the parent slugs, which only exist before the delete.
+  // Tombstones read the parent slugs, which only exist before the delete —
+  // read speculatively before the guarded transaction; on a blocked or
+  // not-found outcome below, the entries for those ids are simply unused.
   const tombstoneLists = await Promise.all(ids.map((id) => planDeletedNodeRedirects('sku', id)));
-  const removed = await deleteSkusBulk(ids);
+
+  const result = await deleteSkusBulkGuarded(ids, { override });
+  if (!result.ok) {
+    return NextResponse.json(
+      {
+        error: 'open_orders',
+        message: `${result.blockedIds.length} کالا سفارش باز دارد. برای حذف قطعی، درخواست را با override=true دوباره بفرست.`,
+        blockedIds: result.blockedIds,
+      },
+      { status: 409 },
+    );
+  }
+  const removed = result.removed;
   if (removed.length === 0) {
     return NextResponse.json({ error: 'not_found', message: 'هیچ‌کدام از کالاها یافت نشد.' }, { status: 404 });
   }

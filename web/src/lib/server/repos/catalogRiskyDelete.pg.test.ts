@@ -9,10 +9,11 @@
  * file proves the repo-level primitives those layers are built on.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { eq } from 'drizzle-orm';
 import { createTestDb } from '@/test/db';
 import * as schema from '@/lib/server/db/schema';
 import type { Db } from '@/lib/server/db/client';
-import { deleteSkusBulk, skuIdsWithOpenOrders, skuImpact } from './catalogAdminRepo';
+import { deleteSkusBulk, deleteSkusBulkGuarded, skuIdsWithOpenOrders, skuImpact } from './catalogAdminRepo';
 
 let db: Db;
 let close: () => Promise<void>;
@@ -76,5 +77,35 @@ describe('deleteSkusBulk — one transaction for the whole batch', () => {
   it('removes every id in the batch and reports only the ones that actually existed', async () => {
     const removed = await deleteSkusBulk(['k-free', 'k-delivered', 'nonexistent-id']);
     expect(removed.map((r) => r.id).sort()).toEqual(['k-delivered', 'k-free']);
+  });
+});
+
+describe('deleteSkusBulkGuarded — the atomic check+delete the route calls (G-164)', () => {
+  // Own fixtures, separate from the shared ones above — `deleteSkusBulk`'s
+  // own test (just above) already consumed k-free/k-delivered, and this
+  // suite needs rows it can actually delete without colliding with that.
+  it('blocks and deletes nothing when a batch member has an open order, unless overridden', async () => {
+    await db.insert(schema.skus).values([
+      { id: 'k-guarded-blocked', subCategoryId: 's-1', categoryId: 'c-1', slug: 'k-guarded-blocked', name: 'محافظت‌شده', unit: 'kg' },
+      { id: 'k-guarded-free', subCategoryId: 's-1', categoryId: 'c-1', slug: 'k-guarded-free', name: 'آزاد', unit: 'kg' },
+    ]);
+    await db.insert(schema.orders).values({ id: 'o-guarded', ref: 'IR-GUARDED', status: 'registered' });
+    await db.insert(schema.orderItems).values({
+      id: 'oi-guarded', orderId: 'o-guarded', skuId: 'k-guarded-blocked', name: 'محافظت‌شده', qty: 1, unit: 'kg',
+    });
+
+    const blocked = await deleteSkusBulkGuarded(['k-guarded-blocked', 'k-guarded-free'], { override: false });
+    expect(blocked).toEqual({ ok: false, blockedIds: ['k-guarded-blocked'] });
+    // All-or-nothing: the free sku riding along in the same batch must not
+    // have been removed either.
+    expect((await db.select().from(schema.skus).where(eq(schema.skus.id, 'k-guarded-free'))).length).toBe(1);
+    expect((await db.select().from(schema.skus).where(eq(schema.skus.id, 'k-guarded-blocked'))).length).toBe(1);
+
+    const overridden = await deleteSkusBulkGuarded(['k-guarded-blocked', 'k-guarded-free'], { override: true });
+    expect(overridden.ok).toBe(true);
+    expect((overridden as { removed: { id: string }[] }).removed.map((r) => r.id).sort()).toEqual([
+      'k-guarded-blocked',
+      'k-guarded-free',
+    ]);
   });
 });
