@@ -232,14 +232,18 @@ describe('buildChatMessages', () => {
   });
 
   // The advisor used to ask a SIGNED-IN customer for the name and mobile the
-  // site already had on file. It is told them instead — after the cache-prefix
-  // messages, never inside them.
+  // site already had on file. It is told not to instead — after the
+  // cache-prefix messages, never inside them. J-242: neither the real name
+  // nor the mobile is ever put in front of the model (both would otherwise
+  // leave the country in a message to the out-of-Iran relay) — the fact only
+  // says an account exists, so the model knows not to ask.
   it('appends the signed-in visitor as a system fact, after the prompt and summary', () => {
     const identity = identityFact({ name: 'رضا کریمی', mobile: '09121234567' });
-    expect(identity).toContain('رضا کریمی');
+    expect(identity).not.toContain('رضا کریمی');
     expect(identity).toContain('هرگز نام یا شمارهٔ موبایل را از او نپرس');
-    // The number itself is never put in front of the model — it is not in the
-    // grounding ledger, so quoting it would be censored anyway.
+    // Neither PII value is ever put in front of the model — the mobile is not
+    // in the grounding ledger (quoting it would be censored anyway), and the
+    // name is simply never interpolated into the fact at all.
     expect(identity).not.toContain('09121234567');
 
     const messages = buildChatMessages(turns, 'کاربر دنبال میلگرد ساختمانی است.', null, undefined, identity);

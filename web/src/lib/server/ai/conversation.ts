@@ -227,13 +227,23 @@ export async function persistTurn(
 }
 
 /** The signed-in visitor, as a system fact for the advisor. Null for guests —
- *  their path is the login button on the confirmation card, not a question. */
+ *  their path is the login button on the confirmation card, not a question.
+ *
+ * J-242: the user's real name used to be interpolated into this fact verbatim
+ * — sent, like every system message, to the out-of-Iran AI relay. That is raw
+ * PII leaving the country for a purely cosmetic benefit (letting the model
+ * address a returning customer by name) that the privacy policy never
+ * disclosed (it promises nothing beyond what the user types). The mobile
+ * number already got the right treatment — told "it exists, don't ask, never
+ * reveal it" without ever being sent — so the name now gets the identical
+ * treatment instead of being deleted outright: the model still knows not to
+ * ask a signed-in customer who they are, it just never learns the name to do
+ * it with. */
 export function identityFact(user: { name?: string; mobile: string } | null): string | null {
   if (!user) return null;
-  const who = user.name?.trim();
   return (
-    `کاربر وارد حساب کاربری شده است${who ? ` و نامش «${who}» است` : ''}؛ شمارهٔ موبایلش هم در حساب او ثبت است. ` +
-    'هرگز نام یا شمارهٔ موبایل را از او نپرس و شماره را در متن پاسخ ننویس؛ هنگام ثبت درخواست، این اطلاعات خودکار از حسابش برداشته می‌شود.'
+    'کاربر وارد حساب کاربری شده است؛ نام و شمارهٔ موبایلش هم در حساب او ثبت است. ' +
+    'هرگز نام یا شمارهٔ موبایل را از او نپرس و آن‌ها را در متن پاسخ ننویس؛ هنگام ثبت درخواست، این اطلاعات خودکار از حسابش برداشته می‌شود.'
   );
 }
 
