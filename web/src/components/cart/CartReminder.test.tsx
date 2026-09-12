@@ -7,7 +7,10 @@ import { useUiStore } from '@/lib/stores/ui';
 
 
 const pathname = vi.hoisted(() => ({ current: '/prices' }));
-vi.mock('next/navigation', () => ({ usePathname: () => pathname.current }));
+vi.mock('next/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/navigation')>()),
+  usePathname: () => pathname.current,
+}));
 
 const NOW = new Date('2026-08-27T12:00:00.000Z').getTime();
 const TWO_HOURS = 2 * 60 * 60 * 1000;

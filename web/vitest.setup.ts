@@ -85,6 +85,35 @@ vi.mock('next-intl', async (importOriginal) => {
   };
 });
 
+// `@/i18n/navigation` (next-intl/navigation's `createNavigation`, used by the
+// URL-locale migration — I-07/I-08) calls `useLocale` from the `use-intl`
+// PACKAGE directly, not through next-intl's own re-export above — mocking
+// `use-intl` itself does not reliably catch it (next-intl's own bundle can
+// resolve a different physical copy of that dependency under pnpm's isolated
+// node_modules), so any component using the locale-aware `useRouter`/
+// `usePathname`/`Link` throws "no provider" in a bare `render()`.
+//
+// Simpler and more robust: mock the module tests actually import
+// (`@/i18n/navigation`) to delegate straight to `next/link`/`next/navigation`
+// — which transparently picks up each test FILE's OWN existing
+// `vi.mock('next/navigation', ...)` override (vi.mock intercepts by module
+// specifier project-wide, regardless of who does the importing), so the
+// dozens of pre-existing per-file navigation mocks keep working completely
+// unchanged. Locale-prefixing itself is never what these unit tests are
+// about; `LocaleSwitcher.test.tsx`/e2e specs are what actually exercise that.
+vi.mock('@/i18n/navigation', async () => {
+  const link = await import('next/link');
+  const nav = await import('next/navigation');
+  return {
+    Link: link.default,
+    useRouter: nav.useRouter,
+    usePathname: nav.usePathname,
+    redirect: nav.redirect,
+    getPathname: (opts: { href: unknown }) =>
+      typeof opts?.href === 'string' ? opts.href : (opts?.href as { pathname?: string })?.pathname,
+  };
+});
+
 // Use the browser environment's storage, even when Node exposes its own
 // global storage properties. Stores and components must share window storage.
 const browserWindow = (globalThis as typeof globalThis & { jsdom?: { window: Window } }).jsdom

@@ -6,7 +6,8 @@ import type { PriceRow } from '@/lib/types/domain';
 import type { SubCat } from '@/lib/data/nav';
 import { PriceTable } from './PriceTable';
 
-vi.mock('next/navigation', () => ({
+vi.mock('next/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/navigation')>()),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
   usePathname: () => '/prices/profile',
   useSearchParams: () => new URLSearchParams(),

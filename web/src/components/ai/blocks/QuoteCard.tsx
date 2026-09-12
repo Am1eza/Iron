@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import type { QuoteBlock } from '@/lib/ai/blocks';
 import { localizeDigits } from '@/lib/utils/format';

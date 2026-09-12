@@ -1,5 +1,5 @@
 'use client';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';

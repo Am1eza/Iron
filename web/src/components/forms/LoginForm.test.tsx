@@ -4,7 +4,8 @@ import { LoginForm } from './LoginForm';
 
 const nextParam = vi.hoisted(() => ({ current: null as string | null }));
 
-vi.mock('next/navigation', () => ({
+vi.mock('next/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/navigation')>()),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
   useSearchParams: () => new URLSearchParams(nextParam.current ? { next: nextParam.current } : {}),
 }));

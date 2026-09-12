@@ -10,7 +10,8 @@ import { SearchBar } from './SearchBar';
 afterEach(cleanup);
 
 const push = vi.fn();
-vi.mock('next/navigation', () => ({
+vi.mock('next/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/navigation')>()),
   useRouter: () => ({ push, replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
 }));
 

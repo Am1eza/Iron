@@ -1,5 +1,5 @@
 'use client';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { routes } from '@/lib/routes';
 import { toPersianDigits } from '@/lib/utils/format';

@@ -25,7 +25,8 @@
  * box back to the URL; making them do so is a separate change.
  */
 import { useEffect, useRef } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from '@/i18n/navigation';
 
 /**
  * @param apply receives the deep-linked term — set both the raw input and the

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
+import { getLocale } from 'next-intl/server';
+import { redirect } from '@/i18n/navigation';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { PER_PAGE, archiveHref } from '@/lib/content/archivePaging';
@@ -109,7 +110,7 @@ export async function ArticleIndex({ type, page }: { type: 'blog' | 'news'; page
   // What it replaces either way: page 1's "هنوز مطلبی منتشر نشده است" empty
   // state, rendered at 200 with no pager on screen, telling the visitor the
   // publication does not exist and offering no way back.
-  if (page > pageCount) redirect(archiveHref(type, pageCount));
+  if (page > pageCount) redirect({ href: archiveHref(type, pageCount), locale: await getLocale() });
 
   const crumbs = [
     { label: 'خانه', href: routes.home() },

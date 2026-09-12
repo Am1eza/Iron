@@ -3,7 +3,7 @@
  *  order's line items and jumps to /cart. No new API: the items are already
  *  in the server-rendered order data, this just replays them into the
  *  client-side cart store. */
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { inferSnapshotPriceBasis, useCartStore } from '@/lib/stores/cart';
 import { useToast } from '@/lib/hooks/useToast';

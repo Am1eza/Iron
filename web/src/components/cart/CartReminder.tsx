@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { Link, usePathname } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { routes } from '@/lib/routes';
 import { useCartStore, selectCartCount } from '@/lib/stores/cart';

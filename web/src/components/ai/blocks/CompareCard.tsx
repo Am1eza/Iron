@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import type { CompareBlock } from '@/lib/ai/blocks';
 import { formatToman, localizeDigits } from '@/lib/utils/format';

@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { api } from '@/lib/api';
 import { routes } from '@/lib/routes';
 import { toPersianDigits, normalizeDigits, formatToman, localizeDigits } from '@/lib/utils/format';

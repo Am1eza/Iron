@@ -19,7 +19,8 @@ import type { AdminCategory, AdminSku, AdminSubCategory } from '@/lib/api/resour
 import { CatalogManager } from './CatalogManager';
 import { ApiError } from '@/lib/api/errors';
 
-vi.mock('next/navigation', () => ({
+vi.mock('next/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/navigation')>()),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
   usePathname: () => '/admin/catalog',
   useSearchParams: () => new URLSearchParams(),

@@ -15,7 +15,8 @@ import { PriceTable } from './PriceTable';
  * whose source publishes no such column (ورق سیاه, مانیسمان, گوشت‌دار).
  */
 
-vi.mock('next/navigation', () => ({
+vi.mock('next/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/navigation')>()),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
   usePathname: () => '/prices/sheet',
   useSearchParams: () => new URLSearchParams(),

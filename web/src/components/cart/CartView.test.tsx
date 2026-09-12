@@ -6,7 +6,8 @@ import { useCartStore } from '@/lib/stores/cart';
 import { useAuthStore } from '@/lib/stores/auth';
 
 
-vi.mock('next/navigation', () => ({
+vi.mock('next/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/navigation')>()),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
 }));
 

@@ -7,7 +7,8 @@ import type { SubCat } from '@/lib/data/nav';
 import { PriceTable } from './PriceTable';
 import { useCartStore } from '@/lib/stores/cart';
 
-vi.mock('next/navigation', () => ({
+vi.mock('next/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/navigation')>()),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
   usePathname: () => '/prices/rebar',
   useSearchParams: () => new URLSearchParams(),

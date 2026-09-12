@@ -1,5 +1,5 @@
 'use client';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname } from '@/i18n/navigation';
 import { routes } from '@/lib/routes';
 import { useAuthStore } from '@/lib/stores/auth';
 

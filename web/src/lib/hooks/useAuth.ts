@@ -1,5 +1,5 @@
 'use client';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
 import { useAuthStore } from '@/lib/stores/auth';
 import { useRequestsStore } from '@/lib/stores/requests';
 import { authApi } from '@/lib/api/resources/auth';

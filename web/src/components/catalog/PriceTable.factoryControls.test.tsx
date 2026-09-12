@@ -7,7 +7,8 @@ import { PriceTable } from './PriceTable';
 
 // Nothing under test navigates; the toolbar only reads the search params to
 // pre-select a sub-category on a deep link.
-vi.mock('next/navigation', () => ({
+vi.mock('next/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/navigation')>()),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
   usePathname: () => '/prices/rebar',
   useSearchParams: () => new URLSearchParams(),

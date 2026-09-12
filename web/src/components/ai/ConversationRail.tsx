@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { routes } from '@/lib/routes';
 import { api, isApiError } from '@/lib/api';

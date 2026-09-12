@@ -1,6 +1,6 @@
 'use client';
 import type { ReactNode } from 'react';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import Image from 'next/image';
 import { useTranslations, useLocale } from 'next-intl';
 import { routes } from '@/lib/routes';

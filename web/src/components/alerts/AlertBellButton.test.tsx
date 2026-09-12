@@ -9,7 +9,8 @@ import type * as Misc from '@/lib/api/resources/misc';
 import type { Alert } from '@/lib/types/domain';
 import { AlertBellButton, type AlertBellTarget } from './AlertBellButton';
 
-vi.mock('next/navigation', () => ({
+vi.mock('next/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/navigation')>()),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
   usePathname: () => '/prices/rebar/deformed',
   useSearchParams: () => new URLSearchParams(),

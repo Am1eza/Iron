@@ -21,7 +21,10 @@ function withIntl(ui: ReactElement) {
 }
 
 const pathname = vi.hoisted(() => ({ current: '/prices' }));
-vi.mock('next/navigation', () => ({ usePathname: () => pathname.current }));
+vi.mock('next/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/navigation')>()),
+  usePathname: () => pathname.current,
+}));
 
 const modalOpen = vi.hoisted(() => ({ current: false }));
 vi.mock('@/lib/hooks/useFocusTrap', () => ({ useAnyModalOpen: () => modalOpen.current }));

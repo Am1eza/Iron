@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChartIcon, ClockIcon, IBeamGlyph, InfoIcon } from '@/components/primitives/icons';
 import { routes } from '@/lib/routes';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import styles from './AdvisorCapabilities.module.css';
 
 /**

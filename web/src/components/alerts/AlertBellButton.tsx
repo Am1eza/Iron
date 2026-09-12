@@ -20,7 +20,7 @@
  * react-query subscription, not the expensive part.
  */
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
 import { useForm } from 'react-hook-form';
 import { useTranslations, useLocale } from 'next-intl';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
