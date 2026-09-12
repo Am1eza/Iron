@@ -13,7 +13,14 @@ import { eq } from 'drizzle-orm';
 import { createTestDb } from '@/test/db';
 import * as schema from '@/lib/server/db/schema';
 import type { Db } from '@/lib/server/db/client';
-import { deleteSkusBulk, deleteSkusBulkGuarded, skuIdsWithOpenOrders, skuImpact } from './catalogAdminRepo';
+import {
+  deleteCategoryGuarded,
+  deleteSkusBulk,
+  deleteSkusBulkGuarded,
+  deleteSubCategoryGuarded,
+  skuIdsWithOpenOrders,
+  skuImpact,
+} from './catalogAdminRepo';
 
 let db: Db;
 let close: () => Promise<void>;
@@ -107,5 +114,65 @@ describe('deleteSkusBulkGuarded — the atomic check+delete the route calls (G-1
       'k-guarded-blocked',
       'k-guarded-free',
     ]);
+  });
+});
+
+describe('deleteSubCategoryGuarded — the atomic check+delete the sub-category route calls (G-164)', () => {
+  it('blocks the whole cascade when ANY product under it has an open order, unless overridden', async () => {
+    await db.insert(schema.subCategories).values({ id: 's-guarded', categoryId: 'c-1', slug: 's-guarded', name: 'زیردستهٔ محافظت‌شده', order: 2 });
+    await db.insert(schema.skus).values([
+      { id: 'k-sub-blocked', subCategoryId: 's-guarded', categoryId: 'c-1', slug: 'k-sub-blocked', name: 'محافظت‌شده', unit: 'kg' },
+      { id: 'k-sub-free', subCategoryId: 's-guarded', categoryId: 'c-1', slug: 'k-sub-free', name: 'آزاد', unit: 'kg' },
+    ]);
+    await db.insert(schema.orders).values({ id: 'o-sub-guarded', ref: 'IR-SUB-GUARDED', status: 'registered' });
+    await db.insert(schema.orderItems).values({
+      id: 'oi-sub-guarded', orderId: 'o-sub-guarded', skuId: 'k-sub-blocked', name: 'محافظت‌شده', qty: 1, unit: 'kg',
+    });
+
+    const blocked = await deleteSubCategoryGuarded('s-guarded', { override: false });
+    expect(blocked).toEqual({ status: 'blocked', openOrders: 1 });
+    expect((await db.select().from(schema.subCategories).where(eq(schema.subCategories.id, 's-guarded'))).length).toBe(1);
+    expect((await db.select().from(schema.skus).where(eq(schema.skus.id, 'k-sub-free'))).length).toBe(1);
+
+    const overridden = await deleteSubCategoryGuarded('s-guarded', { override: true });
+    expect(overridden.status).toBe('removed');
+    expect((overridden as { subtree: { skus: { id: string }[] } }).subtree.skus.map((s) => s.id).sort()).toEqual([
+      'k-sub-blocked',
+      'k-sub-free',
+    ]);
+  });
+
+  it('reports not_found for an id that does not exist', async () => {
+    expect(await deleteSubCategoryGuarded('nonexistent-sub', { override: false })).toEqual({ status: 'not_found' });
+  });
+});
+
+describe('deleteCategoryGuarded — the atomic check+delete the category route calls (G-164)', () => {
+  it('blocks the whole cascade when ANY product anywhere under it has an open order, unless overridden', async () => {
+    await db.insert(schema.categories).values({ id: 'c-guarded', slug: 'c-guarded', name: 'دستهٔ محافظت‌شده', order: 2 });
+    await db.insert(schema.subCategories).values({ id: 's-cat-guarded', categoryId: 'c-guarded', slug: 's-cat-guarded', name: 'زیردسته', order: 1 });
+    await db.insert(schema.skus).values([
+      { id: 'k-cat-blocked', subCategoryId: 's-cat-guarded', categoryId: 'c-guarded', slug: 'k-cat-blocked', name: 'محافظت‌شده', unit: 'kg' },
+      { id: 'k-cat-free', subCategoryId: 's-cat-guarded', categoryId: 'c-guarded', slug: 'k-cat-free', name: 'آزاد', unit: 'kg' },
+    ]);
+    await db.insert(schema.orders).values({ id: 'o-cat-guarded', ref: 'IR-CAT-GUARDED', status: 'registered' });
+    await db.insert(schema.orderItems).values({
+      id: 'oi-cat-guarded', orderId: 'o-cat-guarded', skuId: 'k-cat-blocked', name: 'محافظت‌شده', qty: 1, unit: 'kg',
+    });
+
+    const blocked = await deleteCategoryGuarded('c-guarded', { override: false });
+    expect(blocked).toEqual({ status: 'blocked', openOrders: 1 });
+    expect((await db.select().from(schema.categories).where(eq(schema.categories.id, 'c-guarded'))).length).toBe(1);
+
+    const overridden = await deleteCategoryGuarded('c-guarded', { override: true });
+    expect(overridden.status).toBe('removed');
+    expect((overridden as { subtree: { skus: { id: string }[] } }).subtree.skus.map((s) => s.id).sort()).toEqual([
+      'k-cat-blocked',
+      'k-cat-free',
+    ]);
+  });
+
+  it('reports not_found for an id that does not exist', async () => {
+    expect(await deleteCategoryGuarded('nonexistent-cat', { override: false })).toEqual({ status: 'not_found' });
   });
 });

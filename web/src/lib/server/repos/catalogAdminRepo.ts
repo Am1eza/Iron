@@ -1116,6 +1116,88 @@ export async function deleteCategory(
   });
 }
 
+export type DeleteSubCategoryGuardedResult =
+  | { status: 'removed'; removed: typeof subCategories.$inferSelect; subtree: SubCategorySubtreeSnapshot }
+  | { status: 'blocked'; openOrders: number }
+  | { status: 'not_found' };
+
+/**
+ * The atomic form the sub-category DELETE route calls (G-164 — same fix as
+ * the SKU delete routes, one level up the taxonomy). `subCategoryImpact()`
+ * + the route's own early `openOrdersBlock()` check stay exactly as they
+ * were: a cheap, informational preview. This is the actual guard — locks
+ * every sku under this sub-category with `FOR UPDATE` and re-checks open
+ * orders across ALL of them INSIDE that lock, atomically with the cascade
+ * delete, so a `createOrder()` racing between the preview and the delete
+ * (on ANY sku this would take down, not just one) can no longer land in
+ * the gap the two-query version had.
+ */
+export async function deleteSubCategoryGuarded(
+  id: string,
+  opts: { override: boolean },
+): Promise<DeleteSubCategoryGuardedResult> {
+  return getDb().transaction(async (tx) => {
+    const skuRows = await tx.select().from(skus).where(eq(skus.subCategoryId, id)).for('update');
+    const skuIds = skuRows.map((s) => s.id);
+
+    if (!opts.override && skuIds.length > 0) {
+      const openCount = sql<number>`count(*)::int`;
+      const [row] = await tx
+        .select({ n: openCount })
+        .from(orderItems)
+        .innerJoin(orders, eq(orderItems.orderId, orders.id))
+        .where(and(inArray(orderItems.skuId, skuIds), inArray(orders.status, [...OPEN_ORDER_STATUSES])));
+      const openOrders = row?.n ?? 0;
+      if (openOrders > 0) return { status: 'blocked' as const, openOrders };
+    }
+
+    const pricePointsCount = await pricePointsCountFor(tx, skuIds);
+    const rows = await tx.delete(subCategories).where(eq(subCategories.id, id)).returning();
+    const removed = rows[0];
+    if (!removed) return { status: 'not_found' as const };
+    return { status: 'removed' as const, removed, subtree: { skus: skuRows, pricePointsCount } };
+  });
+}
+
+export type DeleteCategoryGuardedResult =
+  | { status: 'removed'; removed: typeof categories.$inferSelect; subtree: CategorySubtreeSnapshot }
+  | { status: 'blocked'; openOrders: number }
+  | { status: 'not_found' };
+
+/** The atomic form the category DELETE route calls (G-164) — same fix,
+ *  same shape, as `deleteSubCategoryGuarded`, one level deeper. */
+export async function deleteCategoryGuarded(
+  id: string,
+  opts: { override: boolean },
+): Promise<DeleteCategoryGuardedResult> {
+  return getDb().transaction(async (tx) => {
+    const subCategoryRows = await tx.select().from(subCategories).where(eq(subCategories.categoryId, id));
+    const skuRows = await tx.select().from(skus).where(eq(skus.categoryId, id)).for('update');
+    const skuIds = skuRows.map((s) => s.id);
+
+    if (!opts.override && skuIds.length > 0) {
+      const openCount = sql<number>`count(*)::int`;
+      const [row] = await tx
+        .select({ n: openCount })
+        .from(orderItems)
+        .innerJoin(orders, eq(orderItems.orderId, orders.id))
+        .where(and(inArray(orderItems.skuId, skuIds), inArray(orders.status, [...OPEN_ORDER_STATUSES])));
+      const openOrders = row?.n ?? 0;
+      if (openOrders > 0) return { status: 'blocked' as const, openOrders };
+    }
+
+    const pricePointsCount = await pricePointsCountFor(tx, skuIds);
+    const rows = await tx.delete(categories).where(eq(categories.id, id)).returning();
+    const removed = rows[0];
+    if (!removed) return { status: 'not_found' as const };
+    return {
+      status: 'removed' as const,
+      removed,
+      subtree: { subCategories: subCategoryRows, skus: skuRows, pricePointsCount },
+    };
+  });
+}
+
 /**
  * Re-insert a subtree snapshot taken by `deleteCategory`/`deleteSubCategory`
  * (or a single row from a `sku.delete` audit entry). `onConflictDoNothing`

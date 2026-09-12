@@ -1,18 +1,21 @@
-/** G-164: proves that deleting a SKU (bulk OR single-item) and a concurrent
- *  order creation for that SAME SKU, racing on two REAL, independent
- *  PostgreSQL connections, cannot both succeed — either the delete sees the
- *  (just-committed) open order and refuses (without override), or the order
- *  is rejected because the SKU it references has already, atomically,
- *  ceased to exist.
+/** G-164: proves that deleting a SKU — directly (bulk or single) or by
+ *  cascade (deleting its sub-category or category) — racing a concurrent
+ *  order creation for that SAME SKU on two REAL, independent PostgreSQL
+ *  connections, cannot both succeed: either the delete sees the
+ *  (just-committed) open order and refuses (without override), or the
+ *  order is rejected because the SKU it references has already,
+ *  atomically, ceased to exist.
  *
- *  Before the fix, BOTH delete paths read "does this sku have an open
- *  order" and then deleted as two independent, unlocked queries — a
- *  concurrent `createOrder` landing between them committed an open order
- *  the delete never saw, and the sku was removed anyway (orderItems.skuId
- *  silently went to NULL via ON DELETE SET NULL — no crash, just a guard
- *  that did nothing under real concurrency). `deleteSkusBulkGuarded`/
- *  `deleteSkuGuarded`'s `FOR UPDATE` and `createOrder`'s `FOR SHARE` (all on
- *  the same sku rows) now serialize the two operations instead.
+ *  Before the fix, EVERY delete path read "does this sku (or: any sku
+ *  under this node) have an open order" and then deleted as two
+ *  independent, unlocked queries — a concurrent `createOrder` landing
+ *  between them committed an open order the delete never saw, and the sku
+ *  was removed anyway (orderItems.skuId silently went to NULL via ON
+ *  DELETE SET NULL — no crash, just a guard that did nothing under real
+ *  concurrency). `deleteSkusBulkGuarded`/`deleteSkuGuarded`/
+ *  `deleteSubCategoryGuarded`/`deleteCategoryGuarded`'s `FOR UPDATE` and
+ *  `createOrder`'s `FOR SHARE` (all on the same sku rows) now serialize the
+ *  operations instead.
  *
  *  Run several iterations per path, not one — a single run can land the
  *  same way by chance depending on connection/scheduling timing, which
@@ -27,7 +30,12 @@ import { ulid } from 'ulid';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { setDbForTesting } from '../src/lib/server/db/client';
 import * as schema from '../src/lib/server/db/schema';
-import { deleteSkuGuarded, deleteSkusBulkGuarded } from '../src/lib/server/repos/catalogAdminRepo';
+import {
+  deleteCategoryGuarded,
+  deleteSkuGuarded,
+  deleteSkusBulkGuarded,
+  deleteSubCategoryGuarded,
+} from '../src/lib/server/repos/catalogAdminRepo';
 import { createOrder } from '../src/lib/server/repos/ordersRepo';
 
 const url = new URL(process.env.TEST_DATABASE_URL ?? 'http://invalid');
@@ -46,7 +54,11 @@ const N = 20;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-type DeleteOutcome = { blocked: boolean; removedCount: number };
+type DeleteOutcome = { blocked: boolean; removedSkuCount: number };
+/** One race iteration's fixture: a fresh sku to race on, the id the delete
+ *  function is actually called with (the sku itself, or its container),
+ *  and how to tear the whole thing down afterward. */
+type Fixture = { skuId: string; deleteTargetId: string; cleanup: () => Promise<void> };
 
 /**
  * Both guarded functions take their lock as the FIRST statement in their
@@ -62,19 +74,16 @@ async function runOnce(
   label: string,
   i: number,
   stagger: 'deleteFirst' | 'orderFirst' | 'even',
-  runDelete: (skuId: string) => Promise<DeleteOutcome>,
+  makeFixture: (i: number) => Promise<Fixture>,
+  runDelete: (deleteTargetId: string) => Promise<DeleteOutcome>,
   outcomes: { deleteWon: number; orderWon: number },
 ) {
-  const skuId = `sku-race-${label}-${i}-${ulid()}`;
+  const { skuId, deleteTargetId, cleanup } = await makeFixture(i);
   const ref = `OR-RACE-${label}-${i}-${ulid()}`;
-  await control.query(
-    `INSERT INTO skus(id, slug, name, size, category_id, sub_category_id, unit) VALUES ($1, $1, 'کالای آزمایشی', '14', $2, $3, 'kg')`,
-    [skuId, catId, subId],
-  );
 
   const delPromise = (async () => {
     if (stagger === 'orderFirst') await sleep(3);
-    return runDelete(skuId);
+    return runDelete(deleteTargetId);
   })();
   const orderPromise = (async () => {
     if (stagger === 'deleteFirst') await sleep(3);
@@ -99,10 +108,11 @@ async function runOnce(
     outcomes.orderWon++;
   } else {
     // The delete won the race: it took FOR UPDATE first, saw no open order
-    // yet, and removed the sku. The order — unblocked only after that
-    // commit — must have failed (FK violation on a sku that no longer
-    // exists), not silently succeeded against a phantom row.
-    assert(!delResult.blocked && delResult.removedCount === 1, `[${label}] delete won the race but did not report the sku removed. delResult=${JSON.stringify(delResult)}`);
+    // yet, and removed the sku (directly, or by cascade). The order —
+    // unblocked only after that commit — must have failed (FK violation on
+    // a sku that no longer exists), not silently succeeded against a
+    // phantom row.
+    assert(!delResult.blocked && delResult.removedSkuCount >= 1, `[${label}] delete won the race but did not report the sku removed. delResult=${JSON.stringify(delResult)}`);
     assert(!skuStillExists, `[${label}] delete won the race and reported success, so the sku must actually be gone`);
     const orderRow = await control.query('SELECT id FROM orders WHERE ref=$1', [ref]);
     assert.equal(orderRow.rowCount, 0, `[${label}] the order that lost the race must not have been committed at all`);
@@ -111,19 +121,75 @@ async function runOnce(
 
   await control.query('DELETE FROM order_items WHERE sku_id=$1', [skuId]).catch(() => {});
   await control.query('DELETE FROM orders WHERE ref=$1', [ref]).catch(() => {});
-  await control.query('DELETE FROM skus WHERE id=$1', [skuId]).catch(() => {});
+  await cleanup();
 }
 
 async function runSuite(
   label: string,
-  runDelete: (skuId: string) => Promise<DeleteOutcome>,
+  makeFixture: (i: number) => Promise<Fixture>,
+  runDelete: (deleteTargetId: string) => Promise<DeleteOutcome>,
 ): Promise<{ deleteWon: number; orderWon: number }> {
   const outcomes = { deleteWon: 0, orderWon: 0 };
   const staggers = ['even', 'deleteFirst', 'orderFirst'] as const;
-  for (let i = 0; i < N; i++) await runOnce(label, i, staggers[i % staggers.length]!, runDelete, outcomes);
+  for (let i = 0; i < N; i++) await runOnce(label, i, staggers[i % staggers.length]!, makeFixture, runDelete, outcomes);
   assert(outcomes.deleteWon > 0 && outcomes.orderWon > 0,
     `[${label}] expected both interleavings to actually occur across ${N} runs; got delete=${outcomes.deleteWon}, order=${outcomes.orderWon}`);
   return outcomes;
+}
+
+/** A single sku, directly under the shared catId/subId — the fixture the
+ *  bulk and single-delete suites race on. */
+async function skuFixture(label: string, i: number): Promise<Fixture> {
+  const skuId = `sku-race-${label}-${i}-${ulid()}`;
+  await control.query(
+    `INSERT INTO skus(id, slug, name, size, category_id, sub_category_id, unit) VALUES ($1, $1, 'کالای آزمایشی', '14', $2, $3, 'kg')`,
+    [skuId, catId, subId],
+  );
+  return { skuId, deleteTargetId: skuId, cleanup: () => control.query('DELETE FROM skus WHERE id=$1', [skuId]).then(() => {}) };
+}
+
+/** A fresh sub-category (under the shared catId) with one sku under it —
+ *  the fixture the sub-category cascade-delete suite races on. Deleting
+ *  the sub-category cascades to the sku at the DB level (ON DELETE CASCADE). */
+async function subCategoryFixture(label: string, i: number): Promise<Fixture> {
+  const freshSubId = `sub-race-${label}-${i}-${ulid()}`;
+  const skuId = `sku-race-${label}-${i}-${ulid()}`;
+  await control.query(`INSERT INTO sub_categories(id, category_id, slug, name) VALUES ($1, $2, $1, 'زیردستهٔ آزمایشی')`, [freshSubId, catId]);
+  await control.query(
+    `INSERT INTO skus(id, slug, name, size, category_id, sub_category_id, unit) VALUES ($1, $1, 'کالای آزمایشی', '14', $2, $3, 'kg')`,
+    [skuId, catId, freshSubId],
+  );
+  return {
+    skuId,
+    deleteTargetId: freshSubId,
+    cleanup: async () => {
+      await control.query('DELETE FROM skus WHERE id=$1', [skuId]).catch(() => {});
+      await control.query('DELETE FROM sub_categories WHERE id=$1', [freshSubId]).catch(() => {});
+    },
+  };
+}
+
+/** A fresh category with its own sub-category and one sku under it — the
+ *  fixture the category cascade-delete suite races on. */
+async function categoryFixture(label: string, i: number): Promise<Fixture> {
+  const freshCatId = `cat-race-${label}-${i}-${ulid()}`;
+  const freshSubId = `sub-race-${label}-${i}-${ulid()}`;
+  const skuId = `sku-race-${label}-${i}-${ulid()}`;
+  await control.query(`INSERT INTO categories(id, slug, name) VALUES ($1, $1, 'دستهٔ آزمایشی')`, [freshCatId]);
+  await control.query(`INSERT INTO sub_categories(id, category_id, slug, name) VALUES ($1, $2, $1, 'زیردستهٔ آزمایشی')`, [freshSubId, freshCatId]);
+  await control.query(
+    `INSERT INTO skus(id, slug, name, size, category_id, sub_category_id, unit) VALUES ($1, $1, 'کالای آزمایشی', '14', $2, $3, 'kg')`,
+    [skuId, freshCatId, freshSubId],
+  );
+  return {
+    skuId,
+    deleteTargetId: freshCatId,
+    cleanup: async () => {
+      await control.query('DELETE FROM skus WHERE id=$1', [skuId]).catch(() => {});
+      await control.query('DELETE FROM sub_categories WHERE id=$1', [freshSubId]).catch(() => {});
+      await control.query('DELETE FROM categories WHERE id=$1', [freshCatId]).catch(() => {});
+    },
+  };
 }
 
 try {
@@ -133,20 +199,49 @@ try {
     [subId, catId],
   );
 
-  const bulk = await runSuite('bulk-delete', async (skuId) => {
-    const r = await deleteSkusBulkGuarded([skuId], { override: false });
-    return r.ok ? { blocked: false, removedCount: r.removed.length } : { blocked: true, removedCount: 0 };
-  });
+  const bulk = await runSuite(
+    'bulk-delete',
+    (i) => skuFixture('bulk-delete', i),
+    async (skuId) => {
+      const r = await deleteSkusBulkGuarded([skuId], { override: false });
+      return r.ok ? { blocked: false, removedSkuCount: r.removed.length } : { blocked: true, removedSkuCount: 0 };
+    },
+  );
   console.log(`  ✓ deleteSkusBulkGuarded: delete won ${bulk.deleteWon}x, order won ${bulk.orderWon}x`);
 
-  const single = await runSuite('single-delete', async (skuId) => {
-    const r = await deleteSkuGuarded(skuId, { override: false });
-    return r.status === 'removed' ? { blocked: false, removedCount: 1 } : { blocked: true, removedCount: 0 };
-  });
+  const single = await runSuite(
+    'single-delete',
+    (i) => skuFixture('single-delete', i),
+    async (skuId) => {
+      const r = await deleteSkuGuarded(skuId, { override: false });
+      return r.status === 'removed' ? { blocked: false, removedSkuCount: 1 } : { blocked: true, removedSkuCount: 0 };
+    },
+  );
   console.log(`  ✓ deleteSkuGuarded: delete won ${single.deleteWon}x, order won ${single.orderWon}x`);
 
-  console.log(`PASS (${N * 2}/${N * 2}): both delete-sku paths serialize correctly against a concurrent order-creation `
-    + 'on a shared SKU under real connection-level concurrency, in BOTH interleavings — the open-order guard cannot be raced around.');
+  const subCat = await runSuite(
+    'subcategory-delete',
+    (i) => subCategoryFixture('subcategory-delete', i),
+    async (freshSubId) => {
+      const r = await deleteSubCategoryGuarded(freshSubId, { override: false });
+      return r.status === 'removed' ? { blocked: false, removedSkuCount: r.subtree.skus.length } : { blocked: true, removedSkuCount: 0 };
+    },
+  );
+  console.log(`  ✓ deleteSubCategoryGuarded: delete won ${subCat.deleteWon}x, order won ${subCat.orderWon}x`);
+
+  const cat = await runSuite(
+    'category-delete',
+    (i) => categoryFixture('category-delete', i),
+    async (freshCatId) => {
+      const r = await deleteCategoryGuarded(freshCatId, { override: false });
+      return r.status === 'removed' ? { blocked: false, removedSkuCount: r.subtree.skus.length } : { blocked: true, removedSkuCount: 0 };
+    },
+  );
+  console.log(`  ✓ deleteCategoryGuarded: delete won ${cat.deleteWon}x, order won ${cat.orderWon}x`);
+
+  console.log(`PASS (${N * 4}/${N * 4}): all four delete-sku paths (bulk, single, sub-category cascade, category `
+    + 'cascade) serialize correctly against a concurrent order-creation under real connection-level concurrency, '
+    + 'in BOTH interleavings — the open-order guard cannot be raced around.');
 } finally {
   await control.query('DELETE FROM sub_categories WHERE id=$1', [subId]).catch(() => {});
   await control.query('DELETE FROM categories WHERE id=$1', [catId]).catch(() => {});

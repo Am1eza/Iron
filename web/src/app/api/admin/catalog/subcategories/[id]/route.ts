@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation/request';
 import { requireApiPermission, requireDb, audit, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { deleteSubCategory, subCategoryImpact, updateSubCategory } from '@/lib/server/repos/catalogAdminRepo';
+import { deleteSubCategoryGuarded, subCategoryImpact, updateSubCategory } from '@/lib/server/repos/catalogAdminRepo';
 import {
   catalogErrorResponse,
   openOrdersBlock,
@@ -75,13 +75,32 @@ async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string 
   if ('response' in auth) return auth.response;
   const { id } = await ctx.params;
   const impact = await subCategoryImpact(id);
+  // Cheap, informational rejection for the common case — see the SKU
+  // routes' identical comment. NOT the actual guard against a race: impact
+  // was read outside any lock, so it can be stale by the time the delete
+  // runs below.
   const blocked = openOrdersBlock(req, impact);
   if (blocked) return blocked;
+  const override = req.nextUrl.searchParams.get('override') === 'true';
   // Before the delete: its products cascade away with it.
   const tombstone = await planDeletedNodeRedirects('subCategory', id);
-  const result = await deleteSubCategory(id);
-  if (!result) return NextResponse.json({ error: 'not_found', message: 'زیر‌دسته یافت نشد.' }, { status: 404 });
-  const { removed, subtree } = result;
+  // The actual guard (G-164): re-checked, LOCKED, atomically with the
+  // cascade delete — across every sku this sub-category would take down.
+  const guarded = await deleteSubCategoryGuarded(id, { override });
+  if (guarded.status === 'not_found') {
+    return NextResponse.json({ error: 'not_found', message: 'زیر‌دسته یافت نشد.' }, { status: 404 });
+  }
+  if (guarded.status === 'blocked') {
+    return NextResponse.json(
+      {
+        error: 'open_orders',
+        message: `${guarded.openOrders} سفارش باز به این مورد وابسته است. برای حذف قطعی، درخواست را با override=true دوباره بفرست.`,
+        impact: { ...impact, openOrders: guarded.openOrders },
+      },
+      { status: 409 },
+    );
+  }
+  const { removed, subtree } = guarded;
   // The whole row, plus the products it cascaded away — see the category
   // route for why two columns and a bare count is not a recovery story.
   await audit(auth.session.id, 'catalog.sub.delete', { type: 'sub', id }, { ...removed, _subtree: subtree }, null);
