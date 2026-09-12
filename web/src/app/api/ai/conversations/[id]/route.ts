@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireApiUser, requireDb, withApiErrorHandling } from '@/lib/server/utils/apiGuard';
-import { conversationForUser } from '@/lib/server/repos/aiConversationsRepo';
+import { conversationForUser, deleteConversationForUser } from '@/lib/server/repos/aiConversationsRepo';
 
 export const runtime = 'nodejs';
 
@@ -36,3 +36,29 @@ async function GETImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> 
 }
 
 export const GET = withApiErrorHandling(GETImpl);
+
+/**
+ * DELETE /api/ai/conversations/[id] — a visitor deleting their own thread
+ * immediately, rather than waiting on `cleanup.job.ts`'s 90-day auto-purge
+ * (J-228). Right-to-erasure matters more than usual here: the advisor relay
+ * is out-of-Iran, and a conversation can carry whatever the visitor typed.
+ *
+ * Same non-disclosure shape as GET: 404, not 403, for someone else's id —
+ * distinguishing "not yours" from "doesn't exist" tells an attacker holding a
+ * guessed id that it is real.
+ */
+async function DELETEImpl(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const guard = requireDb();
+  if (guard) return guard;
+  const auth = await requireApiUser(req);
+  if ('response' in auth) return auth.response;
+
+  const { id } = await ctx.params;
+  const deleted = await deleteConversationForUser(id, auth.session.id);
+  if (!deleted) {
+    return NextResponse.json({ error: 'not_found', message: 'این گفتگو پیدا نشد.' }, { status: 404 });
+  }
+  return new NextResponse(null, { status: 204 });
+}
+
+export const DELETE = withApiErrorHandling(DELETEImpl);

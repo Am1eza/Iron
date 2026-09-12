@@ -53,11 +53,22 @@
   color: var(--color-text-muted);
 }
 
+.itemRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.itemRow:hover .deleteBtn,
+.itemRow:focus-within .deleteBtn {
+  opacity: 1;
+}
+
 .item {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  inline-size: 100%;
+  flex: 1 1 auto;
+  min-inline-size: 0;
   min-block-size: 40px;
   padding: var(--space-2);
   border: 0;
@@ -71,6 +82,21 @@
 }
 .item:hover {
   background: var(--color-surface);
+}
+
+.deleteBtn {
+  flex: none;
+  /* Visible on hover/focus of the row, and always on touch (no hover) so the
+     control is discoverable without a pointer. */
+  opacity: 0;
+}
+@media (hover: none) {
+  .deleteBtn {
+    opacity: 1;
+  }
+}
+.deleteBtn:focus-visible {
+  opacity: 1;
 }
 /* The open conversation is marked with a tint AND `aria-current`, never with
    colour alone. */

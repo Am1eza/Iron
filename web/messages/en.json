@@ -1029,6 +1029,11 @@
       "loadFailed": "The conversation list didn't load.",
       "retry": "Try again",
       "empty": "No saved conversations yet.",
+      "deleteConversation": "Delete conversation",
+      "deleteConfirmTitle": "Delete this conversation?",
+      "deleteConfirmBody": "This conversation will be permanently deleted and cannot be recovered.",
+      "deleteConfirmAction": "Delete",
+      "deleteFailed": "The conversation could not be deleted.",
       "bucket": {
         "today": "Today",
         "yesterday": "Yesterday",

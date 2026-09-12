@@ -6,7 +6,10 @@ import { routes } from '@/lib/routes';
 import { api, isApiError } from '@/lib/api';
 import { formatJalali } from '@/lib/utils/jalali';
 import { useAuthStore } from '@/lib/stores/auth';
-import { PlusIcon, ChatIcon } from '@/components/primitives/icons';
+import { useConfirm } from '@/components/ui/useConfirm';
+import { IconButton } from '@/components/ui/IconButton';
+import { useToast } from '@/lib/hooks/useToast';
+import { PlusIcon, ChatIcon, TrashIcon } from '@/components/primitives/icons';
 import styles from './ConversationRail.module.css';
 
 export interface ConversationListItem {
@@ -59,12 +62,16 @@ export function ConversationRail({
   onOpen,
   onNew,
   onDismiss,
+  onDeleted,
 }: {
   activeId?: string;
   onOpen: (id: string) => void;
   onNew: () => void;
   /** Mobile drawer only — closes it after a selection. */
   onDismiss?: () => void;
+  /** The visitor deleted a thread (J-228) — reported so the caller can reset
+   *  its own view when the deleted one was the OPEN conversation. */
+  onDeleted?: (id: string) => void;
 }) {
   const t = useTranslations('ai.rail');
   const tCommon = useTranslations('common.state');
@@ -72,6 +79,8 @@ export function ConversationRail({
   const [items, setItems] = useState<ConversationListItem[] | null>(null);
   const [needsLogin, setNeedsLogin] = useState(false);
   const [failed, setFailed] = useState(false);
+  const { confirm, dialog: confirmDialog } = useConfirm();
+  const toast = useToast();
 
   const load = useCallback(async () => {
     setFailed(false);
@@ -103,6 +112,25 @@ export function ConversationRail({
     if (!activeId) return;
     void load();
   }, [activeId, load]);
+
+  const handleDelete = useCallback(
+    async (id: string) => {
+      const ok = await confirm({
+        title: t('deleteConfirmTitle'),
+        body: t('deleteConfirmBody'),
+        confirmLabel: t('deleteConfirmAction'),
+      });
+      if (!ok) return;
+      try {
+        await api.ai.deleteConversation(id);
+        setItems((prev) => (prev ?? []).filter((c) => c.id !== id));
+        onDeleted?.(id);
+      } catch {
+        toast.error(t('deleteFailed'));
+      }
+    },
+    [confirm, onDeleted, t, toast],
+  );
 
   const grouped = ORDER.map((bucket) => ({
     bucket,
@@ -152,25 +180,35 @@ export function ConversationRail({
             <div key={group.bucket} className={styles.group}>
               <p className={styles.groupLabel}>{t(`bucket.${group.bucket}`)}</p>
               {group.rows.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={`${styles.item}${c.id === activeId ? ` ${styles.itemActive}` : ''}`}
-                  aria-current={c.id === activeId ? 'true' : undefined}
-                  onClick={() => {
-                    onOpen(c.id);
-                    onDismiss?.();
-                  }}
-                >
-                  <ChatIcon size={15} aria-hidden="true" />
-                  <span className={styles.itemTitle}>{c.title}</span>
-                  <span className={styles.itemDate}>{formatJalali(c.updatedAt, 'MM/dd')}</span>
-                </button>
+                <div key={c.id} className={styles.itemRow}>
+                  <button
+                    type="button"
+                    className={`${styles.item}${c.id === activeId ? ` ${styles.itemActive}` : ''}`}
+                    aria-current={c.id === activeId ? 'true' : undefined}
+                    onClick={() => {
+                      onOpen(c.id);
+                      onDismiss?.();
+                    }}
+                  >
+                    <ChatIcon size={15} aria-hidden="true" />
+                    <span className={styles.itemTitle}>{c.title}</span>
+                    <span className={styles.itemDate}>{formatJalali(c.updatedAt, 'MM/dd')}</span>
+                  </button>
+                  <IconButton
+                    size="sm"
+                    variant="ghost"
+                    className={styles.deleteBtn}
+                    label={t('deleteConversation')}
+                    icon={<TrashIcon size={16} aria-hidden="true" />}
+                    onClick={() => void handleDelete(c.id)}
+                  />
+                </div>
               ))}
             </div>
           ))
         )}
       </nav>
+      {confirmDialog}
     </div>
   );
 }
