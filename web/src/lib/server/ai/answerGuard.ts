@@ -21,6 +21,8 @@
  * Latin grade codes (`A3`, `ST37`, `IPE14`, `LC`), so those must never trip
  * it. What no Persian answer ever contains is eight English words.
  */
+import { PRICE_UNIT_LABEL, priceBasisNoun } from '@/lib/utils/catalogLabels';
+import type { PriceBasis, PriceUnit } from '@/lib/types/domain';
 
 /** Latin words of 3+ letters. `A3`/`ST37`/`IPE14` are 1-2 letters + digits and
  *  do not match; «mm» and «kg» are 2 letters and do not match either. */
@@ -439,4 +441,51 @@ export function appendCityQuestion(text: string): string {
   const sentence = 'محصول قرار است به کدام شهر تحویل داده شود؟ با دانستن آن می‌توانم هزینهٔ حمل را هم مقایسه کنم.';
   const trimmed = text.trim();
   return trimmed ? `${trimmed}\n\n${sentence}` : sentence;
+}
+
+/* ------------------------------------------------------------------ */
+/* Unit vs. price-basis disclosure enforcement (J-218)                 */
+/* ------------------------------------------------------------------ */
+
+/**
+ * `getPrice` can return a SKU whose counting unit (`unit`, e.g. «شاخه»)
+ * differs from what its price is actually denominated in (`priceBasis`, e.g.
+ * «کیلوگرم») — rule 3-ج tells the model to always state both when they
+ * diverge, since naming only one is a real, ~10x-magnitude error a customer
+ * cannot detect on their own. Grounding cannot catch a model that mentions
+ * only one: the bare price is itself a real, tool-produced number, so
+ * nothing about it looks wrong to the validator — the same shape of blind
+ * spot J-217/220 close for staleness/delivery-city.
+ *
+ * A presence check, like the staleness caveat above: both nouns must appear
+ * SOMEWHERE in the answer, not necessarily bound to the exact right number —
+ * proving semantic correctness is a much harder, unneeded bar. The actual
+ * failure mode this closes is the model naming only one unit at all, which
+ * is trivially visible either way.
+ */
+export type BasisDivergence = { unit: string; priceBasis: string };
+
+function basisNouns({ unit, priceBasis }: BasisDivergence): { unitNoun: string; basisNoun: string } {
+  return {
+    unitNoun: PRICE_UNIT_LABEL[unit as PriceUnit] ?? unit,
+    basisNoun: priceBasisNoun(priceBasis as PriceBasis),
+  };
+}
+
+export function missingBasisDisclosure(text: string, divergences: readonly BasisDivergence[]): boolean {
+  for (const d of divergences) {
+    const { unitNoun, basisNoun } = basisNouns(d);
+    if (!text.includes(unitNoun) || !text.includes(basisNoun)) return true;
+  }
+  return false;
+}
+
+/** Last-resort fix when even a second attempt still names only one unit. */
+export function appendBasisDisclosure(text: string, divergences: readonly BasisDivergence[]): string {
+  const sentences = divergences.map((d) => {
+    const { unitNoun, basisNoun } = basisNouns(d);
+    return `(قیمت این کالا بر مبنای ${basisNoun} محاسبه می‌شود، نه ${unitNoun}؛ هنگام محاسبه به این تفاوت توجه کنید.)`;
+  });
+  const trimmed = text.trim();
+  return trimmed ? `${trimmed}\n\n${sentences.join('\n')}` : sentences.join('\n');
 }

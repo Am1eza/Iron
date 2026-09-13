@@ -30,6 +30,9 @@ import {
   appendStaleCaveat,
   answerAsksAboutCity,
   appendCityQuestion,
+  missingBasisDisclosure,
+  appendBasisDisclosure,
+  type BasisDivergence,
 } from './answerGuard';
 import { toInformalSecondPerson } from './informalVoice';
 
@@ -219,6 +222,14 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
   // J-220: at least one compareFactories call this turn ran without a known
   // delivery city (aiTools.ts flags its own result — see `missingCity`).
   let missingCityFlagged = false;
+  // J-218: every distinct (unit, priceBasis) pair this turn's getPrice rows
+  // came back with, where the two diverge and a real price was actually
+  // given — the answer has to name both nouns, or a customer reads a
+  // per-branch price as if it were per-kilogram (or the reverse), a ~10x
+  // error grounding cannot see (the bare number is itself real). Keyed by
+  // "unit|priceBasis" so the same divergent pair across several rows in one
+  // turn only produces one disclosure sentence.
+  const divergentBases = new Map<string, BasisDivergence>();
 
   // Token cost accumulated across ALL completion rounds (tool rounds + the
   // correction retry) — one aiUsage row per request. reasoningTokens (J-238)
@@ -369,11 +380,20 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
           }
           if (call.function.name === 'getPrice') {
             const gp = result as {
-              results?: Array<{ isStale?: boolean; price?: unknown; updatedAtJalali?: string }>;
+              results?: Array<{
+                isStale?: boolean;
+                price?: unknown;
+                updatedAtJalali?: string;
+                unit?: string;
+                priceBasis?: string;
+              }>;
             } | null;
             for (const row of gp?.results ?? []) {
               if (row?.isStale === true && typeof row.price === 'number' && row.updatedAtJalali) {
                 staleDates.add(row.updatedAtJalali);
+              }
+              if (typeof row?.price === 'number' && row.unit && row.priceBasis && row.unit !== row.priceBasis) {
+                divergentBases.set(`${row.unit}|${row.priceBasis}`, { unit: row.unit, priceBasis: row.priceBasis });
               }
             }
           }
@@ -553,6 +573,36 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
     }
     if (!answerAsksAboutCity(checked.text)) {
       checked = { text: appendCityQuestion(checked.text), violations: checked.violations };
+    }
+  }
+
+  // J-218: a SKU whose counting unit and price basis diverge (e.g. quoted
+  // «شاخه» but priced per «کیلوگرم») has to have BOTH nouns named, or a
+  // customer reads the price against the wrong unit — a ~10x error
+  // grounding cannot see, same shape of blind spot as staleness/city above.
+  if (divergentBases.size > 0 && !signal?.aborted) {
+    const divergences = [...divergentBases.values()];
+    if (missingBasisDisclosure(checked.text, divergences)) {
+      try {
+        messages.push(
+          { role: 'assistant', content: checked.text },
+          {
+            role: 'user',
+            content:
+              '[یادداشت داخلی سیستم؛ این را کاربر ننوشته و کاربر آن را نمی‌بیند]: پاسخ قبلی قیمتی را گفت که واحد شمارشی (unit) آن با مبنای واقعی قیمت (priceBasis) یکی نیست، بدون اینکه هر دو را صریح بگوید. همان پاسخ را نگه دار ولی صریح بگو قیمت بر مبنای کدام واحد محاسبه می‌شود، نه صرفاً واحد شمارشی؛ به این یادداشت اشاره نکن.',
+          },
+        );
+        const retry = await runLoop(0);
+        if (retry.trim()) {
+          const retryChecked = sanitizeGrounded(retry, ledger, userNumbers);
+          if (!missingBasisDisclosure(retryChecked.text, divergences)) checked = retryChecked;
+        }
+      } catch {
+        /* fall through to the code-appended disclosure below */
+      }
+      if (missingBasisDisclosure(checked.text, divergences)) {
+        checked = { text: appendBasisDisclosure(checked.text, divergences), violations: checked.violations };
+      }
     }
   }
 

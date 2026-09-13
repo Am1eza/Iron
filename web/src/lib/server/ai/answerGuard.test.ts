@@ -19,6 +19,8 @@ import {
   appendStaleCaveat,
   answerAsksAboutCity,
   appendCityQuestion,
+  missingBasisDisclosure,
+  appendBasisDisclosure,
 } from './answerGuard';
 import { AI_SYSTEM_PROMPT } from '@/lib/server/services/aiTools';
 
@@ -336,5 +338,44 @@ describe('answerAsksAboutCity / appendCityQuestion (J-220)', () => {
   it('appendCityQuestion always produces text answerAsksAboutCity accepts', () => {
     const out = appendCityQuestion('ارزان‌ترین گزینه ذوب‌آهن است.');
     expect(answerAsksAboutCity(out)).toBe(true);
+  });
+});
+
+describe('missingBasisDisclosure / appendBasisDisclosure (J-218)', () => {
+  const branchPricedPerKg = [{ unit: 'branch', priceBasis: 'kg' }];
+
+  it('is false when there is no divergence to disclose', () => {
+    expect(missingBasisDisclosure('هر شاخه ۴۲٬۰۰۰ تومان است.', [])).toBe(false);
+  });
+
+  it('is true when the answer names neither noun for a divergent SKU', () => {
+    const t = 'قیمت این محصول ۴۲٬۰۰۰ تومان است.';
+    expect(missingBasisDisclosure(t, branchPricedPerKg)).toBe(true);
+  });
+
+  it('is true when the answer names only the counting unit, not the real basis', () => {
+    // The exact failure this closes: «هر شاخه X تومان» when X is actually
+    // per-kilogram — a customer reading this has no way to know the price
+    // is not per-branch, a ~10x-magnitude misunderstanding.
+    const t = 'هر شاخه ۴۲۰٬۰۰۰ تومان است.';
+    expect(missingBasisDisclosure(t, branchPricedPerKg)).toBe(true);
+  });
+
+  it('is false once the answer names BOTH the unit and the real basis', () => {
+    const t = 'قیمت هر شاخه بر مبنای کیلوگرم محاسبه می‌شود و برابر ۴۲۰٬۰۰۰ تومان است.';
+    expect(missingBasisDisclosure(t, branchPricedPerKg)).toBe(false);
+  });
+
+  it('handles multiple divergent pairs in one turn — every pair must be disclosed', () => {
+    const pairs = [{ unit: 'branch', priceBasis: 'kg' }, { unit: 'piece', priceBasis: 'sqm' }];
+    const onlyOneDisclosed = 'قیمت هر شاخه بر مبنای کیلوگرم است.';
+    expect(missingBasisDisclosure(onlyOneDisclosed, pairs)).toBe(true);
+    const bothDisclosed = 'قیمت هر شاخه بر مبنای کیلوگرم است؛ قیمت هر عدد هم بر مبنای متر مربع است.';
+    expect(missingBasisDisclosure(bothDisclosed, pairs)).toBe(false);
+  });
+
+  it('appendBasisDisclosure always produces text missingBasisDisclosure accepts', () => {
+    const out = appendBasisDisclosure('هر شاخه ۴۲۰٬۰۰۰ تومان است.', branchPricedPerKg);
+    expect(missingBasisDisclosure(out, branchPricedPerKg)).toBe(false);
   });
 });

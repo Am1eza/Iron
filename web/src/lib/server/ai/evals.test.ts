@@ -40,6 +40,10 @@ let close: () => Promise<void>;
 let pricedRebar: PriceRow[];
 /** A rebar SKU whose current price was aged to YESTERDAY (stale, not hidden). */
 let staleSku: PriceRow;
+/** A rebar SKU whose unit/priceBasis were forced to diverge (J-218) —
+ *  quoted per «شاخه» but priced per «کیلوگرم», exactly the shape a customer
+ *  cannot tell apart from the number alone. */
+let divergentBasisSku: PriceRow;
 
 beforeAll(async () => {
   ({ db, close } = await createTestDb());
@@ -60,6 +64,20 @@ beforeAll(async () => {
     .update(schema.currentPrices)
     .set({ confirmedAt: new Date(Date.now() - 24 * 60 * 60 * 1000) })
     .where(eq(schema.currentPrices.skuId, staleSku.id));
+
+  // J-218: a distinct SKU (never one already used by another scenario)
+  // forced to quote per «شاخه» while priced per «کیلوگرم» — the seeded
+  // fixtures never happen to disagree like this on their own, so the
+  // divergence is created directly, the same way staleSku's price is aged.
+  // `currentPrices` carries its OWN `unit`/`priceBasis` (NOT NULL, catalogRepo
+  // .toPriceRow prefers them over the sku row's) — the sku row alone is not
+  // enough, both have to agree with the intended divergence.
+  divergentBasisSku = pricedRebar[2]!;
+  await db.update(schema.skus).set({ unit: 'branch', priceBasis: 'kg' }).where(eq(schema.skus.id, divergentBasisSku.id));
+  await db
+    .update(schema.currentPrices)
+    .set({ unit: 'branch', priceBasis: 'kg' })
+    .where(eq(schema.currentPrices.skuId, divergentBasisSku.id));
 }, 120_000);
 afterAll(async () => {
   await close();
@@ -137,7 +155,14 @@ async function runScenario(userMessages: string[], rounds: ScriptedRound[]): Pro
 /* --------------------------- scenarios ---------------------------- */
 
 type GetPriceResult = {
-  results: Array<{ name: string; price: number | null; isStale: boolean; updatedAtJalali: string }>;
+  results: Array<{
+    name: string;
+    price: number | null;
+    isStale: boolean;
+    updatedAtJalali: string;
+    unit?: string;
+    priceBasis?: string;
+  }>;
 };
 type CompareResult = {
   cheapestFactory: string;
@@ -329,6 +354,36 @@ const SCENARIOS: Scenario[] = [
       expect(r.missingCity).toBe(true);
       expect(result.text).toContain('شهر');
       expect(result.text).toContain('؟');
+    },
+  },
+  {
+    // J-218: a SKU quoted per «شاخه» but priced per «کیلوگرم» — rule 3-ج
+    // tells the model to always name both, but here it names only the
+    // counting unit, exactly the ~10x-magnitude misunderstanding the audit
+    // found ("هر شاخه X تومان" when X is actually per-kilogram). Neither the
+    // model's first answer nor its retry discloses the real basis, forcing
+    // the pipeline's code-appended fallback.
+    name: 'J-218: unit/priceBasis divergence is disclosed even when the model omits it',
+    userMessages: ['قیمت میلگرد کارخانهٔ سوم چنده؟'],
+    rounds: () => [
+      { toolCalls: [{ name: 'getPrice', args: () => ({ query: divergentBasisSku.slug }) }] },
+      {
+        text: (msgs) =>
+          `هر شاخه ${lastToolResult<GetPriceResult>(msgs).results[0]!.price!.toLocaleString('en-US')} تومان است.`,
+      },
+      {
+        text: (msgs) =>
+          `هر شاخه ${lastToolResult<GetPriceResult>(msgs).results[0]!.price!.toLocaleString('en-US')} تومان است.`,
+      },
+    ],
+    expectations: ({ result, messages }) => {
+      const tool = lastToolResult<GetPriceResult>(messages).results[0]!;
+      expect(tool.unit).toBe('branch');
+      expect(tool.priceBasis).toBe('kg');
+      // Both nouns must appear — «شاخه» (the counting unit already in the
+      // model's own answer) AND «کیلوگرم» (the real basis it omitted).
+      expect(result.text).toContain('شاخه');
+      expect(result.text).toContain('کیلوگرم');
     },
   },
   {
