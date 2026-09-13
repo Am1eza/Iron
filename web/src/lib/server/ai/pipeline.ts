@@ -35,6 +35,8 @@ import {
   type BasisDivergence,
 } from './answerGuard';
 import { toInformalSecondPerson } from './informalVoice';
+import { rewrittenTokensForCall } from './queryRewrite';
+import { reportError } from '@/lib/errors/report';
 
 export const MAX_TOOL_ROUNDS = 4;
 
@@ -90,6 +92,15 @@ export interface AnswerTrace {
   emptyRetryRescued: boolean;
   /** The scratchpad guard fired (and this turn was therefore blanked or retried). */
   leakFired: boolean;
+  /**
+   * J-219: tool calls whose query was MORE specific than anything the visitor
+   * typed — the model narrowing «میلگرد ۱۴» to a particular factory on its
+   * own, which would resolve an ambiguity the choice chips exist to surface.
+   * A count, not the tokens: this rides in `ai_usage`, which is telemetry,
+   * not a second copy of the transcript. Monitoring only for now — see
+   * queryRewrite.ts for why the audit asked for a rate before a guard.
+   */
+  queryRewrites: number;
   /** Sentences dropped by stripFalseProcessClaims, and what that cost in chars. */
   claimsRemoved: number;
   claimsChars: number;
@@ -178,7 +189,12 @@ export interface PipelineResult {
    *  aiTaxonomy.EstimateFacts). Undefined unless estimateProject ran. */
   estimate?: EstimateFacts;
   toolsUsed: Set<string>;
-  usage: { promptTokens: number; completionTokens: number; cacheHitTokens: number; reasoningTokens: number };
+  usage: {
+    promptTokens: number;
+    completionTokens: number;
+    cacheHitTokens: number;
+    reasoningTokens: number;
+  };
   /** Per-stage record of what post-processing removed (see AnswerTrace). */
   trace: AnswerTrace;
   /** Exposed so callers/tests can re-verify the final text independently. */
@@ -186,9 +202,27 @@ export interface PipelineResult {
 }
 
 export async function runAdvisorPipeline(opts: PipelineOptions): Promise<PipelineResult> {
-  const { messages, userNumbers, session, conversationId, clientMessages, signal, userSignal, city } = opts;
+  const {
+    messages,
+    userNumbers,
+    session,
+    conversationId,
+    clientMessages,
+    signal,
+    userSignal,
+    city,
+  } = opts;
   const stream = opts.stream ?? streamCompletion;
   const send = opts.send ?? (() => {});
+
+  // J-219: everything the VISITOR actually typed this conversation — the
+  // baseline a tool query is judged "more specific than". The whole history,
+  // not just the last turn: carrying a factory forward from three messages
+  // ago is correct behaviour, not an invention.
+  const userTexts = (clientMessages ?? [])
+    .filter((m) => m.role === 'user')
+    .map((m) => m.content)
+    .filter((c): c is string => typeof c === 'string');
 
   // AC-D-3 state: every tool-returned number becomes quotable.
   const ledger = new GroundingLedger();
@@ -253,6 +287,7 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
     emptyRetried: false,
     emptyRetryRescued: false,
     leakFired: false,
+    queryRewrites: 0,
     claimsRemoved: 0,
     claimsChars: 0,
     repeatChars: 0,
@@ -343,10 +378,30 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
         } catch {
           /* tolerate malformed args */
         }
+        // J-219: measured BEFORE the tool runs, so a rewrite is recorded even
+        // when the narrowed query goes on to match nothing.
+        const rewritten = rewrittenTokensForCall(args, userTexts);
+        if (rewritten.length > 0) {
+          trace.queryRewrites++;
+          // The tokens themselves only in the log line, never in `ai_usage`:
+          // they are what the MODEL wrote, but they are shaped by the
+          // conversation, and telemetry is not a transcript.
+          reportError(
+            new Error(`ai: model narrowed a tool query (${call.function.name})`),
+            {
+              stage: 'ai.queryRewrite',
+              tool: call.function.name,
+              addedTokens: rewritten.join(' '),
+            },
+            'warning',
+          );
+        }
         send({ type: 'tool', name: call.function.name });
         let result: unknown;
         if (call.function.name === 'prepareProforma' && draftCalls >= MAX_DRAFT_CALLS) {
-          result = { error: 'خلاصهٔ درخواست همین حالا به کاربر نشان داده شده؛ فقط بگو آن را تأیید کند.' };
+          result = {
+            error: 'خلاصهٔ درخواست همین حالا به کاربر نشان داده شده؛ فقط بگو آن را تأیید کند.',
+          };
         } else {
           result = await runTool(call.function.name, args, session, {
             conversationId,
@@ -377,10 +432,13 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
             // The tool decides WHETHER a choice is chip-able (one ambiguous
             // line, deduped, capped — see chipsForChoice); the pipeline only
             // carries the answer out to the route.
-            const choice = (result as { status?: string; choiceChips?: unknown })?.status === 'needs_choice'
-              ? (result as { choiceChips?: unknown }).choiceChips
+            const choice =
+              (result as { status?: string; choiceChips?: unknown })?.status === 'needs_choice'
+                ? (result as { choiceChips?: unknown }).choiceChips
+                : [];
+            choiceChips = Array.isArray(choice)
+              ? choice.filter((c): c is string => typeof c === 'string')
               : [];
-            choiceChips = Array.isArray(choice) ? choice.filter((c): c is string => typeof c === 'string') : [];
           }
           if (call.function.name === 'getPrice') {
             const gp = result as {
@@ -396,13 +454,22 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
               if (row?.isStale === true && typeof row.price === 'number' && row.updatedAtJalali) {
                 staleDates.add(row.updatedAtJalali);
               }
-              if (typeof row?.price === 'number' && row.unit && row.priceBasis && row.unit !== row.priceBasis) {
-                divergentBases.set(`${row.unit}|${row.priceBasis}`, { unit: row.unit, priceBasis: row.priceBasis });
+              if (
+                typeof row?.price === 'number' &&
+                row.unit &&
+                row.priceBasis &&
+                row.unit !== row.priceBasis
+              ) {
+                divergentBases.set(`${row.unit}|${row.priceBasis}`, {
+                  unit: row.unit,
+                  priceBasis: row.priceBasis,
+                });
               }
             }
           }
           if (call.function.name === 'compareFactories') {
-            if ((result as { missingCity?: boolean } | null)?.missingCity) missingCityFlagged = true;
+            if ((result as { missingCity?: boolean } | null)?.missingCity)
+              missingCityFlagged = true;
           }
           if (call.function.name === 'estimateProject') {
             const r = result as {
@@ -496,7 +563,13 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
           // which is confusing since the real user never said that.
           role: 'user',
           content:
-            '[یادداشت داخلی سیستم؛ این را کاربر ننوشته و کاربر آن را نمی‌بیند]: پاسخ قبلی عددی داشت که از خروجی ابزارها نیامده بود. اگر لازم است دوباره ابزار را صدا بزن و فقط با اعداد خروجی ابزارها پاسخ بده؛ اگر عددی نداری، بگو کارشناس اعلام می‌کند. مستقیماً پاسخ نهایی و طبیعی را برای کاربر بنویس؛ به این یادداشت، به اشتباه قبلی، یا به فرایند اصلاح هیچ اشاره‌ای نکن.',
+            // J-216: a misattributed number is a DIFFERENT mistake from an
+            // invented one — the figure was real, it was just hung on the
+            // wrong product — and telling the model "you invented a number"
+            // when it didn't sends it looking for the wrong error.
+            checked.misattributed?.length === checked.violations.length
+              ? '[یادداشت داخلی سیستم؛ این را کاربر ننوشته و کاربر آن را نمی‌بیند]: در پاسخ قبلی یک عدد واقعی به محصول اشتباه نسبت داده شده بود. هر قیمت را دقیقاً برای همان محصولی بگو که در خروجی ابزار کنارش آمده؛ اگر برای محصولی که کاربر پرسیده قیمتی نداری، بگو کارشناس اعلام می‌کند. مستقیماً پاسخ نهایی و طبیعی را برای کاربر بنویس؛ به این یادداشت، به اشتباه قبلی، یا به فرایند اصلاح هیچ اشاره‌ای نکن.'
+              : '[یادداشت داخلی سیستم؛ این را کاربر ننوشته و کاربر آن را نمی‌بیند]: پاسخ قبلی عددی داشت که از خروجی ابزارها نیامده بود. اگر لازم است دوباره ابزار را صدا بزن و فقط با اعداد خروجی ابزارها پاسخ بده؛ اگر عددی نداری، بگو کارشناس اعلام می‌کند. مستقیماً پاسخ نهایی و طبیعی را برای کاربر بنویس؛ به این یادداشت، به اشتباه قبلی، یا به فرایند اصلاح هیچ اشاره‌ای نکن.',
         },
       );
       const retry = await runLoop(2);
@@ -545,7 +618,10 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
       /* fall through to the code-appended caveat below */
     }
     if (missingStaleCaveat(checked.text, staleDates)) {
-      checked = { text: appendStaleCaveat(checked.text, staleDates), violations: checked.violations };
+      checked = {
+        text: appendStaleCaveat(checked.text, staleDates),
+        violations: checked.violations,
+      };
     }
   }
 
@@ -605,7 +681,10 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
         /* fall through to the code-appended disclosure below */
       }
       if (missingBasisDisclosure(checked.text, divergences)) {
-        checked = { text: appendBasisDisclosure(checked.text, divergences), violations: checked.violations };
+        checked = {
+          text: appendBasisDisclosure(checked.text, divergences),
+          violations: checked.violations,
+        };
       }
     }
   }
@@ -621,7 +700,9 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
   // all, so `looksLikeLeakedReasoning` alone never catches it — same failure
   // mode, same remedy: ask once for a real answer, then suppress rather than
   // let a verbatim instruction dump reach the customer.
-  const leaked = looksLikeLeakedReasoning(checked.text) || looksLikeLeakedSystemPrompt(checked.text, AI_SYSTEM_PROMPT);
+  const leaked =
+    looksLikeLeakedReasoning(checked.text) ||
+    looksLikeLeakedSystemPrompt(checked.text, AI_SYSTEM_PROMPT);
   if (leaked && !signal?.aborted) {
     trace.leakFired = true;
     try {
@@ -634,9 +715,10 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
         },
       );
       const retry = await runLoop(1);
-      checked = looksLikeLeakedReasoning(retry) || looksLikeLeakedSystemPrompt(retry, AI_SYSTEM_PROMPT)
-        ? { text: '', violations: [] }
-        : sanitizeGrounded(retry, ledger, userNumbers);
+      checked =
+        looksLikeLeakedReasoning(retry) || looksLikeLeakedSystemPrompt(retry, AI_SYSTEM_PROMPT)
+          ? { text: '', violations: [] }
+          : sanitizeGrounded(retry, ledger, userNumbers);
     } catch {
       checked = { text: '', violations: [] };
     }

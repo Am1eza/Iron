@@ -12,6 +12,10 @@ export interface AiUsageDay {
   completionTokens: number;
   cacheHitTokens: number;
   violations: number;
+  /** J-219: turns in which the model narrowed a tool query beyond anything
+   *  the visitor typed, and the total turns that day to rate it against. */
+  queryRewriteTurns: number;
+  turns: number;
 }
 
 export async function aiUsageDailySeries(days = 14): Promise<AiUsageDay[]> {
@@ -26,6 +30,10 @@ export async function aiUsageDailySeries(days = 14): Promise<AiUsageDay[]> {
       completionTokens: sql<number>`coalesce(sum(${aiUsage.completionTokens}), 0)::int`,
       cacheHitTokens: sql<number>`coalesce(sum(${aiUsage.cacheHitTokens}), 0)::int`,
       violations: sql<number>`coalesce(sum(${aiUsage.violations}), 0)::int`,
+      // `answer_trace` is nullable and predates this field, so a row without
+      // it counts as 0 rather than making the whole day's sum null.
+      queryRewriteTurns: sql<number>`coalesce(sum(case when (${aiUsage.answerTrace} ->> 'queryRewrites')::int > 0 then 1 else 0 end), 0)::int`,
+      turns: sql<number>`count(*)::int`,
     })
     .from(aiUsage)
     .where(gte(aiUsage.createdAt, since))
@@ -48,6 +56,8 @@ export async function aiUsageDailySeries(days = 14): Promise<AiUsageDay[]> {
       completionTokens: r?.completionTokens ?? 0,
       cacheHitTokens: r?.cacheHitTokens ?? 0,
       violations: r?.violations ?? 0,
+      queryRewriteTurns: r?.queryRewriteTurns ?? 0,
+      turns: r?.turns ?? 0,
     });
   }
   return out;
@@ -105,7 +115,15 @@ export async function promptVersionMetrics(): Promise<PromptVersionMetrics[]> {
   const get = (versionId: string) => {
     let m = byVersion.get(versionId);
     if (!m) {
-      m = { versionId, conversationCount: 0, promptTokens: 0, completionTokens: 0, cacheHitTokens: 0, feedbackUp: 0, feedbackDown: 0 };
+      m = {
+        versionId,
+        conversationCount: 0,
+        promptTokens: 0,
+        completionTokens: 0,
+        cacheHitTokens: 0,
+        feedbackUp: 0,
+        feedbackDown: 0,
+      };
       byVersion.set(versionId, m);
     }
     return m;

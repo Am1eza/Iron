@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { GroundingLedger, numbersInText, sanitizeGrounded, UNGROUNDED_REPLACEMENT } from './grounding';
+import {
+  GroundingLedger,
+  numbersInText,
+  sanitizeGrounded,
+  UNGROUNDED_REPLACEMENT,
+} from './grounding';
 
 /* ------------------------- grounding validator ------------------------- */
 
@@ -93,7 +98,11 @@ describe('GroundingLedger + sanitizeGrounded (AC-D-3)', () => {
   });
 
   it('censors spelled-out money («چهل و دو هزار تومان») outright', () => {
-    const r = sanitizeGrounded('قیمت حدود چهل و دو هزار تومان است.', new GroundingLedger(), new Set());
+    const r = sanitizeGrounded(
+      'قیمت حدود چهل و دو هزار تومان است.',
+      new GroundingLedger(),
+      new Set(),
+    );
     expect(r.violations.length).toBeGreaterThan(0);
     expect(r.text).toContain(UNGROUNDED_REPLACEMENT);
     expect(r.text).not.toContain('چهل و دو هزار تومان');
@@ -137,7 +146,11 @@ describe('GroundingLedger + sanitizeGrounded (AC-D-3)', () => {
     expect(r.violations).toEqual([]);
     // …but the bare user "3" (طبقه) does NOT license an invented ۳ میلیون.
     const user2 = new Set(numbersInText('خونهٔ ۳ طبقه می‌سازم'));
-    const r2 = sanitizeGrounded('هزینهٔ جوشکاری حدود ۳ میلیون تومان است.', new GroundingLedger(), user2);
+    const r2 = sanitizeGrounded(
+      'هزینهٔ جوشکاری حدود ۳ میلیون تومان است.',
+      new GroundingLedger(),
+      user2,
+    );
     expect(r2.violations).toEqual([3000000]);
   });
 
@@ -150,12 +163,20 @@ describe('GroundingLedger + sanitizeGrounded (AC-D-3)', () => {
 
   it('allows user-typed numbers (their own inputs are not invented)', () => {
     const user = new Set(numbersInText('یه خونهٔ ۱۲۰ متری ۲ طبقه، بودجه ۵۰۰,۰۰۰,۰۰۰ تومان'));
-    const r = sanitizeGrounded('برای ۱۲۰ متر و بودجهٔ ۵۰۰٬۰۰۰٬۰۰۰ تومانی‌ات…', new GroundingLedger(), user);
+    const r = sanitizeGrounded(
+      'برای ۱۲۰ متر و بودجهٔ ۵۰۰٬۰۰۰٬۰۰۰ تومانی‌ات…',
+      new GroundingLedger(),
+      user,
+    );
     expect(r.violations).toEqual([]);
   });
 
   it('leaves small non-claim numbers (sizes, floors, counts) alone', () => {
-    const r = sanitizeGrounded('میلگرد ۱۴ برای سقف ۲ طبقه گزینهٔ خوبی است.', new GroundingLedger(), new Set());
+    const r = sanitizeGrounded(
+      'میلگرد ۱۴ برای سقف ۲ طبقه گزینهٔ خوبی است.',
+      new GroundingLedger(),
+      new Set(),
+    );
     expect(r.violations).toEqual([]);
   });
 
@@ -184,12 +205,138 @@ describe('GroundingLedger + sanitizeGrounded (AC-D-3)', () => {
 
   it('kind tagging from field names: price/cost → money, weight/kg/ton → weight', () => {
     const ledger = new GroundingLedger();
-    ledger.addFromJson({ rebarCost: 92000000, avgRebarPricePerKg: 41000, rebarKg: 2200, rebarTons: 2.2, totalAreaM2: 120 });
-    expect(sanitizeGrounded('هزینه حدود ۹۲ میلیون تومان می‌شود.', ledger, new Set()).violations).toEqual([]);
-    expect(sanitizeGrounded('قیمت هر کیلو ۴۱۰۰۰ تومان است.', ledger, new Set()).violations).toEqual([]);
-    expect(sanitizeGrounded('وزن میلگرد ۲۲۰۰ کیلوگرم است.', ledger, new Set()).violations).toEqual([]);
+    ledger.addFromJson({
+      rebarCost: 92000000,
+      avgRebarPricePerKg: 41000,
+      rebarKg: 2200,
+      rebarTons: 2.2,
+      totalAreaM2: 120,
+    });
+    expect(
+      sanitizeGrounded('هزینه حدود ۹۲ میلیون تومان می‌شود.', ledger, new Set()).violations,
+    ).toEqual([]);
+    expect(sanitizeGrounded('قیمت هر کیلو ۴۱۰۰۰ تومان است.', ledger, new Set()).violations).toEqual(
+      [],
+    );
+    expect(sanitizeGrounded('وزن میلگرد ۲۲۰۰ کیلوگرم است.', ledger, new Set()).violations).toEqual(
+      [],
+    );
     // A weight-only figure must not ground an unrelated money claim of the same size.
     expect(sanitizeGrounded('قیمت ۲۲۰۰ تومان است.', ledger, new Set()).violations).toEqual([2200]);
+  });
+
+  /**
+   * J-216 — the ledger used to know only "this number came from A tool", not
+   * "…for WHICH row". Two SKUs at the same price is not exotic in this
+   * catalog (two factories quoting the same rebar size on the same day is
+   * routine), and in that state the validator physically could not tell a
+   * correct attribution from a swapped one: the number really is in the
+   * ledger either way.
+   *
+   * The audit's acceptance criterion is exactly this scenario.
+   */
+  describe('J-216: a real number attached to the wrong product', () => {
+    /** Two rows, coincidentally the same price — the audit's own setup. */
+    const TWO_SKUS = {
+      results: [
+        { skuId: 's1', slug: 'rebar-14-zobahan', name: 'میلگرد ۱۴ ذوب‌آهن', price: 42500 },
+        { skuId: 's2', slug: 'rebar-14-neyshabur', name: 'میلگرد ۱۴ نیشابور', price: 42500 },
+      ],
+    };
+    /** The realistic case: the prices genuinely differ. */
+    const DIFFERENT_PRICES = {
+      results: [
+        { skuId: 's1', slug: 'rebar-14-zobahan', name: 'میلگرد ۱۴ ذوب‌آهن', price: 42500 },
+        { skuId: 's2', slug: 'rebar-14-neyshabur', name: 'میلگرد ۱۴ نیشابور', price: 41800 },
+      ],
+    };
+
+    it("censors a price quoted under the wrong factory's name", () => {
+      const ledger = new GroundingLedger();
+      ledger.addFromJson(DIFFERENT_PRICES);
+      const r = sanitizeGrounded('قیمت میلگرد ۱۴ نیشابور ۴۲۵۰۰ تومان است.', ledger, new Set());
+      expect(r.violations).toEqual([42500]);
+      expect(r.misattributed).toEqual([42500]);
+      expect(r.text).toContain(UNGROUNDED_REPLACEMENT);
+    });
+
+    it('accepts the same number under the right name', () => {
+      const ledger = new GroundingLedger();
+      ledger.addFromJson(DIFFERENT_PRICES);
+      const r = sanitizeGrounded('قیمت میلگرد ۱۴ ذوب‌آهن ۴۲۵۰۰ تومان است.', ledger, new Set());
+      expect(r.violations).toEqual([]);
+      expect(r.text).toContain('۴۲۵۰۰');
+    });
+
+    it('matches a name the model spelled with a space instead of a ZWNJ', () => {
+      const ledger = new GroundingLedger();
+      ledger.addFromJson(DIFFERENT_PRICES);
+      // The catalog stores «ذوب‌آهن»; the model wrote «ذوب آهن». A raw
+      // `includes` would miss this and censor a correct answer.
+      const r = sanitizeGrounded('قیمت میلگرد ۱۴ ذوب آهن ۴۲۵۰۰ تومان است.', ledger, new Set());
+      expect(r.violations).toEqual([]);
+    });
+
+    it('accepts either name when the two SKUs genuinely share a price', () => {
+      const ledger = new GroundingLedger();
+      ledger.addFromJson(TWO_SKUS);
+      for (const name of ['ذوب‌آهن', 'نیشابور']) {
+        const r = sanitizeGrounded(`قیمت میلگرد ۱۴ ${name} ۴۲۵۰۰ تومان است.`, ledger, new Set());
+        expect(r.violations, name).toEqual([]);
+      }
+    });
+
+    it('handles a two-product sentence by attributing each number separately', () => {
+      const ledger = new GroundingLedger();
+      ledger.addFromJson(DIFFERENT_PRICES);
+      const ok = sanitizeGrounded(
+        'میلگرد ۱۴ ذوب‌آهن ۴۲۵۰۰ تومان است و میلگرد ۱۴ نیشابور ۴۱۸۰۰ تومان.',
+        ledger,
+        new Set(),
+      );
+      expect(ok.violations).toEqual([]);
+
+      // Swap the two figures and both become misattributions.
+      const swapped = sanitizeGrounded(
+        'میلگرد ۱۴ ذوب‌آهن ۴۱۸۰۰ تومان است و میلگرد ۱۴ نیشابور ۴۲۵۰۰ تومان.',
+        ledger,
+        new Set(),
+      );
+      expect(swapped.misattributed).toEqual([41800, 42500]);
+    });
+
+    it('stays quiet when the sentence names no product it can check against', () => {
+      const ledger = new GroundingLedger();
+      ledger.addFromJson(DIFFERENT_PRICES);
+      // No evidence of a mismatch — censoring here would break correct
+      // answers far more often than it would catch a wrong one.
+      expect(sanitizeGrounded('قیمتش ۴۲۵۰۰ تومان است.', ledger, new Set()).violations).toEqual([]);
+    });
+
+    it('does not censor an unattributed total that sits next to a product name', () => {
+      const ledger = new GroundingLedger();
+      // A proforma-style result: the line belongs to a row, the TOTAL to none.
+      ledger.addFromJson({
+        items: [{ skuId: 's1', name: 'میلگرد ۱۴ ذوب‌آهن', qty: 1000, unitPrice: 42500 }],
+        total: 42_500_000,
+      });
+      const r = sanitizeGrounded(
+        'برای میلگرد ۱۴ ذوب‌آهن جمعاً ۴۲٬۵۰۰٬۰۰۰ تومان می‌شود.',
+        ledger,
+        new Set(),
+      );
+      expect(r.violations).toEqual([]);
+    });
+
+    it('still censors an invented number even when the attribution looks right', () => {
+      const ledger = new GroundingLedger();
+      ledger.addFromJson(DIFFERENT_PRICES);
+      const r = sanitizeGrounded('قیمت میلگرد ۱۴ ذوب‌آهن ۴۹۹۰۰ تومان است.', ledger, new Set());
+      expect(r.violations).toEqual([49900]);
+      // Invention, not misattribution — the two are reported apart because
+      // they need different corrections.
+      expect(r.misattributed).toEqual([]);
+    });
   });
 
   it('censors scale-LESS spelled money/weight («پانصد تومان», «صد کیلوگرم»)', () => {

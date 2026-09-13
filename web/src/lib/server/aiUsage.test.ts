@@ -24,8 +24,22 @@ afterAll(async () => {
 describe('aiUsage telemetry', () => {
   it('inserts rows and aggregates only today (token sums, violations, cache-hit rate)', async () => {
     await db.insert(schema.aiUsage).values([
-      { id: ulid(), conversationId: 'c1', promptTokens: 1000, completionTokens: 200, cacheHitTokens: 600, violations: 1 },
-      { id: ulid(), conversationId: null, promptTokens: 500, completionTokens: 100, cacheHitTokens: 150, violations: 0 },
+      {
+        id: ulid(),
+        conversationId: 'c1',
+        promptTokens: 1000,
+        completionTokens: 200,
+        cacheHitTokens: 600,
+        violations: 1,
+      },
+      {
+        id: ulid(),
+        conversationId: null,
+        promptTokens: 500,
+        completionTokens: 100,
+        cacheHitTokens: 150,
+        violations: 0,
+      },
       // Yesterday's row must NOT count toward «امروز».
       {
         id: ulid(),
@@ -59,11 +73,46 @@ describe('aiUsage telemetry', () => {
     expect(row.cacheHitTokens / row.promptTokens).toBeCloseTo(0.5, 5);
   });
 
+  /**
+   * J-219. `answer_trace` is a nullable jsonb that predates `queryRewrites`,
+   * so the aggregate has to survive three shapes at once: rows with the
+   * field, rows with a trace that lacks it, and rows with no trace at all.
+   * A `sum(...)` that went null on any of them would blank the whole day's
+   * rate on the admin console rather than under-report it.
+   */
+  it('rates query rewrites across rows whose answer_trace predates the field', async () => {
+    await db.delete(schema.aiUsage);
+    await db.insert(schema.aiUsage).values([
+      { id: ulid(), answerTrace: { toolCalls: 2, queryRewrites: 1 } },
+      { id: ulid(), answerTrace: { toolCalls: 3, queryRewrites: 0 } },
+      { id: ulid(), answerTrace: { toolCalls: 1 } }, // written before J-219
+      { id: ulid() }, // no trace at all
+    ]);
+
+    const [row] = await db
+      .select({
+        rewriteTurns: sql<number>`coalesce(sum(case when (${schema.aiUsage.answerTrace} ->> 'queryRewrites')::int > 0 then 1 else 0 end), 0)::int`,
+        turns: sql<number>`count(*)::int`,
+      })
+      .from(schema.aiUsage);
+
+    expect(row).toEqual({ rewriteTurns: 1, turns: 4 });
+    await db.delete(schema.aiUsage);
+  });
+
   it('columns default to 0 so a partial insert still yields a countable row', async () => {
     const id = ulid();
     await db.insert(schema.aiUsage).values({ id });
-    const [row] = await db.select().from(schema.aiUsage).where(sql`${schema.aiUsage.id} = ${id}`);
-    expect(row).toMatchObject({ promptTokens: 0, completionTokens: 0, cacheHitTokens: 0, violations: 0 });
+    const [row] = await db
+      .select()
+      .from(schema.aiUsage)
+      .where(sql`${schema.aiUsage.id} = ${id}`);
+    expect(row).toMatchObject({
+      promptTokens: 0,
+      completionTokens: 0,
+      cacheHitTokens: 0,
+      violations: 0,
+    });
     expect(row!.createdAt).toBeInstanceOf(Date);
   });
 });

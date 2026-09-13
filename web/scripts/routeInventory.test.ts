@@ -42,6 +42,8 @@ const VALIDATE_BODY_EXEMPT: Record<string, string> = {
   'me/club/route.ts': '(a) no body — join action keyed off the session id only',
   'ai/lead/draft/route.ts': '(b) manual readJsonBody + zod safeParse, plus server-side re-pricing checks',
   'ai/lead/confirm/route.ts': '(b) manual readJsonBody + zod safeParse; name/mobile taken from session, not body',
+  'ai/alert/confirm/route.ts':
+    '(b) manual readJsonBody + zod safeParse; body is a draft id and nothing else — the sku, threshold and user all come from the server-side draft (J-223)',
   'me/letterhead/logo/route.ts': '(b) multipart/form-data upload — size cap + magic-byte sniff, not JSON',
   'admin/upload/route.ts': '(b) multipart/form-data upload — size cap + magic-byte sniff, not JSON',
   'internal/alert-relay/route.ts':

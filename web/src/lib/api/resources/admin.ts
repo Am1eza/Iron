@@ -3,7 +3,18 @@
  * pages are server-gated). Thin typed wrappers over /api/admin/**.
  */
 import { http } from '../http';
-import type { PriceRow, PricePoint, LineItem, Order, WarehouseItem, Article, MarketValue, SeoMeta, PriceUnit, PriceBasis } from '@/lib/types/domain';
+import type {
+  PriceRow,
+  PricePoint,
+  LineItem,
+  Order,
+  WarehouseItem,
+  Article,
+  MarketValue,
+  SeoMeta,
+  PriceUnit,
+  PriceBasis,
+} from '@/lib/types/domain';
 // The command-palette wire contract lives beside the permission predicate
 // that shapes it, so the route and this client cannot drift apart.
 export type { AdminSearchHit } from '@/lib/auth/adminSearch';
@@ -127,7 +138,12 @@ export interface AdminStats {
    *  anyone (W22). Feeds both the alerts page's summary tile and the nav
    *  badge. */
   triggeredAlerts?: number;
-  aiToday?: { promptTokens: number; completionTokens: number; cacheHitRate: number; violations: number };
+  aiToday?: {
+    promptTokens: number;
+    completionTokens: number;
+    cacheHitRate: number;
+    violations: number;
+  };
 }
 
 /** The lead's `context` jsonb (server type: LeadContext in db/schema/leads.ts).
@@ -248,7 +264,9 @@ export interface AdminAlertRow {
   id: string;
   mobile: string;
   name: string | null;
-  target: { type: 'sku'; skuId: string; label?: string } | { type: 'market'; key: string; label?: string };
+  target:
+    | { type: 'sku'; skuId: string; label?: string }
+    | { type: 'market'; key: string; label?: string };
   op: 'below' | 'above';
   threshold: number;
   channel: string;
@@ -272,7 +290,13 @@ export interface AlertTierCaps {
 
 export interface DashboardStatsRes {
   range: number;
-  revenue: { current: number; prior: number; deltaPct: number | null; count: number; avgDeal: number };
+  revenue: {
+    current: number;
+    prior: number;
+    deltaPct: number | null;
+    count: number;
+    avgDeal: number;
+  };
   leads: { current: number; prior: number; deltaPct: number | null };
   orders: { current: number; prior: number; deltaPct: number | null };
   conversion: { current: number | null; prior: number | null; deltaPts: number | null };
@@ -282,8 +306,20 @@ export interface DashboardStatsRes {
   leadStatus: Array<{ status: string; n: number }>;
   orderStatus: Array<{ status: string; n: number }>;
   topProducts: Array<{ name: string; qty: number; value: number }>;
-  team: Array<{ id: string; name: string; leads: number; won: number; wonRate: number | null; value: number }>;
-  health: { stalePrices: number; smsFailed24h: number; expiringProformas: number; unassignedLeads: number };
+  team: Array<{
+    id: string;
+    name: string;
+    leads: number;
+    won: number;
+    wonRate: number | null;
+    value: number;
+  }>;
+  health: {
+    stalePrices: number;
+    smsFailed24h: number;
+    expiringProformas: number;
+    unassignedLeads: number;
+  };
 }
 /** One row of either attribution breakdown — entry form or campaign. Same
  *  columns and same per-lead meaning, so one table renders both. */
@@ -400,7 +436,13 @@ export interface DeskList {
   limit: number;
 }
 export interface DeskRes {
-  stats: { assigned: number; active: number; won: number; lost: number; conversionPct: number | null };
+  stats: {
+    assigned: number;
+    active: number;
+    won: number;
+    lost: number;
+    conversionPct: number | null;
+  };
   active: DeskList;
   /** Split, not one sorted list: overdue callbacks used to fill the whole cap
    *  and starve upcoming ones entirely for a rep with a backlog. */
@@ -585,16 +627,31 @@ export const adminApi = {
     http.get<{ rows: PriceRow[]; withoutPrice: string[] }>(
       `/api/admin/pricing?cat=${encodeURIComponent(cat)}${sub ? `&sub=${encodeURIComponent(sub)}` : ''}`,
     ),
-  savePrices: (prices: Array<{ skuId: string; price: number; deliveryTime?: string; vatIncluded?: boolean; confirmAnomaly?: boolean }>) =>
+  savePrices: (
+    prices: Array<{
+      skuId: string;
+      price: number;
+      deliveryTime?: string;
+      vatIncluded?: boolean;
+      confirmAnomaly?: boolean;
+    }>,
+  ) =>
     http.put<{
       results: Array<
-        | { ok: true; skuId: string; price: number; movementPct: number | null; movementDir: string }
+        | {
+            ok: true;
+            skuId: string;
+            price: number;
+            movementPct: number | null;
+            movementDir: string;
+          }
         | { ok: false; skuId: string; error: string }
       >;
       saved: number;
       failed: number;
     }>('/api/admin/pricing', { prices }),
-  saveBillet: (value: number) => http.put<{ value: MarketValue }>('/api/admin/market/billet', { value }),
+  saveBillet: (value: number) =>
+    http.put<{ value: MarketValue }>('/api/admin/market/billet', { value }),
   /** Public endpoint (no admin gate) — reused here for the pricing-grid row sparkline (US-17.6). */
   skuHistory: (slug: string, range = '30d') =>
     http.get<{ points: Array<{ price: number; at: string }> }>(
@@ -611,12 +668,21 @@ export const adminApi = {
     http.get<{ points: PricePoint[]; range: string }>(
       `/api/admin/pricing/history/${encodeURIComponent(slug)}?range=${encodeURIComponent(range)}`,
     ),
-  rollbackPrice: (input: { skuId: string; targetVersion: string; expectedCurrentVersion: string }) =>
-    http.post<{ skuId: string; price: number; version: string }>('/api/admin/pricing/rollback', input),
+  rollbackPrice: (input: {
+    skuId: string;
+    targetVersion: string;
+    expectedCurrentVersion: string;
+  }) =>
+    http.post<{ skuId: string; price: number; version: string }>(
+      '/api/admin/pricing/rollback',
+      input,
+    ),
 
   /* automated price mirroring (US-02.5) */
   priceSync: {
-    log: (params: { run?: string; outcome?: 'written' | 'skipped'; cat?: string; cursor?: string } = {}) => {
+    log: (
+      params: { run?: string; outcome?: 'written' | 'skipped'; cat?: string; cursor?: string } = {},
+    ) => {
       const qs = new URLSearchParams();
       if (params.run) qs.set('run', params.run);
       if (params.outcome) qs.set('outcome', params.outcome);
@@ -627,7 +693,8 @@ export const adminApi = {
     },
     /** 202 — the pass runs in the background; poll `log()` for the result. */
     runNow: () => http.post<{ started: true }>('/api/admin/pricing/sync', { confirm: true }),
-    exclusions: () => http.get<{ skus: PriceSyncExcludedSku[] }>('/api/admin/pricing/sync/exclusions'),
+    exclusions: () =>
+      http.get<{ skus: PriceSyncExcludedSku[] }>('/api/admin/pricing/sync/exclusions'),
     setExcluded: (skuId: string, excluded: boolean) =>
       http.patch<{ skuId: string; excluded: boolean }>('/api/admin/pricing/sync/exclusions', {
         skuId,
@@ -670,7 +737,9 @@ export const adminApi = {
    *  all 4,000 of everyone's, with nothing in the file saying so. The
    *  parameter list is deliberately identical to `leads()`' filter half —
    *  anything the list can filter by, the export must carry. */
-  leadsExportUrl: (params: { status?: string; assignee?: string; q?: string; from?: string; to?: string } = {}) => {
+  leadsExportUrl: (
+    params: { status?: string; assignee?: string; q?: string; from?: string; to?: string } = {},
+  ) => {
     const qs = new URLSearchParams();
     if (params.status) qs.set('status', params.status);
     if (params.assignee) qs.set('assignee', params.assignee);
@@ -698,9 +767,15 @@ export const adminApi = {
    *  justifying (today: leaving 'won' — it drives club tier and revenue). */
   updateLead: (
     id: string,
-    patch: { status?: string; assigneeId?: string | null; callbackAt?: string | null; statusReason?: string },
+    patch: {
+      status?: string;
+      assigneeId?: string | null;
+      callbackAt?: string | null;
+      statusReason?: string;
+    },
   ) => http.patch<{ lead: AdminLead }>(`/api/admin/leads/${id}`, patch),
-  addLeadNote: (id: string, text: string) => http.post<{ note: unknown }>(`/api/admin/leads/${id}/notes`, { text }),
+  addLeadNote: (id: string, text: string) =>
+    http.post<{ note: unknown }>(`/api/admin/leads/${id}/notes`, { text }),
   /** Other live leads sharing this one's NORMALISED mobile, within
    *  `windowDays` of its own `createdAt` (exact match only — never fuzzy).
    *  `leads:read`. */
@@ -735,10 +810,20 @@ export const adminApi = {
    *  NULL line total), a number = that price. `0` is NOT "unpriced" — the
    *  route 400s it on purpose, so this type has to be able to say `null` or
    *  the caller has no way to clear a price at all. */
-  updateLeadItem: (leadId: string, itemId: string, patch: { qty?: number; unitPrice?: number | null }) =>
-    http.patch<{ item: LineItem & { id: string } }>(`/api/admin/leads/${leadId}/items/${itemId}`, patch),
+  updateLeadItem: (
+    leadId: string,
+    itemId: string,
+    patch: { qty?: number; unitPrice?: number | null },
+  ) =>
+    http.patch<{ item: LineItem & { id: string } }>(
+      `/api/admin/leads/${leadId}/items/${itemId}`,
+      patch,
+    ),
   issueProforma: (id: string, discountToman?: number) =>
-    http.post<{ proforma: AdminProforma }>(`/api/admin/leads/${id}/proforma`, discountToman ? { discountToman } : {}),
+    http.post<{ proforma: AdminProforma }>(
+      `/api/admin/leads/${id}/proforma`,
+      discountToman ? { discountToman } : {},
+    ),
   /** The proforma register — every issued proforma across all leads. */
   proformas: (params: { status?: 'active' | 'expired' | 'cancelled'; page?: number } = {}) => {
     const qs = new URLSearchParams();
@@ -796,7 +881,8 @@ export const adminApi = {
       total: number;
     }>(`/api/admin/requests?${qs}`);
   },
-  updateRequest: (id: string, status: string) => http.patch<{ request: unknown }>(`/api/admin/requests/${id}`, { status }),
+  updateRequest: (id: string, status: string) =>
+    http.patch<{ request: unknown }>(`/api/admin/requests/${id}`, { status }),
   contactMessages: (params: { status?: string; page?: number; perPage?: number } = {}) => {
     const qs = new URLSearchParams();
     if (params.status) qs.set('status', params.status);
@@ -846,23 +932,34 @@ export const adminApi = {
    *  and doesn't hold leads:manage (W17) — the UI should hide the control
    *  pre-emptively (see leadAssigneeId above) rather than rely on this. */
   updateOrderStatus: (ref: string, status: string) =>
-    http.patch<{ order: Order; smsSent?: boolean }>(`/api/admin/orders/${encodeURIComponent(ref)}`, { status }),
+    http.patch<{ order: Order; smsSent?: boolean }>(
+      `/api/admin/orders/${encodeURIComponent(ref)}`,
+      { status },
+    ),
   updateOrderShipping: (ref: string, patch: { trackingNumber?: string; carrierName?: string }) =>
-    http.patch<{ order: Order; smsSent?: boolean }>(`/api/admin/orders/${encodeURIComponent(ref)}`, patch),
+    http.patch<{ order: Order; smsSent?: boolean }>(
+      `/api/admin/orders/${encodeURIComponent(ref)}`,
+      patch,
+    ),
   /** Requires leads:manage, not leads:write, as of W17 — same tier as
    *  archiving a lead. A leads:write-only rep gets 404 (apiGuard's
    *  insufficient-permission convention), so hide this control for them. */
-  cancelOrder: (ref: string) => http.del<{ ok: true; smsSent?: boolean }>(`/api/admin/orders/${encodeURIComponent(ref)}`),
+  cancelOrder: (ref: string) =>
+    http.del<{ ok: true; smsSent?: boolean }>(`/api/admin/orders/${encodeURIComponent(ref)}`),
 
   /* warehouse (W20 — search/filter/pagination, intake details, void/paid) */
-  warehouse: (params: { page?: number; status?: string; q?: string; includeDeleted?: boolean } = {}) => {
+  warehouse: (
+    params: { page?: number; status?: string; q?: string; includeDeleted?: boolean } = {},
+  ) => {
     const qs = new URLSearchParams();
     if (params.page) qs.set('page', String(params.page));
     if (params.status) qs.set('status', params.status);
     if (params.q) qs.set('q', params.q);
     if (params.includeDeleted) qs.set('includeDeleted', 'true');
     return http.get<{
-      items: Array<WarehouseItem & { userId: string; customerMobile: string; customerName: string | null }>;
+      items: Array<
+        WarehouseItem & { userId: string; customerMobile: string; customerName: string | null }
+      >;
       total: number;
     }>(`/api/admin/warehouse?${qs}`);
   },
@@ -882,10 +979,11 @@ export const adminApi = {
     leadId?: string;
     requestId?: string;
   }) =>
-    http.post<{ item: WarehouseItem; customer: { id: string; name: string | null; mobile: string }; registeredNewCustomer: boolean }>(
-      '/api/admin/warehouse',
-      input,
-    ),
+    http.post<{
+      item: WarehouseItem;
+      customer: { id: string; name: string | null; mobile: string };
+      registeredNewCustomer: boolean;
+    }>('/api/admin/warehouse', input),
   updateWarehouseItem: (
     id: string,
     patch: Partial<{
@@ -905,9 +1003,16 @@ export const adminApi = {
   deleteWarehouseItem: (id: string, force = false) =>
     http.del<{ ok: true }>(`/api/admin/warehouse/${id}${force ? '?force=true' : ''}`),
   warehouseMovements: (warehouseItemId: string) =>
-    http.get<{ movements: Array<{ id: string; kind: string; deltaTons: number; quantityAfterTons: number; note: string | null; createdAt: string }> }>(
-      `/api/admin/warehouse/${warehouseItemId}/movements`,
-    ),
+    http.get<{
+      movements: Array<{
+        id: string;
+        kind: string;
+        deltaTons: number;
+        quantityAfterTons: number;
+        note: string | null;
+        createdAt: string;
+      }>;
+    }>(`/api/admin/warehouse/${warehouseItemId}/movements`),
   /** The intake queue (W21) — customer-submitted warehouse requests not yet
    *  received. This is the entry point for the whole flow: a rep works from
    *  this list into "دریافت به انبار", not the other way around. */
@@ -937,7 +1042,13 @@ export const adminApi = {
    *  cover only part of the warehouse. */
   settlementCustomers: () =>
     http.get<{
-      customers: Array<{ userId: string; name: string | null; mobile: string; activeItemCount: number; totalUnsettledToman: number }>;
+      customers: Array<{
+        userId: string;
+        name: string | null;
+        mobile: string;
+        activeItemCount: number;
+        totalUnsettledToman: number;
+      }>;
       grandTotalUnsettledToman: number;
       truncated: boolean;
     }>('/api/admin/warehouse/settlements/customers'),
@@ -979,12 +1090,28 @@ export const adminApi = {
        *  to not offer «ابطال» on a row that will just 409. */
       latestSettlementIds: string[];
     }>(`/api/admin/warehouse/settlements?userId=${userId}&historyPage=${historyPage}`),
-  createSettlement: (warehouseItemId: string, note?: string, periodTo?: string, operationId?: string) =>
-    http.post<{ settlement: unknown }>('/api/admin/warehouse/settlements', { warehouseItemId, note, periodTo, operationId }),
+  createSettlement: (
+    warehouseItemId: string,
+    note?: string,
+    periodTo?: string,
+    operationId?: string,
+  ) =>
+    http.post<{ settlement: unknown }>('/api/admin/warehouse/settlements', {
+      warehouseItemId,
+      note,
+      periodTo,
+      operationId,
+    }),
   voidSettlement: (id: string, reason?: string) =>
-    http.patch<{ voided: unknown; reversal: unknown }>(`/api/admin/warehouse/settlements/${id}`, { action: 'void', reason }),
+    http.patch<{ voided: unknown; reversal: unknown }>(`/api/admin/warehouse/settlements/${id}`, {
+      action: 'void',
+      reason,
+    }),
   markSettlementPaid: (id: string, note?: string) =>
-    http.patch<{ settlement: unknown }>(`/api/admin/warehouse/settlements/${id}`, { action: 'paid', note }),
+    http.patch<{ settlement: unknown }>(`/api/admin/warehouse/settlements/${id}`, {
+      action: 'paid',
+      note,
+    }),
 
   /* content */
   articles: (params: { status?: string; type?: string; q?: string; page?: number } = {}) => {
@@ -1031,7 +1158,10 @@ export const adminApi = {
     }>,
   ) => http.patch<{ article: ArticleFull }>(`/api/admin/articles/${id}`, patch),
   publishArticle: (id: string, publishAt?: string) =>
-    http.post<{ article: ArticleFull }>(`/api/admin/articles/${id}/publish`, publishAt ? { publishAt } : {}),
+    http.post<{ article: ArticleFull }>(
+      `/api/admin/articles/${id}/publish`,
+      publishAt ? { publishAt } : {},
+    ),
   /** Draft only — the server rejects a published/scheduled article (unpublish first). */
   deleteArticle: (id: string) => http.del<{ ok: true }>(`/api/admin/articles/${id}`),
 
@@ -1050,24 +1180,27 @@ export const adminApi = {
   /* search console (US-14.4) — every one of these answers honestly when the
    * feature is unconfigured (`status.configured === false`), so the callers
    * hide their UI instead of showing an empty table that reads as "zero". */
-  searchConsoleStatus: () => http.get<{ status: SearchConsoleStatusDto }>('/api/admin/seo/search-console'),
+  searchConsoleStatus: () =>
+    http.get<{ status: SearchConsoleStatusDto }>('/api/admin/seo/search-console'),
   /** Returns the Google consent URL for the panel to open in a new tab —
    *  a full-page navigation here would discard an in-progress article. */
-  connectSearchConsole: () => http.post<{ authUrl: string }>('/api/admin/seo/search-console/connect', {}),
+  connectSearchConsole: () =>
+    http.post<{ authUrl: string }>('/api/admin/seo/search-console/connect', {}),
   disconnectSearchConsole: () => http.del<{ ok: true }>('/api/admin/seo/search-console'),
   searchConsoleMetrics: (path: string) =>
     http.get<{ status: SearchConsolePanelStatusDto; metrics: SearchConsoleMetricsDto | null }>(
       `/api/admin/seo/search-console/metrics?path=${encodeURIComponent(path)}`,
     ),
   refreshSearchConsoleMetrics: (path: string) =>
-    http.post<{ metrics: SearchConsoleMetricsDto }>('/api/admin/seo/search-console/metrics', { path }),
+    http.post<{ metrics: SearchConsoleMetricsDto }>('/api/admin/seo/search-console/metrics', {
+      path,
+    }),
 
   /* catalog */
   /* catalog — see components/admin/catalog. `iconId`/`imageUrl` and the
      counts were all missing from these types, which is part of why the panel
      could never edit them. */
-  categories: () =>
-    http.get<{ categories: AdminCategory[] }>('/api/admin/catalog/categories'),
+  categories: () => http.get<{ categories: AdminCategory[] }>('/api/admin/catalog/categories'),
   createCategory: (input: {
     slug: string;
     name: string;
@@ -1117,20 +1250,24 @@ export const adminApi = {
       order: number;
       categoryId: string;
     }>,
-  ) => http.patch<{ subCategory: AdminSubCategory }>(`/api/admin/catalog/subcategories/${id}`, patch),
+  ) =>
+    http.patch<{ subCategory: AdminSubCategory }>(`/api/admin/catalog/subcategories/${id}`, patch),
   /** Deletes for real — the sub-category and every product under it. */
-  deleteSubCategory: (id: string) => http.del<{ ok: true }>(`/api/admin/catalog/subcategories/${id}`),
+  deleteSubCategory: (id: string) =>
+    http.del<{ ok: true }>(`/api/admin/catalog/subcategories/${id}`),
 
-  skus: (params: {
-    categoryId?: string;
-    subCategoryId?: string;
-    q?: string;
-    page?: number;
-    /** 1–200; the route clamps and defaults to 50. It has accepted this from
-     *  the start and the client never sent it, which left «همهٔ کالاها» a
-     *  fifteen-page walk with no way to widen it. */
-    perPage?: number;
-  } = {}) => {
+  skus: (
+    params: {
+      categoryId?: string;
+      subCategoryId?: string;
+      q?: string;
+      page?: number;
+      /** 1–200; the route clamps and defaults to 50. It has accepted this from
+       *  the start and the client never sent it, which left «همهٔ کالاها» a
+       *  fifteen-page walk with no way to widen it. */
+      perPage?: number;
+    } = {},
+  ) => {
     const qs = new URLSearchParams();
     if (params.categoryId) qs.set('categoryId', params.categoryId);
     if (params.subCategoryId) qs.set('subCategoryId', params.subCategoryId);
@@ -1148,14 +1285,17 @@ export const adminApi = {
       perPage: number;
     }>(`/api/admin/catalog/skus?${qs}`);
   },
-  createSku: (input: AdminSkuInput) => http.post<{ sku: AdminSku }>('/api/admin/catalog/skus', input),
+  createSku: (input: AdminSkuInput) =>
+    http.post<{ sku: AdminSku }>('/api/admin/catalog/skus', input),
   updateSku: (id: string, patch: Partial<AdminSkuInput>) =>
     http.patch<{ sku: AdminSku }>(`/api/admin/catalog/skus/${id}`, patch),
   /** Deletes for real. The price history goes with the product; the quotes
    *  and orders that referenced it keep their frozen name and price. Rejected
    *  with 409 if the product sits on an open order, unless `override`. */
   deleteSku: (id: string, opts?: { override?: boolean }) =>
-    http.del<{ ok: true }>(`/api/admin/catalog/skus/${id}${opts?.override ? '?override=true' : ''}`),
+    http.del<{ ok: true }>(
+      `/api/admin/catalog/skus/${id}${opts?.override ? '?override=true' : ''}`,
+    ),
   /** One transaction and one open-order check for the whole batch, instead of
    *  N independent `deleteSku` calls that could each half-succeed. */
   bulkDeleteSkus: (ids: string[], opts?: { override?: boolean }) =>
@@ -1184,7 +1324,10 @@ export const adminApi = {
   /** Replaces the category's whole order — send the COMPLETE list, not a
    *  delta. A name left out stops being ordered at all. */
   setFactoryOrder: (categoryId: string, factories: string[]) =>
-    http.put<{ ok: true; count: number }>('/api/admin/catalog/factory-order', { categoryId, factories }),
+    http.put<{ ok: true; count: number }>('/api/admin/catalog/factory-order', {
+      categoryId,
+      factories,
+    }),
   /** Every value already in use for the free-text SKU columns, so the product
    *  form can offer choices instead of asking the admin to type. */
   catalogSuggestions: (categoryId?: string) =>
@@ -1204,12 +1347,16 @@ export const adminApi = {
   uploadImage: (file: File) => http.upload<{ url: string }>('/api/admin/upload', file),
 
   /* price alerts (قیمت‌سنج) — admin management */
-  alerts: (params: { status?: 'active' | 'triggered' | 'paused'; q?: string; page?: number } = {}) => {
+  alerts: (
+    params: { status?: 'active' | 'triggered' | 'paused'; q?: string; page?: number } = {},
+  ) => {
     const qs = new URLSearchParams();
     if (params.status) qs.set('status', params.status);
     if (params.q) qs.set('q', params.q);
     if (params.page) qs.set('page', String(params.page));
-    return http.get<{ alerts: AdminAlertRow[]; total: number; caps: AlertTierCaps }>(`/api/admin/alerts?${qs}`);
+    return http.get<{ alerts: AdminAlertRow[]; total: number; caps: AlertTierCaps }>(
+      `/api/admin/alerts?${qs}`,
+    );
   },
   /** Allows re-arming from ANY prior status, including 'triggered' (W22 —
    *  the API never actually restricted this; only the missing button did). */
@@ -1228,8 +1375,11 @@ export const adminApi = {
     http.patch<{ user: AdminUserRow }>(`/api/admin/users/${id}`, patch),
   /** Direct staff invite (US-21.4) — 'admin' isn't a valid role here; that's
    *  allowlist-only (server rejects it). */
-  createStaffUser: (input: { mobile: string; name?: string; role: 'operator' | 'sales' | 'content' | 'catalog' }) =>
-    http.post<{ user: AdminUserRow }>('/api/admin/users', input),
+  createStaffUser: (input: {
+    mobile: string;
+    name?: string;
+    role: 'operator' | 'sales' | 'content' | 'catalog';
+  }) => http.post<{ user: AdminUserRow }>('/api/admin/users', input),
   /** Profile + a recent-activity glance (leads/orders/AI usage), US-21.3. */
   userDetail: (id: string) =>
     http.get<{
@@ -1238,9 +1388,15 @@ export const adminApi = {
       leadsHasMore: boolean;
       orders: Array<{ id: string; ref: string; status: string; placedAt: string }>;
       ordersHasMore: boolean;
-      aiUsage: { conversationCount: number; promptTokens: number; completionTokens: number; cacheHitTokens: number };
+      aiUsage: {
+        conversationCount: number;
+        promptTokens: number;
+        completionTokens: number;
+        cacheHitTokens: number;
+      };
     }>(`/api/admin/users/${id}`),
-  revokeUserSessions: (id: string) => http.post<{ ok: true }>(`/api/admin/users/${id}/revoke-sessions`, {}),
+  revokeUserSessions: (id: string) =>
+    http.post<{ ok: true }>(`/api/admin/users/${id}/revoke-sessions`, {}),
 
   /* command palette — cross-entity jump (W26) */
   /** Rows are scoped PER ENTITY TYPE server-side (see lib/auth/adminSearch.ts):
@@ -1254,19 +1410,22 @@ export const adminApi = {
       // no backoff retries piling up behind a fast typist.
       retries: 0,
     }),
-  statsDashboard: (range: number) => http.get<DashboardStatsRes>(`/api/admin/stats/dashboard?range=${range}`),
+  statsDashboard: (range: number) =>
+    http.get<DashboardStatsRes>(`/api/admin/stats/dashboard?range=${range}`),
   /** `range` windows every number on the page at once (7/30/90); the server
    *  allowlists it and falls back to 30. */
-  statsMarketing: (range = 30) => http.get<MarketingStatsRes>(`/api/admin/stats/marketing?range=${range}`),
+  statsMarketing: (range = 30) =>
+    http.get<MarketingStatsRes>(`/api/admin/stats/marketing?range=${range}`),
   statsSeo: () => http.get<SeoStatsRes>('/api/admin/stats/seo'),
   /** Split from `statsSeo` because a cache-miss PageSpeed Insights call can
    *  take 10-20s — fetched separately so it never stalls the main SEO
    *  dashboard's 5-minute poll. */
   statsSeoPageSpeed: () => http.get<SeoPageSpeedRes>('/api/admin/stats/seo/pagespeed'),
   statsCohorts: () =>
-    http.get<{ columns: string[]; rows: Array<{ label: string; size: number; cells: (number | null)[] }> }>(
-      '/api/admin/stats/cohorts',
-    ),
+    http.get<{
+      columns: string[];
+      rows: Array<{ label: string; size: number; cells: (number | null)[] }>;
+    }>('/api/admin/stats/cohorts'),
   /** `total` counts review ITEMS, not users — a user with both a personal and
    *  a business submission pending is two of them. */
   verifications: (page = 1) =>
@@ -1274,9 +1433,11 @@ export const adminApi = {
       `/api/admin/verifications?page=${page}`,
     ),
   reviewVerification: (userId: string, kind: 'id' | 'biz', decision: 'approved' | 'rejected') =>
-    http.patch<{ ok: true; verificationLevel: number }>(`/api/admin/verifications/${userId}`, { kind, decision }),
-  allowlist: () =>
-    http.get<{ entries: AllowlistEntryRow[] }>('/api/admin/allowlist'),
+    http.patch<{ ok: true; verificationLevel: number }>(`/api/admin/verifications/${userId}`, {
+      kind,
+      decision,
+    }),
+  allowlist: () => http.get<{ entries: AllowlistEntryRow[] }>('/api/admin/allowlist'),
   /** Grant panel access with a role — or change an existing entry's role
    *  (upsert keyed on the mobile). */
   addToAllowlist: (mobile: string, role: string, label?: string) =>
@@ -1284,14 +1445,35 @@ export const adminApi = {
   removeFromAllowlist: (mobile: string) =>
     http.del<{ ok: true }>(`/api/admin/allowlist/${encodeURIComponent(mobile)}`),
   clubMembers: (page = 1) =>
-    http.get<{ members: Array<{ id: string; userId: string; mobile: string; name?: string; tier: string; joinedAt: string }>; total: number }>(
-      `/api/admin/club/members?page=${page}`,
-    ),
+    http.get<{
+      members: Array<{
+        id: string;
+        userId: string;
+        mobile: string;
+        name?: string;
+        tier: string;
+        joinedAt: string;
+      }>;
+      total: number;
+    }>(`/api/admin/club/members?page=${page}`),
   setClubTier: (id: string, tier: 'iron' | 'steel' | 'poolad') =>
     http.patch<{ member: unknown }>(`/api/admin/club/members/${id}`, { tier }),
-  settings: () => http.get<{ settings: Array<{ key: string; value: unknown; updatedAt: string }> }>('/api/admin/settings'),
-  saveSetting: (key: string, value: unknown) => http.put<{ ok: true }>('/api/admin/settings', { key, value }),
-  audit: (params: { entityType?: string; action?: string; actor?: string; from?: string; to?: string; cursor?: string } = {}) => {
+  settings: () =>
+    http.get<{ settings: Array<{ key: string; value: unknown; updatedAt: string }> }>(
+      '/api/admin/settings',
+    ),
+  saveSetting: (key: string, value: unknown) =>
+    http.put<{ ok: true }>('/api/admin/settings', { key, value }),
+  audit: (
+    params: {
+      entityType?: string;
+      action?: string;
+      actor?: string;
+      from?: string;
+      to?: string;
+      cursor?: string;
+    } = {},
+  ) => {
     const qs = new URLSearchParams();
     if (params.entityType) qs.set('entityType', params.entityType);
     if (params.action) qs.set('action', params.action);
@@ -1316,7 +1498,15 @@ export const adminApi = {
     }>(`/api/admin/audit?${qs}`);
   },
   /** Same query params as `audit()`; browser navigates straight to it. */
-  auditExportUrl: (params: { entityType?: string; action?: string; actor?: string; from?: string; to?: string } = {}) => {
+  auditExportUrl: (
+    params: {
+      entityType?: string;
+      action?: string;
+      actor?: string;
+      from?: string;
+      to?: string;
+    } = {},
+  ) => {
     const qs = new URLSearchParams();
     if (params.entityType) qs.set('entityType', params.entityType);
     if (params.action) qs.set('action', params.action);
@@ -1346,9 +1536,14 @@ export const adminApi = {
     }>(`/api/admin/ai/feedback?${qs}`);
   },
   aiConversation: (id: string) =>
-    http.get<{ messages: Array<{ id: string; role: 'user' | 'assistant'; content: string; createdAt: string }> }>(
-      `/api/admin/ai/conversations/${id}`,
-    ),
+    http.get<{
+      messages: Array<{
+        id: string;
+        role: 'user' | 'assistant';
+        content: string;
+        createdAt: string;
+      }>;
+    }>(`/api/admin/ai/conversations/${id}`),
   aiCorrections: (page = 1) =>
     http.get<{
       corrections: Array<{
@@ -1369,7 +1564,17 @@ export const adminApi = {
     http.patch<{ ok: true }>(`/api/admin/ai/corrections/${id}`, { isActive }),
   aiUsage: (days = 14) =>
     http.get<{
-      series: Array<{ date: string; promptTokens: number; completionTokens: number; cacheHitTokens: number; violations: number }>;
+      series: Array<{
+        date: string;
+        promptTokens: number;
+        completionTokens: number;
+        cacheHitTokens: number;
+        violations: number;
+        /** J-219: turns where the model narrowed a tool query past what the
+         *  visitor typed, over the day's total turns. */
+        queryRewriteTurns: number;
+        turns: number;
+      }>;
     }>(`/api/admin/ai/usage?days=${days}`),
   /** Eval-candidate queue (US-05.4) — a review queue for manually authoring
    *  a real evals.test.ts scenario, not an auto-write into the test file. */
@@ -1389,8 +1594,13 @@ export const adminApi = {
       page: number;
       perPage: number;
     }>(`/api/admin/ai/eval-candidates?page=${page}${status ? `&status=${status}` : ''}`),
-  createEvalCandidate: (input: { conversationId?: string; messageId?: string; question: string; badAnswer: string; note?: string }) =>
-    http.post<{ candidate: unknown }>('/api/admin/ai/eval-candidates', input),
+  createEvalCandidate: (input: {
+    conversationId?: string;
+    messageId?: string;
+    question: string;
+    badAnswer: string;
+    note?: string;
+  }) => http.post<{ candidate: unknown }>('/api/admin/ai/eval-candidates', input),
   setEvalCandidateStatus: (id: string, status: 'pending' | 'promoted' | 'dismissed') =>
     http.patch<{ candidate: unknown }>(`/api/admin/ai/eval-candidates/${id}`, { status }),
   /** System-prompt A/B (US-05.5). Versions themselves live in the generic
