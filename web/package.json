@@ -26,6 +26,8 @@
     "audit:catalog": "tsx scripts/catalogIntegrityAudit.ts",
     "audit:pricing": "tsx scripts/pricingIntegrityAudit.ts",
     "audit:orders": "tsx scripts/orderWarehouseIntegrityAudit.ts",
+    "audit:ilike": "tsx scripts/ilikeEscapeScan.ts",
+    "audit:i18n": "tsx scripts/hardcodedPersianScan.ts",
     "jobs:dev": "tsx scripts/jobs.ts",
     "price-sync": "tsx scripts/priceSync.ts"
   },
