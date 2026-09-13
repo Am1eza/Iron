@@ -4,7 +4,9 @@ import { ChatMarkdown, parseBlocks, repairStreaming } from './ChatMarkdown';
 
 describe('parseBlocks', () => {
   it('parses a GFM table with header, separator and body rows', () => {
-    const md = ['| کارخانه | قیمت |', '|---|---|', '| ذوب‌آهن | 12500 |', '| میانه | 12300 |'].join('\n');
+    const md = ['| کارخانه | قیمت |', '|---|---|', '| ذوب‌آهن | 12500 |', '| میانه | 12300 |'].join(
+      '\n',
+    );
     const blocks = parseBlocks(md);
     expect(blocks).toHaveLength(1);
     expect(blocks[0]).toMatchObject({
@@ -101,6 +103,39 @@ describe('ChatMarkdown rendering', () => {
     const { container } = render(<ChatMarkdown text={'<img src=x onerror=alert(1)>'} />);
     expect(container.querySelector('img')).toBeNull();
     expect(container.textContent).toContain('<img');
+  });
+
+  /**
+   * J-229/230. The defence here is structural, not a sanitiser: this renderer
+   * has no link support at all, so `[text](url)` falls through as literal
+   * text and there is no `href` for a `javascript:` or `data:` payload to
+   * reach. That is a strong guarantee precisely because it cannot be got
+   * wrong by a scheme allowlist with a hole in it — but it is also an
+   * invariant that a future "let's support links" change would silently
+   * delete. These tests exist to make that change fail loudly instead, and
+   * to send whoever makes it to the scheme-allowlist question first.
+   */
+  it('never renders a link — a javascript: payload has no href to land in', () => {
+    const { container } = render(
+      <ChatMarkdown
+        text={'[کلیک کن](javascript:alert(1)) و [اینجا](data:text/html,<script>1</script>)'}
+      />,
+    );
+    expect(container.querySelector('a')).toBeNull();
+    // Nothing navigable at all — not an anchor, not an iframe/img src either.
+    expect(container.querySelector('[href], [src]')).toBeNull();
+    // The payload survives as INERT TEXT, which is the point: it is shown,
+    // not executed. (Digits are Persian-ised by the renderer, as everywhere.)
+    expect(container.textContent).toContain('[کلیک کن](javascript:alert(۱))');
+  });
+
+  it('never renders a link inside a table cell either', () => {
+    const md = ['| محصول | لینک |', '| --- | --- |', '| میلگرد | [x](javascript:alert(1)) |'].join(
+      '\n',
+    );
+    const { container } = render(<ChatMarkdown text={md} />);
+    expect(container.querySelector('table')).toBeTruthy();
+    expect(container.querySelector('a')).toBeNull();
   });
 
   it('renders a > blockquote as a callout, not a literal ">" character', () => {

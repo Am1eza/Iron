@@ -7,7 +7,12 @@ import { aiCorrections } from '@/lib/server/db/schema';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { likeContains } from '@/lib/server/utils/likeEscape';
 import { scrubPii } from '@/lib/errors/scrub';
-import { conversationIdForMessage, namesForConversation, scrubKnownNames } from '@/lib/server/ai/piiScrub';
+import {
+  conversationIdForMessage,
+  namesForConversation,
+  scrubIntroducedNames,
+  scrubKnownNames,
+} from '@/lib/server/ai/piiScrub';
 
 export type AiCorrectionRow = typeof aiCorrections.$inferSelect;
 
@@ -24,9 +29,12 @@ export type AiCorrectionRow = typeof aiCorrections.$inferSelect;
  * mobile/email does — instead of guessing at names in general, the ONE
  * name/names known to genuinely belong to this exact conversation (its
  * owner's account name, resolved via `sourceMessageId`) are redacted too;
- * see piiScrub.ts. A different name typed in the text (a colleague's, a
- * delivery recipient's) is still not caught — no regex could distinguish it
- * from ordinary prose either.
+ * see piiScrub.ts. A name belonging to SOMEONE ELSE (a colleague, a delivery
+ * recipient) has no record to match against, so it is caught only where the
+ * text itself labels it as a name — an honorific, or «اسم من …»
+ * (`scrubIntroducedNames`). A bare name in ordinary prose remains uncaught;
+ * that is a deliberate limit, not an oversight, because a greedier heuristic
+ * would redact company names out of the very corpus this protects.
  */
 export async function createCorrection(input: {
   question: string;
@@ -34,9 +42,11 @@ export async function createCorrection(input: {
   sourceMessageId?: string | null;
   createdBy?: string | null;
 }): Promise<AiCorrectionRow> {
-  const conversationId = input.sourceMessageId ? await conversationIdForMessage(input.sourceMessageId) : null;
+  const conversationId = input.sourceMessageId
+    ? await conversationIdForMessage(input.sourceMessageId)
+    : null;
   const names = conversationId ? await namesForConversation(conversationId) : [];
-  const clean = (t: string) => scrubPii(scrubKnownNames(t, names));
+  const clean = (t: string) => scrubPii(scrubIntroducedNames(scrubKnownNames(t, names)));
   const [row] = await getDb()
     .insert(aiCorrections)
     .values({

@@ -7,7 +7,11 @@ import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import { aiEvalCandidates, type AI_EVAL_CANDIDATE_STATUSES } from '@/lib/server/db/schema';
 import { scrubPii } from '@/lib/errors/scrub';
-import { namesForConversation, scrubKnownNames } from '@/lib/server/ai/piiScrub';
+import {
+  namesForConversation,
+  scrubIntroducedNames,
+  scrubKnownNames,
+} from '@/lib/server/ai/piiScrub';
 
 export type AiEvalCandidateRow = typeof aiEvalCandidates.$inferSelect;
 export type AiEvalCandidateStatus = (typeof AI_EVAL_CANDIDATE_STATUSES)[number];
@@ -18,7 +22,9 @@ export type AiEvalCandidateStatus = (typeof AI_EVAL_CANDIDATE_STATUSES)[number];
  *  scrubs its own free text, for the same reason (see that doc comment). Also
  *  redacts the conversation owner's own known account name (piiScrub.ts) —
  *  free-text names have no regex signature, but this ONE name is already
- *  known to genuinely belong to this conversation. */
+ *  known to genuinely belong to this conversation — plus any name the text
+ *  explicitly LABELS as one («آقای رضایی»، «اسم من …»), which is the only
+ *  form a third party's name can be caught in. */
 export async function createEvalCandidate(input: {
   conversationId?: string | null;
   messageId?: string | null;
@@ -28,7 +34,7 @@ export async function createEvalCandidate(input: {
   createdBy?: string | null;
 }): Promise<AiEvalCandidateRow> {
   const names = input.conversationId ? await namesForConversation(input.conversationId) : [];
-  const clean = (t: string) => scrubPii(scrubKnownNames(t, names));
+  const clean = (t: string) => scrubPii(scrubIntroducedNames(scrubKnownNames(t, names)));
   const [row] = await getDb()
     .insert(aiEvalCandidates)
     .values({
@@ -66,12 +72,22 @@ export async function listEvalCandidates(
       .orderBy(desc(aiEvalCandidates.createdAt), desc(aiEvalCandidates.id))
       .limit(perPage)
       .offset((page - 1) * perPage),
-    db.select({ n: sql<number>`count(*)::int` }).from(aiEvalCandidates).where(where),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(aiEvalCandidates)
+      .where(where),
   ]);
   return { rows, total: total[0]?.n ?? 0, page, perPage };
 }
 
-export async function updateEvalCandidateStatus(id: string, status: AiEvalCandidateStatus): Promise<AiEvalCandidateRow | null> {
-  const [row] = await getDb().update(aiEvalCandidates).set({ status }).where(eq(aiEvalCandidates.id, id)).returning();
+export async function updateEvalCandidateStatus(
+  id: string,
+  status: AiEvalCandidateStatus,
+): Promise<AiEvalCandidateRow | null> {
+  const [row] = await getDb()
+    .update(aiEvalCandidates)
+    .set({ status })
+    .where(eq(aiEvalCandidates.id, id))
+    .returning();
   return row ?? null;
 }
