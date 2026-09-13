@@ -135,7 +135,8 @@
     "registerNameSubtitle": "Your account is ready. Enter your first and last name to finish signing up.",
     "completeRegistration": "Complete Registration",
     "requestFlowNote": "Your inquiry cart is saved — after verifying your number, you'll return to submit your request.",
-    "otpLengthError": "The verification code must be 6 digits."
+    "otpLengthError": "The verification code must be 6 digits.",
+    "loadingLoginForm": "Loading the login form"
   },
   "phone": {
     "country": "Country",
@@ -1230,6 +1231,21 @@
       "alreadyActive": "This alert was already active",
       "confirmedNote": "We will text you when {product} reaches {threshold}.",
       "manageAlerts": "Manage alerts"
+    },
+    "estimateCard": {
+      "badge": "Rough estimate",
+      "kg": "kg",
+      "totalWeight": "Total weight",
+      "approxCost": "Approximate cost",
+      "exactProforma": "Get an exact proforma",
+      "talkToExpert": "Talk to an expert"
+    },
+    "splitCard": {
+      "badge": "{tonnage} t {category} · split by mill",
+      "best": "Best",
+      "cheapest": "Cheapest: <f></f> at <p></p> Toman per kilogram.",
+      "proforma": "Get a proforma",
+      "talkToExpert": "Talk to an expert"
     }
   },
   "account": {
@@ -1534,6 +1550,10 @@
       "warehouseItemsLabel": "Consigned items in warehouse",
       "warehouseItemsHintHas": "Customer warehouse inventory",
       "warehouseItemsHintEmpty": "No consigned goods"
+    },
+    "reorder": {
+      "noneOrderable": "None of the items in this order can be ordered again.",
+      "someUnorderable": "These items can no longer be ordered and are left out of the reorder: {items}"
     }
   },
   "warehouseForm": {
@@ -2502,5 +2522,58 @@
     },
     "tableHeading": "Estimate table",
     "tableLead": "For each item, choose the category, product, size and quantity. The price, weight and total for each row are calculated live."
+  },
+  "ui": {
+    "bestPrice": "Best price"
+  },
+  "blogCategory": {
+    "kicker": "Product category",
+    "heading": "{category} articles",
+    "listLabel": "Articles in {category}",
+    "emptyHeadline": "No articles in this category yet",
+    "emptyBody": "Articles about this product will be published here soon.",
+    "footerBefore": "Looking for another product? Visit",
+    "footerLink": "all articles",
+    "footerAfter": ".",
+    "metaDescription": "Buying guides, market analysis and news about {category} — Ahantime's coverage of this product."
+  },
+  "newsTopic": {
+    "kicker": "News topic",
+    "heading": "{topic} news",
+    "listLabel": "{topic} news",
+    "emptyHeadline": "No news on this topic yet",
+    "emptyBody": "The latest news on this topic will appear here as soon as it is published.",
+    "footerBefore": "Looking for another topic? Visit",
+    "footerLink": "all market news",
+    "footerAfter": "."
+  },
+  "pricesFacet": {
+    "byFactoryTitle": "{category} prices by mill",
+    "bySizeTitle": "{category} prices by {measure}",
+    "factoryPageTitle": "Today's {category} price — {factory}",
+    "factoryPageDescription": "Live prices for {factory} {category}, broken down by {measure}.",
+    "sizesOfTitle": "{category} {measure}s",
+    "otherFactoriesTitle": "Other {category} mills",
+    "sizePageTitle": "Today's {category} {measure} {size} price",
+    "otherSizesTitle": "Other {category} {measure}s",
+    "factoriesTitle": "{category} mills",
+    "todayPrice": "{subject} price today",
+    "todayPriceDescription": "Today's {subject} price on Ahantime, with movement, branch weight and delivery time.",
+    "liveDescription": "Live {subject} prices, with movement, branch weight and delivery time.",
+    "emptyCategoryDescription": "No products are listed under {subject} yet. Call an Ahantime specialist for prices and availability.",
+    "emptyCategoryBody": "No products are listed under {subject} yet. Call our specialists for price, availability and delivery time.",
+    "emptySubjectDescription": "No products are listed under {subject} yet. Call an Ahantime specialist for prices and availability.",
+    "tableDescription": "Today's {subject} price table: {stats}, updated daily on Ahantime. Advice first, then buy.",
+    "skuQuoteTitle": "Price enquiry — {subject}",
+    "skuQuoteDescription": "{subject}{mill} — today's price for this item is not published on Ahantime. Call our specialist for the price per {unit}, branch weight and delivery time.",
+    "skuPriceDescription": "{subject}{mill} price today: {price} per {unit}, with movement, branch weight and delivery time on Ahantime.",
+    "factoryPageDescriptionFull": "Live prices for every {factory} {category}, broken down by {measure}, with movement, branch weight and delivery time.",
+    "factorySectionDescription": "Live prices for {factory} {category}, broken down by {measure}, with movement, branch weight and delivery time.",
+    "sizePageDescription": "Today's {category} {measure} {factory}{byFactory} price — live, with movement, branch weight and delivery time.",
+    "sizeSectionDescription": "The latest published {category} {measure} {size} price{allMills}, with movement, branch weight and the stated delivery time. Talk to our specialist before you buy.",
+    "byFactorySuffix": " by mill",
+    "statsWithFactories": "{products} products from {factories} mills",
+    "statsOnly": "{products} products",
+    "allMillsSuffix": " across all mills"
   }
 }

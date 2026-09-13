@@ -41,6 +41,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     return buildMetadata({ title: t('category'), noindex: true });
   }
   const name = cat.name;
+  const tMeta = await getTranslations('pricesFacet');
   // Same rule as the sub-category one level down (`_seo/indexability.ts`): a
   // category with no rows renders an EmptyState, so it must not be indexed
   // promising a price list. No category is in that state today — the audit
@@ -55,19 +56,21 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!taxonomyIsIndexable(rows.length)) {
     return buildMetadata({
       title: name,
-      description: `هنوز کالایی در دستهٔ ${name} ثبت نشده است. برای استعلام قیمت و موجودی با کارشناسان آهن‌تایم تماس بگیرید.`,
+      description: tMeta('emptyCategoryDescription', { subject: name }),
       path: routes.category(category),
       noindex: true,
     });
   }
   return buildMetadata({
-    title: `قیمت روز ${name}`,
-    description: `قیمت روز ${name} با نوسان، وزن شاخه و زمان تحویل در آهن‌تایم.`,
+    title: tMeta('todayPrice', { subject: name }),
+    description: tMeta('todayPriceDescription', { subject: name }),
     path: routes.category(category),
   });
 }
 
 export default async function CategoryPage({ params }: Params) {
+  const tNav = await getTranslations();
+  const tFacet = await getTranslations('pricesFacet');
   const { category } = await params;
   const categories = await getCategories();
   const cat = categories.find((c) => c.slug === category);
@@ -89,8 +92,8 @@ export default async function CategoryPage({ params }: Params) {
   ]);
 
   const crumbs = [
-    { label: 'خانه', href: routes.home() },
-    { label: 'قیمت‌ها', href: routes.prices() },
+    { label: tNav('nav.home'), href: routes.home() },
+    { label: tNav('nav.prices'), href: routes.prices() },
     { label: cat.name, href: routes.category(category) },
   ];
 
@@ -118,15 +121,15 @@ export default async function CategoryPage({ params }: Params) {
               id="cat-title"
               {...(rows.length > 0
                 ? {
-                    title: `قیمت روز ${cat.name}`,
-                    description: `قیمت‌های لحظه‌ای ${cat.name} با نوسان، وزن شاخه و زمان تحویل.`,
+                    title: tFacet('todayPrice', { subject: cat.name }),
+                    description: tFacet('liveDescription', { subject: cat.name }),
                   }
                 : {
                     // Nothing to list — the heading and the intro say so, so
                     // the visible page and the (noindex) metadata tell one
                     // story. See `_seo/indexability.ts`.
                     title: cat.name,
-                    description: `هنوز کالایی در دستهٔ ${cat.name} ثبت نشده است. برای استعلام قیمت، موجودی و زمان تحویل با کارشناسان ما تماس بگیرید.`,
+                    description: tFacet('emptyCategoryBody', { subject: cat.name }),
                   })}
             />
           </div>
@@ -141,19 +144,27 @@ export default async function CategoryPage({ params }: Params) {
                 vatRate={vatRate}
                 factoryOrder={factoryOrder}
               />
-              <BulkQuote category={category} categoryName={cat.name} categoryEntity={cat} rows={rows} subs={subs} logisticsConfig={logisticsConfig} vatRate={vatRate} />
+              <BulkQuote
+                category={category}
+                categoryName={cat.name}
+                categoryEntity={cat}
+                rows={rows}
+                subs={subs}
+                logisticsConfig={logisticsConfig}
+                vatRate={vatRate}
+              />
               {/* The internal link graph into the per-factory / per-size
                   landing pages. Without it those pages are reachable only from
                   sitemap.xml, which is a discovery hint, not a crawl path. */}
               <FacetRail
                 id="rail-factories"
-                title={`قیمت ${cat.name} بر اساس کارخانه`}
+                title={tFacet('byFactoryTitle', { category: cat.name })}
                 facets={facets.factories}
                 href={(slug) => routes.categoryByFactory(category, slug)}
               />
               <FacetRail
                 id="rail-sizes"
-                title={`قیمت ${cat.name} بر اساس ${sizeLabel(category)}`}
+                title={tFacet('bySizeTitle', { category: cat.name, measure: sizeLabel(category) })}
                 facets={facets.sizes}
                 href={(slug) => routes.categoryBySize(category, slug)}
               />

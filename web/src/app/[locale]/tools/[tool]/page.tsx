@@ -9,25 +9,13 @@ import { ToolRenderer, type ToolSlug } from '@/components/tools/ToolRenderer';
 import { ToolPageHeading } from '@/components/tools/ToolPageHeading';
 import { ProjectEstimatorGuide } from '@/components/tools/ProjectEstimatorGuide';
 
-const TOOLS: Record<ToolSlug, { title: string; intro: string }> = {
-  weight: {
-    title: 'وزن‌سنج مقاطع فولادی',
-    intro:
-      'وزن تئوریک میلگرد، ورق، لوله، تسمه، نبشی، تیرآهن و ناودانی را با فرمول استاندارد و چگالی فولاد ۷٫۸۵ گرم بر سانتی‌متر مکعب حساب کنید. نتیجه برای هر شاخه و کل سفارش، همراه با فرمولِ به‌کاررفته نمایش داده می‌شود.',
-  },
-  project: {
-    title: 'برآورد آهن‌آلات پروژه',
-    intro:
-      'نوع پروژه (ساختمان بتنی، اسکلت فلزی یا سولهٔ صنعتی) را انتخاب کنید و برآورد اولیه‌ای از مصالح موردنیاز و هزینهٔ تقریبی آن به‌دست آورید. برای عدد دقیق، با مشاور هوشمند گفتگو کنید.',
-  },
-  cost: {
-    title: 'محاسبهٔ هزینهٔ خرید',
-    intro:
-      'دسته و محصول را انتخاب کنید، مقدار را به شاخه یا کیلوگرم وارد کنید و هزینهٔ تقریبی خرید را با احتساب ارزش افزوده و زمان تحویل ببینید. سپس مستقیم به سبد استعلام بیفزایید.',
-  },
-};
+/** The tool slugs this route serves. Title and intro copy live in the message
+ *  catalogue (`toolsPage.<slug>`) — they used to be duplicated here as Persian
+ *  literals, which meant an English visitor got a translated page body under a
+ *  Persian heading and a Persian <title>. */
+const TOOL_SLUGS_LIST = ['weight', 'project', 'cost'] as const satisfies readonly ToolSlug[];
 
-const TOOL_SLUGS = Object.keys(TOOLS) as ToolSlug[];
+const TOOL_SLUGS: ToolSlug[] = [...TOOL_SLUGS_LIST];
 
 function isToolSlug(value: string): value is ToolSlug {
   return (TOOL_SLUGS as string[]).includes(value);
@@ -49,10 +37,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     const t = await getTranslations('meta.notFound');
     return buildMetadata({ title: t('tools'), path: routes.tool('weight') });
   }
-  const t = TOOLS[tool];
+  const t = await getTranslations('toolsPage');
   return buildMetadata({
-    title: t.title,
-    description: t.intro,
+    title: t(`${tool}.title`),
+    description: t(`${tool}.intro`),
     path: routes.tool(tool),
   });
 }
@@ -61,12 +49,12 @@ export default async function ToolPage({ params }: Params) {
   const { tool } = await params;
   if (!isToolSlug(tool)) notFound();
 
-  const t = TOOLS[tool];
+  const t = await getTranslations('toolsPage');
   const tNav = await getTranslations();
   const crumbs = [
     { label: tNav('nav.home'), href: routes.home() },
     { label: tNav('meta.notFound.tools') },
-    { label: t.title, href: routes.tool(tool) },
+    { label: t(`${tool}.title`), href: routes.tool(tool) },
   ];
 
   return (

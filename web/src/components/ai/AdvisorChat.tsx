@@ -124,7 +124,8 @@ export function extractSizeCandidates(t: string): string[] {
   for (const m of t.matchAll(/[0-9]+(?:\.[0-9]+)?(?:\s*[×xX*]\s*[0-9]+(?:\.[0-9]+)?){1,}/g)) {
     out.push(normalizeSizeToken(m[0]));
   }
-  for (const m of t.matchAll(/[0-9]+(?:\/[0-9]+)?\s*اینچ/g)) out.push(m[0].replace(/\s+/g, ' ').trim());
+  for (const m of t.matchAll(/[0-9]+(?:\/[0-9]+)?\s*اینچ/g))
+    out.push(m[0].replace(/\s+/g, ' ').trim());
   for (const m of t.matchAll(/[0-9]+(?:\.[0-9]+)?/g)) out.push(m[0]);
   return out;
 }
@@ -575,9 +576,7 @@ function TurnNoticeRow({ notice, onRetry }: { notice: TurnNotice; onRetry: () =>
         disabled={waiting}
         // The countdown is decoration; the label carries the state for AT.
         aria-label={
-          waiting
-            ? t('retry.waitingAria', { seconds: secsDigits })
-            : t('retry.defaultAria')
+          waiting ? t('retry.waitingAria', { seconds: secsDigits }) : t('retry.defaultAria')
         }
       >
         {notice.kind === 'dropped' ? t('retry.continue') : t('retry.retry')}
@@ -628,7 +627,9 @@ const MessageBubble = memo(function MessageBubble({
       <div className={styles.bubbleWrap}>
         {m.text && (
           <div className={`${styles.bubble} ${m.role === 'user' ? styles.user : styles.ai}`}>
-            <span className="visually-hidden">{m.role === 'user' ? t('roleUser') : tCommon('brand')}: </span>
+            <span className="visually-hidden">
+              {m.role === 'user' ? t('roleUser') : tCommon('brand')}:{' '}
+            </span>
             {m.role === 'ai' ? (
               // Advisor replies carry markdown (tables/lists/bold) — rendered
               // through the safe subset renderer, never as raw asterisks. The
@@ -677,10 +678,7 @@ const MessageBubble = memo(function MessageBubble({
         {/* J-223: same placement and same aria-hidden rule as the proforma
          *  card above — this is the ONLY way a chat arms a price alert. */}
         {m.alertDraft && !hidden && (
-          <AlertCard
-            draft={m.alertDraft}
-            onConfirmed={(patch) => onAlertDraftPatch(m.id, patch)}
-          />
+          <AlertCard draft={m.alertDraft} onConfirmed={(patch) => onAlertDraftPatch(m.id, patch)} />
         )}
         {m.split && <SplitCard answer={m.split} />}
         {m.chips && (
@@ -1284,7 +1282,9 @@ export function AdvisorChat({
   const stableAlertDraftPatch = useCallback((messageId: string, patch: Partial<AlertDraftView>) => {
     setMessages((all) =>
       all.map((m) =>
-        m.id === messageId && m.alertDraft ? { ...m, alertDraft: { ...m.alertDraft, ...patch } } : m,
+        m.id === messageId && m.alertDraft
+          ? { ...m, alertDraft: { ...m.alertDraft, ...patch } }
+          : m,
       ),
     );
   }, []);
@@ -1314,36 +1314,39 @@ export function AdvisorChat({
    * server-side (rolling summary, remembered product/size/city) rather than
    * opening a new row that happens to look like it.
    */
-  const openConversation = useCallback(async (id: string) => {
-    if (busyRef.current) return;
-    setStreamPreview(null);
-    setMessages([{ id: uid(), role: 'ai', text: t('openingConversation') }]);
-    try {
-      const conv = await api.ai.conversation(id);
-      conversationIdRef.current = conv.id;
-      transcriptRef.current = conv.messages.map((m) => ({
-        role: m.role === 'assistant' ? ('ai' as const) : ('user' as const),
-        text: m.content,
-      }));
-      setMessages(
-        conv.messages.length > 0
-          ? conv.messages.map((m) => ({
-              id: uid(),
-              role: m.role === 'assistant' ? ('ai' as const) : ('user' as const),
-              text: m.content,
-            }))
-          : [{ id: uid(), role: 'ai', text: t('greeting'), chips: [...PURPOSE_CHIPS] }],
-      );
-    } catch {
-      setMessages([
-        {
-          id: uid(),
-          role: 'ai',
-          text: t('openConversationFailed'),
-        },
-      ]);
-    }
-  }, [t]);
+  const openConversation = useCallback(
+    async (id: string) => {
+      if (busyRef.current) return;
+      setStreamPreview(null);
+      setMessages([{ id: uid(), role: 'ai', text: t('openingConversation') }]);
+      try {
+        const conv = await api.ai.conversation(id);
+        conversationIdRef.current = conv.id;
+        transcriptRef.current = conv.messages.map((m) => ({
+          role: m.role === 'assistant' ? ('ai' as const) : ('user' as const),
+          text: m.content,
+        }));
+        setMessages(
+          conv.messages.length > 0
+            ? conv.messages.map((m) => ({
+                id: uid(),
+                role: m.role === 'assistant' ? ('ai' as const) : ('user' as const),
+                text: m.content,
+              }))
+            : [{ id: uid(), role: 'ai', text: t('greeting'), chips: [...PURPOSE_CHIPS] }],
+        );
+      } catch {
+        setMessages([
+          {
+            id: uid(),
+            role: 'ai',
+            text: t('openConversationFailed'),
+          },
+        ]);
+      }
+    },
+    [t],
+  );
 
   // First load: greet (unless the server already rendered it — see
   // `initialMessages`), then auto-send the question from the home search (if any).
@@ -1426,256 +1429,264 @@ export function AdvisorChat({
       ) : null}
 
       <div className={styles.column}>
-      <header className={styles.head}>
-        {/* Below 1024px the rail is a drawer, so the app bar carries its
-         *  trigger — the same place ChatGPT and Claude put theirs. */}
-        <button
-          type="button"
-          className={styles.railToggle}
-          onClick={() => setRailOpen(true)}
-          aria-label={t('railToggleAria')}
-          aria-expanded={railOpen}
-        >
-          <MenuIcon size={20} />
-        </button>
-        {/* On mobile, immersive mode takes the whole viewport — so the app bar
-         *  has to carry the way out, exactly as a messaging app's does. */}
-        {immersive ? (
+        <header className={styles.head}>
+          {/* Below 1024px the rail is a drawer, so the app bar carries its
+           *  trigger — the same place ChatGPT and Claude put theirs. */}
           <button
             type="button"
-            className={styles.exitImmersive}
-            onClick={() => setImmersive(false)}
-            aria-label={t('exitImmersiveAria')}
+            className={styles.railToggle}
+            onClick={() => setRailOpen(true)}
+            aria-label={t('railToggleAria')}
+            aria-expanded={railOpen}
           >
-            <ChevronStartIcon size={20} className="icon--rtl" />
+            <MenuIcon size={20} />
           </button>
-        ) : (
-          <span className={styles.avatar} aria-hidden>
-            <AiMarkIcon size={20} />
-          </span>
-        )}
-        <div className={styles.headText}>
-          {crumbs && crumbs.length > 0 && !immersive ? (
-            <p className={styles.crumbs}>
-              {crumbs.map((c, i) => (
-                <Fragment key={c.href}>
-                  {i > 0 ? ' / ' : ''}
-                  {i === crumbs.length - 1 ? (
-                    <span aria-current="page">{c.label}</span>
-                  ) : (
-                    <Link href={c.href}>{c.label}</Link>
-                  )}
-                </Fragment>
-              ))}
-            </p>
-          ) : null}
-          {/* THE PAGE'S h1, and it keeps the page's own phrase rather than the
-           *  widget's name. The hero that used to carry «مشاور هوشمند خرید
-           *  آهن و فولاد» is gone, and this page is acquired through organic
-           *  search — dropping its ranking phrase out of the only h1 to put a
-           *  shorter product name in an app bar would be trading the page's
-           *  topic for a nicer bar. It renders at app-bar size instead. */}
-          <h1 id="advisor-panel-title" className={styles.headName}>
-            {resolvedHeading}
-          </h1>
-        </div>
-        <button type="button" className={styles.newChat} onClick={resetChat}>
-          {t('newChat')}
-        </button>
-      </header>
+          {/* On mobile, immersive mode takes the whole viewport — so the app bar
+           *  has to carry the way out, exactly as a messaging app's does. */}
+          {immersive ? (
+            <button
+              type="button"
+              className={styles.exitImmersive}
+              onClick={() => setImmersive(false)}
+              aria-label={t('exitImmersiveAria')}
+            >
+              <ChevronStartIcon size={20} className="icon--rtl" />
+            </button>
+          ) : (
+            <span className={styles.avatar} aria-hidden>
+              <AiMarkIcon size={20} />
+            </span>
+          )}
+          <div className={styles.headText}>
+            {crumbs && crumbs.length > 0 && !immersive ? (
+              <p className={styles.crumbs}>
+                {crumbs.map((c, i) => (
+                  <Fragment key={c.href}>
+                    {i > 0 ? ' / ' : ''}
+                    {i === crumbs.length - 1 ? (
+                      <span aria-current="page">{c.label}</span>
+                    ) : (
+                      <Link href={c.href}>{c.label}</Link>
+                    )}
+                  </Fragment>
+                ))}
+              </p>
+            ) : null}
+            {/* THE PAGE'S h1, and it keeps the page's own phrase rather than the
+             *  widget's name. The hero that used to carry «مشاور هوشمند خرید
+             *  آهن و فولاد» is gone, and this page is acquired through organic
+             *  search — dropping its ranking phrase out of the only h1 to put a
+             *  shorter product name in an app bar would be trading the page's
+             *  topic for a nicer bar. It renders at app-bar size instead. */}
+            <h1 id="advisor-panel-title" className={styles.headName}>
+              {resolvedHeading}
+            </h1>
+          </div>
+          <button type="button" className={styles.newChat} onClick={resetChat}>
+            {t('newChat')}
+          </button>
+        </header>
 
-      <div className={styles.scroll} ref={scrollRef}>
-        {/* EMPTY STATE. With a full-height shell the opening greeting is one
-         *  small bubble at the top of a large empty surface — so before the
-         *  first turn the thread centres itself and the greeting reads as a
-         *  welcome rather than as a stray message. The starter chips and their
-         *  behaviour are untouched; only the layout around them changes. */}
-        <div
-          className={`${styles.thread}${
-            messages.length <= 1 && !streamPreview && !typing ? ` ${styles.threadEmpty}` : ''
-          }`}
-          role="log"
-          aria-live="polite"
-          aria-atomic="false"
-          aria-relevant="additions"
-        >
-          {messages.map((m) => (
-            <MessageBubble
-              key={m.id}
-              message={m}
-              onPick={stableSend}
-              onRetry={stableRetry}
-              onDraftPatch={stableDraftPatch}
-              onAlertDraftPatch={stableAlertDraftPatch}
-            />
-          ))}
+        <div className={styles.scroll} ref={scrollRef}>
+          {/* EMPTY STATE. With a full-height shell the opening greeting is one
+           *  small bubble at the top of a large empty surface — so before the
+           *  first turn the thread centres itself and the greeting reads as a
+           *  welcome rather than as a stray message. The starter chips and their
+           *  behaviour are untouched; only the layout around them changes. */}
+          <div
+            className={`${styles.thread}${
+              messages.length <= 1 && !streamPreview && !typing ? ` ${styles.threadEmpty}` : ''
+            }`}
+            role="log"
+            aria-live="polite"
+            aria-atomic="false"
+            aria-relevant="additions"
+          >
+            {messages.map((m) => (
+              <MessageBubble
+                key={m.id}
+                message={m}
+                onPick={stableSend}
+                onRetry={stableRetry}
+                onDraftPatch={stableDraftPatch}
+                onAlertDraftPatch={stableAlertDraftPatch}
+              />
+            ))}
 
-          {/* Presentational-only: the token-by-token streaming animation. Marked
+            {/* Presentational-only: the token-by-token streaming animation. Marked
               aria-hidden so it is never announced; the finished text lands in
               `messages` above (and is announced once) when the stream ends. */}
-          {streamPreview && (
-            <MessageBubble
-              message={streamPreview}
-              onPick={stableSend}
-              onRetry={stableRetry}
-              onDraftPatch={stableDraftPatch}
-              onAlertDraftPatch={stableAlertDraftPatch}
-              hidden
-            />
-          )}
+            {streamPreview && (
+              <MessageBubble
+                message={streamPreview}
+                onPick={stableSend}
+                onRetry={stableRetry}
+                onDraftPatch={stableDraftPatch}
+                onAlertDraftPatch={stableAlertDraftPatch}
+                hidden
+              />
+            )}
+
+            {typing && (
+              <div className={`${styles.row} ${styles.rowAi}`} aria-hidden="true">
+                <span className={styles.bubbleAvatar} aria-hidden>
+                  <AiMarkIcon size={14} />
+                </span>
+                <div className={`${styles.bubble} ${styles.ai} ${styles.typingRow}`}>
+                  <span className={styles.typing}>
+                    <span />
+                    <span />
+                    <span />
+                  </span>
+                  {/* What the advisor is actually doing (server `tool` frames). */}
+                  <span className={styles.progressText}>
+                    {progress}
+                    {slow && <span className={styles.progressSlow}>{SLOW_HINT}</span>}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
 
           {typing && (
-            <div className={`${styles.row} ${styles.rowAi}`} aria-hidden="true">
-              <span className={styles.bubbleAvatar} aria-hidden>
-                <AiMarkIcon size={14} />
-              </span>
-              <div className={`${styles.bubble} ${styles.ai} ${styles.typingRow}`}>
-                <span className={styles.typing}>
-                  <span />
-                  <span />
-                  <span />
-                </span>
-                {/* What the advisor is actually doing (server `tool` frames). */}
-                <span className={styles.progressText}>
-                  {progress}
-                  {slow && <span className={styles.progressSlow}>{SLOW_HINT}</span>}
-                </span>
-              </div>
-            </div>
+            // Announces the same state the sighted user reads. Changes at most a
+            // few times per turn (tool switch, then the one slow-hint), so it
+            // stays informative without becoming chatter.
+            <span className="visually-hidden" role="status">
+              {slow ? `${progress} ${SLOW_HINT}` : progress}
+            </span>
           )}
         </div>
 
-        {typing && (
-          // Announces the same state the sighted user reads. Changes at most a
-          // few times per turn (tool switch, then the one slow-hint), so it
-          // stays informative without becoming chatter.
-          <span className="visually-hidden" role="status">
-            {slow ? `${progress} ${SLOW_HINT}` : progress}
-          </span>
+        {!online && (
+          // Unmissable but not dramatic, and it sits directly above the control
+          // it explains. role="status" (not "alert") — losing signal is a state,
+          // not an emergency, and this must not steal focus mid-conversation.
+          <p className={styles.offlineBar} role="status">
+            {t('offlineBar')}
+          </p>
         )}
-      </div>
 
-      {!online && (
-        // Unmissable but not dramatic, and it sits directly above the control
-        // it explains. role="status" (not "alert") — losing signal is a state,
-        // not an emergency, and this must not steal focus mid-conversation.
-        <p className={styles.offlineBar} role="status">
-          {t('offlineBar')}
-        </p>
-      )}
-
-      <form
-        className={styles.composer}
-        onSubmit={(e) => {
-          e.preventDefault();
-          send(input);
-        }}
-      >
-        <label htmlFor="chat-input" className="visually-hidden">
-          {t('composerLabel')}
-        </label>
-        {/* AUTO-GROWING TEXTAREA.
-         *  A cut list, a tender line or «۳ تن میلگرد ۱۴ و ۲ تن ۱۶، تحویل
-         *  مشهد» all run past one line, and the single-line field turned them
-         *  into a horizontally-scrolling slot the visitor could not re-read
-         *  before sending. Enter still sends (it is a chat, and every test and
-         *  habit depends on it); Shift+Enter is the newline — the convention
-         *  every current chat product uses. */}
-        <textarea
-          id="chat-input"
-          ref={inputRef}
-          rows={1}
-          className={styles.input}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onFocus={() => {
-            // Focusing the composer IS the intent to converse — that is the
-            // moment the phone should become a messaging app.
-            if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
-              setImmersive(true);
-            }
-          }}
-          onKeyDown={(e) => {
-            if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+        <form
+          className={styles.composer}
+          onSubmit={(e) => {
             e.preventDefault();
             send(input);
           }}
-          placeholder={
-            !online
-              ? t('placeholder.offline')
-              : busy
-                ? t('placeholder.busy')
-                : // Short on purpose: the composer is a textarea now, and at
-                  // 390px the old placeholder («… یه خونهٔ ۱۰۰ متری دو طبقه»)
-                  // wrapped to a second line inside a one-line box. The four
-                  // starter chips in the empty state already carry the
-                  // examples, and carry them as things you can tap.
-                  t('placeholder.default')
-          }
-          enterKeyHint="send"
-          maxLength={1000}
-          disabled={busy || !online}
-        />
-        {voiceSupported && (
-          <button
-            type="button"
-            className={`${styles.mic} ${listening ? styles.micOn : ''}`}
-            onClick={toggleVoice}
-            aria-label={listening ? t('micStop') : t('micStart')}
-            aria-pressed={listening}
+        >
+          <label htmlFor="chat-input" className="visually-hidden">
+            {t('composerLabel')}
+          </label>
+          {/* AUTO-GROWING TEXTAREA.
+           *  A cut list, a tender line or «۳ تن میلگرد ۱۴ و ۲ تن ۱۶، تحویل
+           *  مشهد» all run past one line, and the single-line field turned them
+           *  into a horizontally-scrolling slot the visitor could not re-read
+           *  before sending. Enter still sends (it is a chat, and every test and
+           *  habit depends on it); Shift+Enter is the newline — the convention
+           *  every current chat product uses. */}
+          <textarea
+            id="chat-input"
+            ref={inputRef}
+            rows={1}
+            className={styles.input}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onFocus={() => {
+              // Focusing the composer IS the intent to converse — that is the
+              // moment the phone should become a messaging app.
+              if (
+                typeof window !== 'undefined' &&
+                window.matchMedia('(max-width: 767px)').matches
+              ) {
+                setImmersive(true);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+              e.preventDefault();
+              send(input);
+            }}
+            placeholder={
+              !online
+                ? t('placeholder.offline')
+                : busy
+                  ? t('placeholder.busy')
+                  : // Short on purpose: the composer is a textarea now, and at
+                    // 390px the old placeholder («… یه خونهٔ ۱۰۰ متری دو طبقه»)
+                    // wrapped to a second line inside a one-line box. The four
+                    // starter chips in the empty state already carry the
+                    // examples, and carry them as things you can tap.
+                    t('placeholder.default')
+            }
+            enterKeyHint="send"
+            maxLength={1000}
             disabled={busy || !online}
-          >
-            <MicIcon size={20} />
-          </button>
-        )}
-        {busy ? (
-          <button
-            type="button"
-            className={styles.send}
-            aria-label={t('stopAria')}
-            onClick={() => abortRef.current?.abort()}
-          >
-            <StopIcon size={18} />
-          </button>
-        ) : (
-          // A paper plane, not the old ChevronStartIcon + `.icon--rtl`: that
-          // flipped under [dir=rtl] to point at the inline-START, i.e. "back"
-          // in a Persian layout, and a bare chevron is the same glyph this
-          // icon set uses for "previous" elsewhere.
-          <button type="submit" className={styles.send} aria-label={t('sendAria')} disabled={!online}>
-            <SendIcon size={20} />
-          </button>
-        )}
-      </form>
-      {/* THE ESCAPE HATCH, always present.
-       *
-       *  The advisor also draws a کارشناس card when a turn comes up empty
-       *  (route.ts), but that only fires when it NOTICES it failed. The more
-       *  common case is subtler: the question is too specific, or the visitor
-       *  simply wants a person, and until now the only route to one was
-       *  navigating away to /contact and losing the conversation. This row is
-       *  deliberately quiet — a way out, not a competing call to action — and
-       *  deliberately permanent, so nobody has to discover it at the moment
-       *  they are already frustrated. */}
-      {contact ? (
-        <p className={styles.human}>
-          <span>{t('humanQuestion')}</span>
-          <a className={styles.humanLink} href={`tel:${contact.phoneMobile}`} dir="ltr">
-            <PhoneIcon size={14} aria-hidden="true" />
-            <bdi>{toPersianDigits(contact.phoneMobile)}</bdi>
-          </a>
-          <a
-            className={styles.humanLink}
-            href={`https://wa.me/98${contact.phoneMobile.replace(/^0/, '')}`}
-            target="_blank"
-            rel="noreferrer noopener"
-          >
-            <WhatsappIcon size={14} aria-hidden="true" />
-            {t('humanWhatsapp')}
-          </a>
-        </p>
-      ) : null}
-      <p className={styles.disclaimer}>{t('disclaimer')}</p>
+          />
+          {voiceSupported && (
+            <button
+              type="button"
+              className={`${styles.mic} ${listening ? styles.micOn : ''}`}
+              onClick={toggleVoice}
+              aria-label={listening ? t('micStop') : t('micStart')}
+              aria-pressed={listening}
+              disabled={busy || !online}
+            >
+              <MicIcon size={20} />
+            </button>
+          )}
+          {busy ? (
+            <button
+              type="button"
+              className={styles.send}
+              aria-label={t('stopAria')}
+              onClick={() => abortRef.current?.abort()}
+            >
+              <StopIcon size={18} />
+            </button>
+          ) : (
+            // A paper plane, not the old ChevronStartIcon + `.icon--rtl`: that
+            // flipped under [dir=rtl] to point at the inline-START, i.e. "back"
+            // in a Persian layout, and a bare chevron is the same glyph this
+            // icon set uses for "previous" elsewhere.
+            <button
+              type="submit"
+              className={styles.send}
+              aria-label={t('sendAria')}
+              disabled={!online}
+            >
+              <SendIcon size={20} />
+            </button>
+          )}
+        </form>
+        {/* THE ESCAPE HATCH, always present.
+         *
+         *  The advisor also draws a کارشناس card when a turn comes up empty
+         *  (route.ts), but that only fires when it NOTICES it failed. The more
+         *  common case is subtler: the question is too specific, or the visitor
+         *  simply wants a person, and until now the only route to one was
+         *  navigating away to /contact and losing the conversation. This row is
+         *  deliberately quiet — a way out, not a competing call to action — and
+         *  deliberately permanent, so nobody has to discover it at the moment
+         *  they are already frustrated. */}
+        {contact ? (
+          <p className={styles.human}>
+            <span>{t('humanQuestion')}</span>
+            <a className={styles.humanLink} href={`tel:${contact.phoneMobile}`} dir="ltr">
+              <PhoneIcon size={14} aria-hidden="true" />
+              <bdi>{toPersianDigits(contact.phoneMobile)}</bdi>
+            </a>
+            <a
+              className={styles.humanLink}
+              href={`https://wa.me/98${contact.phoneMobile.replace(/^0/, '')}`}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              <WhatsappIcon size={14} aria-hidden="true" />
+              {t('humanWhatsapp')}
+            </a>
+          </p>
+        ) : null}
+        <p className={styles.disclaimer}>{t('disclaimer')}</p>
       </div>
     </section>
   );
@@ -1745,39 +1756,40 @@ function QuickReply({ label, onPick }: { label: string; onPick: (t: string) => v
 }
 
 function EstimateCard({ est }: { est: Estimate }) {
+  const t = useTranslations('ai.estimateCard');
   return (
     <div className={styles.estimate}>
       <div className={styles.estHead}>
-        <span className={styles.estBadge}>برآورد تخمینی</span>
+        <span className={styles.estBadge}>{t('badge')}</span>
       </div>
       <ul className={styles.estItems}>
         {est.items.map((it) => (
           <li key={it.name}>
             <span>{it.name}</span>
             <span className="tnum">
-              {toPersianDigits(it.weightKg.toLocaleString('en-US'))} کیلوگرم
+              {toPersianDigits(it.weightKg.toLocaleString('en-US'))} {t('kg')}
             </span>
           </li>
         ))}
       </ul>
       <div className={styles.estTotals}>
         <div>
-          <span className={styles.estLabel}>وزن کل</span>
+          <span className={styles.estLabel}>{t('totalWeight')}</span>
           <span className={`${styles.estValue} tnum`}>
-            {toPersianDigits(est.totalKg.toLocaleString('en-US'))} کیلوگرم
+            {toPersianDigits(est.totalKg.toLocaleString('en-US'))} {t('kg')}
           </span>
         </div>
         <div>
-          <span className={styles.estLabel}>هزینهٔ تقریبی</span>
+          <span className={styles.estLabel}>{t('approxCost')}</span>
           <span className={`${styles.estValue} tnum`}>{formatToman(est.totalToman)}</span>
         </div>
       </div>
       <div className={styles.estActions}>
         <Link href={routes.request()} className={styles.estCta}>
-          دریافت پیش‌فاکتور دقیق
+          {t('exactProforma')}
         </Link>
         <Link href={routes.contact()} className={styles.estGhost}>
-          گفتگو با کارشناس
+          {t('talkToExpert')}
         </Link>
       </div>
     </div>
@@ -1786,11 +1798,12 @@ function EstimateCard({ est }: { est: Estimate }) {
 
 function SplitCard({ answer }: { answer: SplitAnswer }) {
   const { categoryName, split } = answer;
+  const t = useTranslations('ai.splitCard');
   return (
     <div className={styles.estimate}>
       <div className={styles.estHead}>
         <span className={styles.estBadge}>
-          {toPersianDigits(split.tonnage)} تن {categoryName} · تفکیک کارخانه
+          {t('badge', { tonnage: toPersianDigits(split.tonnage), category: categoryName })}
         </span>
       </div>
       <ul className={styles.splitList}>
@@ -1798,7 +1811,7 @@ function SplitCard({ answer }: { answer: SplitAnswer }) {
           <li key={l.factory} className={l.best ? styles.splitBest : undefined}>
             <span className={styles.splitFactory}>
               {l.factory}
-              {l.best ? <span className={styles.splitTag}>بهترین</span> : null}
+              {l.best ? <span className={styles.splitTag}>{t('best')}</span> : null}
             </span>
             <span className="tnum">{formatToman(l.lineToman)}</span>
           </li>
@@ -1808,18 +1821,21 @@ function SplitCard({ answer }: { answer: SplitAnswer }) {
         <div className={styles.splitSuggest}>
           <CheckCircleIcon size={15} aria-hidden="true" />
           <span>
-            ارزان‌ترین: کارخانهٔ <strong>{split.cheapest.factory}</strong> با{' '}
-            <strong className="tnum">{formatToman(split.cheapest.pricePerKg, false)}</strong> تومان
-            بر کیلوگرم.
+            {t.rich('cheapest', {
+              f: () => <strong>{split.cheapest!.factory}</strong>,
+              p: () => (
+                <strong className="tnum">{formatToman(split.cheapest!.pricePerKg, false)}</strong>
+              ),
+            })}
           </span>
         </div>
       ) : null}
       <div className={styles.estActions}>
         <Link href={routes.request()} className={styles.estCta}>
-          دریافت پیش‌فاکتور
+          {t('proforma')}
         </Link>
         <Link href={routes.contact()} className={styles.estGhost}>
-          گفتگو با کارشناس
+          {t('talkToExpert')}
         </Link>
       </div>
     </div>

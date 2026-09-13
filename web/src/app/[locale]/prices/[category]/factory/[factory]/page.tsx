@@ -3,7 +3,12 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { buildMetadata, itemListJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
-import { getCategories, getCategoryFacets, getRowsByFactory, getFactoryOrder } from '@/lib/server/catalog';
+import {
+  getCategories,
+  getCategoryFacets,
+  getRowsByFactory,
+  getFactoryOrder,
+} from '@/lib/server/catalog';
 import { getSubsMap } from '@/lib/data/catalog';
 import { getSetting, getVatRate } from '@/lib/server/repos/settingsRepo';
 import { DEFAULT_LOGISTICS_CONFIG, type LogisticsConfig } from '@/lib/data/logistics';
@@ -42,18 +47,25 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const [categories, facets] = await Promise.all([getCategories(), getCategoryFacets(category)]);
   const cat = categories.find((c) => c.slug === category);
   const facet = facets.factories.find((f) => f.slug === factory);
+  const tMeta = await getTranslations('pricesFacet');
   if (!cat || !facet) {
     const t = await getTranslations('meta.notFound');
     return buildMetadata({ title: t('page'), noindex: true });
   }
   return buildMetadata({
-    title: `قیمت روز ${cat.name} ${facet.label}`,
-    description: `قیمت لحظه‌ای تمام ${cat.name}‌های تولید ${facet.label} به تفکیک ${sizeLabel(category)}، همراه نوسان، وزن شاخه و زمان تحویل.`,
+    title: tMeta('factoryPageTitle', { category: cat.name, factory: facet.label }),
+    description: tMeta('factoryPageDescriptionFull', {
+      category: cat.name,
+      factory: facet.label,
+      measure: sizeLabel(category),
+    }),
     path: routes.categoryByFactory(category, factory),
   });
 }
 
 export default async function FactoryLandingPage({ params }: Params) {
+  const tNav = await getTranslations();
+  const tFacet = await getTranslations('pricesFacet');
   const { category, factory } = await params;
 
   const categories = await getCategories();
@@ -76,8 +88,8 @@ export default async function FactoryLandingPage({ params }: Params) {
   if (!facet || rows.length === 0) notFound();
 
   const crumbs = [
-    { label: 'خانه', href: routes.home() },
-    { label: 'قیمت‌ها', href: routes.prices() },
+    { label: tNav('nav.home'), href: routes.home() },
+    { label: tNav('nav.prices'), href: routes.prices() },
     { label: cat.name, href: routes.category(category) },
     { label: facet.label, href: routes.categoryByFactory(category, factory) },
   ];
@@ -87,7 +99,10 @@ export default async function FactoryLandingPage({ params }: Params) {
       <BreadcrumbJsonLd items={crumbs} />
       <JsonLd
         data={itemListJsonLd(
-          rows.map((r) => ({ name: r.name, url: routes.sku(r.categoryId, r.subCategoryId, r.slug) })),
+          rows.map((r) => ({
+            name: r.name,
+            url: routes.sku(r.categoryId, r.subCategoryId, r.slug),
+          })),
         )}
       />
 
@@ -99,8 +114,12 @@ export default async function FactoryLandingPage({ params }: Params) {
               categorySlug={category}
               categoryName={cat.name}
               id="factory-title"
-              title={`قیمت روز ${cat.name} ${facet.label}`}
-              description={`قیمت لحظه‌ای ${cat.name}‌های تولید ${facet.label} به تفکیک ${sizeLabel(category)}، همراه نوسان، وزن شاخه و زمان تحویل.`}
+              title={tFacet('factoryPageTitle', { category: cat.name, factory: facet.label })}
+              description={tFacet('factorySectionDescription', {
+                category: cat.name,
+                factory: facet.label,
+                measure: sizeLabel(category),
+              })}
             />
           </div>
 
@@ -124,13 +143,13 @@ export default async function FactoryLandingPage({ params }: Params) {
 
           <FacetRail
             id="rail-sizes"
-            title={`${sizeLabel(category)}‌های ${cat.name}`}
+            title={tFacet('sizesOfTitle', { category: cat.name, measure: sizeLabel(category) })}
             facets={facets.sizes}
             href={(slug) => routes.categoryBySize(category, slug)}
           />
           <FacetRail
             id="rail-factories"
-            title={`سایر کارخانه‌های ${cat.name}`}
+            title={tFacet('otherFactoriesTitle', { category: cat.name })}
             facets={facets.factories}
             activeSlug={facet.slug}
             href={(slug) => routes.categoryByFactory(category, slug)}

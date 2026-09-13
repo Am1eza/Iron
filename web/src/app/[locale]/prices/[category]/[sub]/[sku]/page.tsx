@@ -4,7 +4,15 @@ import { getTranslations } from 'next-intl/server';
 import { buildMetadata, productJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { allRows } from '@/lib/mock/catalogData';
-import { findSku, relatedRows, priceSeriesWithDates, getRows, getCategories, getBilletReference, getSubsMap } from '@/lib/server/catalog';
+import {
+  findSku,
+  relatedRows,
+  priceSeriesWithDates,
+  getRows,
+  getCategories,
+  getBilletReference,
+  getSubsMap,
+} from '@/lib/server/catalog';
 import { formatToman } from '@/lib/utils/format';
 import { priceBasisNoun } from '@/lib/utils/catalogLabels';
 import { productImage } from '@/lib/data/productImages';
@@ -34,6 +42,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   // error `PriceBasis` was added to end. `priceBasisNoun` is the wording the
   // price tables already use, so the snippet and the page now agree.
   const basisNoun = priceBasisNoun(row.current.priceBasis ?? row.priceBasis, row.branchLengthM);
+  const tMeta = await getTranslations('pricesFacet');
   const mill = row.factory ? ` کارخانه ${row.factory}` : '';
   // 195 of 748 product pages (26 %, measured on production 1405/06/09)
   // publish no price. They shipped a title announcing «قیمت روز تیرآهن هاش
@@ -51,19 +60,25 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   // Center policy violation.
   if (!skuHasPublishedPrice(row)) {
     return buildMetadata({
-      title: `استعلام قیمت ${row.name}`,
-      description: `${row.name}${mill} — قیمت امروز این کالا در آهن‌تایم اعلام نشده است. برای استعلام قیمت هر ${basisNoun}، وزن شاخه و زمان تحویل با کارشناس ما تماس بگیرید.`,
+      title: tMeta('skuQuoteTitle', { subject: row.name }),
+      description: tMeta('skuQuoteDescription', { subject: row.name, mill, unit: basisNoun }),
       path: routes.sku(row.categoryId, row.subCategoryId, row.slug),
     });
   }
   return buildMetadata({
-    title: `قیمت روز ${row.name}`,
-    description: `قیمت روز ${row.name}${mill}: ${formatToman(row.current.price)} برای هر ${basisNoun}، همراه با نوسان، وزن شاخه و زمان تحویل در آهن‌تایم.`,
+    title: tMeta('todayPrice', { subject: row.name }),
+    description: tMeta('skuPriceDescription', {
+      subject: row.name,
+      mill,
+      price: formatToman(row.current.price),
+      unit: basisNoun,
+    }),
     path: routes.sku(row.categoryId, row.subCategoryId, row.slug),
   });
 }
 
 export default async function SkuPage({ params }: Params) {
+  const tNav = await getTranslations();
   const { category, sub, sku } = await params;
 
   // The URL must reflect the SKU's canonical category/sub — otherwise a SKU
@@ -71,17 +86,25 @@ export default async function SkuPage({ params }: Params) {
   const row = await findSku(sku);
   if (!row || row.categoryId !== category || row.subCategoryId !== sub) notFound();
 
-  const [related, priceHistory, categoryRows, categories, billet, logisticsConfig, vatRate, staleHideAfterDays] =
-    await Promise.all([
-      relatedRows(row),
-      priceSeriesWithDates(row.slug, row.current.price),
-      getRows(category),
-      getCategories(),
-      getBilletReference(),
-      getSetting<LogisticsConfig>('LOGISTICS', DEFAULT_LOGISTICS_CONFIG),
-      getVatRate(),
-      getStaleHideAfterDays(),
-    ]);
+  const [
+    related,
+    priceHistory,
+    categoryRows,
+    categories,
+    billet,
+    logisticsConfig,
+    vatRate,
+    staleHideAfterDays,
+  ] = await Promise.all([
+    relatedRows(row),
+    priceSeriesWithDates(row.slug, row.current.price),
+    getRows(category),
+    getCategories(),
+    getBilletReference(),
+    getSetting<LogisticsConfig>('LOGISTICS', DEFAULT_LOGISTICS_CONFIG),
+    getVatRate(),
+    getStaleHideAfterDays(),
+  ]);
   const { series, dates } = priceHistory;
 
   // W25 audit fix: the comparison panel is about THIS product, so it
@@ -98,8 +121,8 @@ export default async function SkuPage({ params }: Params) {
   const categorySubs = (await getSubsMap())[category] ?? [];
   const subLabel = categorySubs.find((x) => x.slug === sub)?.name ?? sub;
   const crumbs = [
-    { label: 'خانه', href: routes.home() },
-    { label: 'قیمت‌ها', href: routes.prices() },
+    { label: tNav('nav.home'), href: routes.home() },
+    { label: tNav('nav.prices'), href: routes.prices() },
     { label: catName, href: routes.category(category) },
     { label: subLabel, href: routes.subCategory(category, sub) },
     { label: row.name, href: routes.sku(category, sub, row.slug) },
@@ -130,7 +153,19 @@ export default async function SkuPage({ params }: Params) {
         })}
       />
       <Section space={10}>
-        <SkuDetail row={row} category={cat} related={related} series={series} dates={dates} categoryRows={subCategoryRows} billet={billet} subLabel={subLabel} categorySubs={categorySubs} logisticsConfig={logisticsConfig} vatRate={vatRate} />
+        <SkuDetail
+          row={row}
+          category={cat}
+          related={related}
+          series={series}
+          dates={dates}
+          categoryRows={subCategoryRows}
+          billet={billet}
+          subLabel={subLabel}
+          categorySubs={categorySubs}
+          logisticsConfig={logisticsConfig}
+          vatRate={vatRate}
+        />
       </Section>
     </Container>
   );

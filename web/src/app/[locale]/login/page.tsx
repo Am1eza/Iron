@@ -10,7 +10,8 @@ export async function generateMetadata(): Promise<Metadata> {
   return buildMetadata({ title: t('title'), noindex: true });
 }
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const t = await getTranslations('auth');
   // The form is a self-contained card with its own title/subtitle — the page is
   // just a centered stage for it (no duplicate heading, no mixed fonts).
   return (
@@ -29,7 +30,7 @@ export default function LoginPage() {
           reader. panel-login already did this; /login was the one left out. */}
       <Suspense
         fallback={
-          <div className={styles.card} role="status" aria-label="در حال بارگذاری فرم ورود">
+          <div className={styles.card} role="status" aria-label={t('loadingLoginForm')}>
             <div className={styles.skeleton} />
           </div>
         }

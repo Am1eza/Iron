@@ -3,7 +3,12 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { buildMetadata, itemListJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
-import { getCategories, getCategoryFacets, getRowsBySize, getFactoryOrder } from '@/lib/server/catalog';
+import {
+  getCategories,
+  getCategoryFacets,
+  getRowsBySize,
+  getFactoryOrder,
+} from '@/lib/server/catalog';
 import { getSubsMap } from '@/lib/data/catalog';
 import { getSetting, getVatRate } from '@/lib/server/repos/settingsRepo';
 import { DEFAULT_LOGISTICS_CONFIG, type LogisticsConfig } from '@/lib/data/logistics';
@@ -45,15 +50,23 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   // snippet describes a page that does not exist. Same conditional the
   // sub-category page uses (catalogLabels.factoryIsMeaningful); asked at the
   // CATEGORY level because this page mixes every sub-category of one size.
+  const tMeta = await getTranslations('pricesFacet');
   const byFactory = factoryIsMeaningful(category, null);
   return buildMetadata({
-    title: `قیمت روز ${cat.name} ${measure} ${facet.label}`,
-    description: `قیمت امروز ${cat.name} ${measure} ${facet.label}${byFactory ? ' به تفکیک کارخانه' : ''}؛ قیمت‌ها لحظه‌ای، همراه نوسان، وزن شاخه و زمان تحویل.`,
+    title: tMeta('sizePageTitle', { category: cat.name, measure, size: facet.label }),
+    description: tMeta('sizePageDescription', {
+      category: cat.name,
+      measure,
+      factory: facet.label,
+      byFactory: byFactory ? tMeta('byFactorySuffix') : '',
+    }),
     path: routes.categoryBySize(category, size),
   });
 }
 
 export default async function SizeLandingPage({ params }: Params) {
+  const tNav = await getTranslations();
+  const tFacet = await getTranslations('pricesFacet');
   const { category, size } = await params;
 
   const categories = await getCategories();
@@ -74,8 +87,8 @@ export default async function SizeLandingPage({ params }: Params) {
 
   const measure = sizeLabel(category);
   const crumbs = [
-    { label: 'خانه', href: routes.home() },
-    { label: 'قیمت‌ها', href: routes.prices() },
+    { label: tNav('nav.home'), href: routes.home() },
+    { label: tNav('nav.prices'), href: routes.prices() },
     { label: cat.name, href: routes.category(category) },
     { label: `${measure} ${facet.label}`, href: routes.categoryBySize(category, size) },
   ];
@@ -85,7 +98,10 @@ export default async function SizeLandingPage({ params }: Params) {
       <BreadcrumbJsonLd items={crumbs} />
       <JsonLd
         data={itemListJsonLd(
-          rows.map((r) => ({ name: r.name, url: routes.sku(r.categoryId, r.subCategoryId, r.slug) })),
+          rows.map((r) => ({
+            name: r.name,
+            url: routes.sku(r.categoryId, r.subCategoryId, r.slug),
+          })),
         )}
       />
 
@@ -97,10 +113,13 @@ export default async function SizeLandingPage({ params }: Params) {
               categorySlug={category}
               categoryName={cat.name}
               id="size-title"
-              title={`قیمت روز ${cat.name} ${measure} ${facet.label}`}
-              description={`آخرین قیمت منتشرشدهٔ ${cat.name} ${measure} ${facet.label}${
-                factoryIsMeaningful(category, null) ? ' در همهٔ کارخانه‌ها' : ''
-              }، همراه با نوسان، وزن شاخه و زمان تحویل اعلام‌شده. پیش از خرید، با کارشناس ما مشورت کنید.`}
+              title={tFacet('sizePageTitle', { category: cat.name, measure, size: facet.label })}
+              description={tFacet('sizeSectionDescription', {
+                category: cat.name,
+                measure,
+                size: facet.label,
+                allMills: factoryIsMeaningful(category, null) ? tFacet('allMillsSuffix') : '',
+              })}
             />
           </div>
 
@@ -124,14 +143,14 @@ export default async function SizeLandingPage({ params }: Params) {
 
           <FacetRail
             id="rail-sizes"
-            title={`سایر ${measure}‌های ${cat.name}`}
+            title={tFacet('otherSizesTitle', { category: cat.name, measure })}
             facets={facets.sizes}
             activeSlug={facet.slug}
             href={(slug) => routes.categoryBySize(category, slug)}
           />
           <FacetRail
             id="rail-factories"
-            title={`کارخانه‌های ${cat.name}`}
+            title={tFacet('factoriesTitle', { category: cat.name })}
             facets={facets.factories}
             href={(slug) => routes.categoryByFactory(category, slug)}
           />

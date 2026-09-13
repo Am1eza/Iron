@@ -135,7 +135,8 @@
     "registerNameSubtitle": "账户已创建。请输入您的姓名以完成注册。",
     "completeRegistration": "完成注册",
     "requestFlowNote": "您的询价篮已保存；验证号码后，您将返回继续提交请求。",
-    "otpLengthError": "验证码必须为 6 位数字。"
+    "otpLengthError": "验证码必须为 6 位数字。",
+    "loadingLoginForm": "正在加载登录表单"
   },
   "phone": {
     "country": "国家/地区",
@@ -1230,6 +1231,21 @@
       "alreadyActive": "该提醒此前已启用",
       "confirmedNote": "当 {product} 的价格达到 {threshold} 时，我们会发短信通知您。",
       "manageAlerts": "管理提醒"
+    },
+    "estimateCard": {
+      "badge": "粗略估算",
+      "kg": "公斤",
+      "totalWeight": "总重量",
+      "approxCost": "约计费用",
+      "exactProforma": "获取精确形式发票",
+      "talkToExpert": "咨询专员"
+    },
+    "splitCard": {
+      "badge": "{tonnage} 吨 {category} · 按钢厂拆分",
+      "best": "最优",
+      "cheapest": "最便宜：<f></f>，每公斤 <p></p> 托曼。",
+      "proforma": "获取形式发票",
+      "talkToExpert": "咨询专员"
     }
   },
   "account": {
@@ -1534,6 +1550,10 @@
       "warehouseItemsLabel": "仓库中寄存的货物",
       "warehouseItemsHintHas": "客户仓库库存",
       "warehouseItemsHintEmpty": "没有寄存的货物"
+    },
+    "reorder": {
+      "noneOrderable": "此订单中的商品已无法再次订购。",
+      "someUnorderable": "以下商品已无法订购，不会计入本次重新下单：{items}"
     }
   },
   "warehouseForm": {
@@ -2502,5 +2522,58 @@
     },
     "tableHeading": "估算表",
     "tableLead": "为每个条目选择分类、产品、规格和数量。每行的价格、重量与合计将实时计算。"
+  },
+  "ui": {
+    "bestPrice": "最优价格"
+  },
+  "blogCategory": {
+    "kicker": "产品分类",
+    "heading": "{category} 文章",
+    "listLabel": "{category} 分类文章",
+    "emptyHeadline": "此分类下暂无文章",
+    "emptyBody": "关于该产品的内容即将在此发布。",
+    "footerBefore": "在找其他产品？请前往",
+    "footerLink": "全部文章",
+    "footerAfter": "。",
+    "metaDescription": "{category} 的采购指南、市场分析与资讯 —— Ahantime 关于该产品的内容。"
+  },
+  "newsTopic": {
+    "kicker": "新闻主题",
+    "heading": "{topic} 新闻",
+    "listLabel": "{topic} 新闻",
+    "emptyHeadline": "此主题下暂无新闻",
+    "emptyBody": "该主题的最新消息一经发布便会显示在此处。",
+    "footerBefore": "在找其他主题？请前往",
+    "footerLink": "全部市场新闻",
+    "footerAfter": "。"
+  },
+  "pricesFacet": {
+    "byFactoryTitle": "{category} 按钢厂报价",
+    "bySizeTitle": "{category} 按{measure}报价",
+    "factoryPageTitle": "{factory} {category} 今日价格",
+    "factoryPageDescription": "{factory} 生产的 {category} 实时价格，按{measure}分类。",
+    "sizesOfTitle": "{category} {measure}",
+    "otherFactoriesTitle": "其他 {category} 钢厂",
+    "sizePageTitle": "{category} {measure} {size} 今日价格",
+    "otherSizesTitle": "其他 {category} {measure}",
+    "factoriesTitle": "{category} 钢厂",
+    "todayPrice": "{subject} 今日价格",
+    "todayPriceDescription": "Ahantime 上 {subject} 的今日价格，含涨跌、单支重量与交货时间。",
+    "liveDescription": "{subject} 实时价格，含涨跌、单支重量与交货时间。",
+    "emptyCategoryDescription": "{subject} 分类下暂无商品。请联系 Ahantime 专员查询价格与库存。",
+    "emptyCategoryBody": "{subject} 分类下暂无商品。请联系我们的专员查询价格、库存与交货时间。",
+    "emptySubjectDescription": "{subject} 下暂无商品。请联系 Ahantime 专员查询价格与库存。",
+    "tableDescription": "{subject} 今日价格表：{stats}，在 Ahantime 每日更新。先咨询，后购买。",
+    "skuQuoteTitle": "{subject} 询价",
+    "skuQuoteDescription": "{subject}{mill} — Ahantime 尚未公布该商品的今日价格。请联系我们的专员查询每{unit}价格、单支重量与交货时间。",
+    "skuPriceDescription": "{subject}{mill} 今日价格：每{unit} {price}，涨跌、单支重量与交货时间见 Ahantime。",
+    "factoryPageDescriptionFull": "{factory} 生产的全部 {category} 实时价格，按{measure}分类，含涨跌、单支重量与交货时间。",
+    "factorySectionDescription": "{factory} 生产的 {category} 实时价格，按{measure}分类，含涨跌、单支重量与交货时间。",
+    "sizePageDescription": "{category} {measure} {factory}{byFactory} 今日价格 — 实时更新，含涨跌、单支重量与交货时间。",
+    "sizeSectionDescription": "{category} {measure} {size}{allMills} 的最新公布价格，含涨跌、单支重量与公布的交货时间。购买前请咨询我们的专员。",
+    "byFactorySuffix": "（按钢厂）",
+    "statsWithFactories": "来自 {factories} 家钢厂的 {products} 件商品",
+    "statsOnly": "{products} 件商品",
+    "allMillsSuffix": "（全部钢厂）"
   }
 }

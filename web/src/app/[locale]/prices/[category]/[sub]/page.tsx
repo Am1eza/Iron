@@ -35,10 +35,9 @@ export const revalidate = 300;
  */
 export function generateStaticParams() {
   if (!shouldPrerenderMockParams()) return [];
-  return mockCategories
-    .flatMap((c) =>
-      (MOCK_CATEGORY_SUBS[c.slug] ?? []).map((s) => ({ category: c.slug, sub: s.slug })),
-    );
+  return mockCategories.flatMap((c) =>
+    (MOCK_CATEGORY_SUBS[c.slug] ?? []).map((s) => ({ category: c.slug, sub: s.slug })),
+  );
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
@@ -52,6 +51,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   }
   // «میلگرد آجدار», not «میلگرد آجدار میلگرد» — see subCategorySubject.
   const subject = subCategorySubject(name, cat.name);
+  const tMeta = await getTranslations('pricesFacet');
   // SEO audit: every sub-category page previously shared one identical meta
   // description template with only `subject` swapped in, giving a searcher no
   // page-specific signal to judge relevance from. `getSubRows` is the same
@@ -71,7 +71,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!taxonomyIsIndexable(rows.length)) {
     return buildMetadata({
       title: subject,
-      description: `هنوز کالایی در ${subject} ثبت نشده است. برای استعلام قیمت و موجودی با کارشناسان آهن‌تایم تماس بگیرید.`,
+      description: tMeta('emptySubjectDescription', { subject }),
       path: routes.subCategory(category, sub),
       noindex: true,
     });
@@ -80,16 +80,20 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     .size;
   const stats =
     factoryCount > 0
-      ? `${toPersianDigits(rows.length)} کالا از ${toPersianDigits(factoryCount)} کارخانه`
-      : `${toPersianDigits(rows.length)} کالا`;
+      ? tMeta('statsWithFactories', {
+          products: toPersianDigits(rows.length),
+          factories: toPersianDigits(factoryCount),
+        })
+      : tMeta('statsOnly', { products: toPersianDigits(rows.length) });
   return buildMetadata({
-    title: `قیمت روز ${subject}`,
-    description: `جدول قیمت روز ${subject}: ${stats}، به‌روزرسانی روزانه در آهن‌تایم. اول مشورت، بعد خرید.`,
+    title: tMeta('todayPrice', { subject }),
+    description: tMeta('tableDescription', { subject, stats }),
     path: routes.subCategory(category, sub),
   });
 }
 
 export default async function SubCategoryPage({ params }: Params) {
+  const tNav = await getTranslations();
   const { category, sub } = await params;
 
   const categories = await getCategories();
@@ -116,8 +120,8 @@ export default async function SubCategoryPage({ params }: Params) {
   const subject = subCategorySubject(name, cat.name);
 
   const crumbs = [
-    { label: 'خانه', href: routes.home() },
-    { label: 'قیمت‌ها', href: routes.prices() },
+    { label: tNav('nav.home'), href: routes.home() },
+    { label: tNav('nav.prices'), href: routes.prices() },
     { label: cat.name, href: routes.category(category) },
     { label: name, href: routes.subCategory(category, sub) },
   ];

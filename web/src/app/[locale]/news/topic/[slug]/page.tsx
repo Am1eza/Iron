@@ -29,18 +29,21 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
   const topic = findNewsTopic(slug);
+  const tMeta = await getTranslations('newsTopic');
   if (!topic) {
     const t = await getTranslations('meta.notFound');
     return buildMetadata({ title: t('newsTopic'), noindex: true });
   }
   return buildMetadata({
-    title: `اخبار ${topic.name}`,
+    title: tMeta('heading', { topic: topic.name }),
     description: topic.description,
     path: routes.newsTopic(slug),
   });
 }
 
 export default async function NewsTopicPage({ params }: Params) {
+  const tNav = await getTranslations();
+  const t = await getTranslations('newsTopic');
   const { slug } = await params;
   const topic = findNewsTopic(slug);
   if (!topic) notFound();
@@ -51,8 +54,8 @@ export default async function NewsTopicPage({ params }: Params) {
   ]);
 
   const crumbs = [
-    { label: 'خانه', href: routes.home() },
-    { label: 'اخبار بازار', href: routes.news() },
+    { label: tNav('nav.home'), href: routes.home() },
+    { label: tNav('articleDetail.crumbNews'), href: routes.news() },
     { label: topic.name, href: routes.newsTopic(topic.slug) },
   ];
 
@@ -70,8 +73,10 @@ export default async function NewsTopicPage({ params }: Params) {
               variant. */}
           <div className={styles.hero}>
             <div className={styles.heroContent}>
-              <span className={styles.heroKicker}>موضوع خبر</span>
-              <Heading level={1} color="inverse">{`اخبار ${topic.name}`}</Heading>
+              <span className={styles.heroKicker}>{t('kicker')}</span>
+              <Heading level={1} color="inverse">
+                {t('heading', { topic: topic.name })}
+              </Heading>
               <Text color="inverse" variant="body">
                 {topic.description}
               </Text>
@@ -81,21 +86,18 @@ export default async function NewsTopicPage({ params }: Params) {
           <NewsTopicRail items={railItems} activeSlug={topic.slug} />
 
           {articles.length > 0 ? (
-            <ul className={styles.grid} aria-label={`اخبار ${topic.name}`}>
+            <ul className={styles.grid} aria-label={t('listLabel', { topic: topic.name })}>
               {articles.map((article) => (
                 <ArticleCard key={article.id} article={article} />
               ))}
             </ul>
           ) : (
-            <EmptyState
-              size="section"
-              headline="هنوز خبری در این موضوع نیست"
-              body="به‌محض انتشار، تازه‌ترین اخبار این موضوع اینجا قرار می‌گیرند."
-            />
+            <EmptyState size="section" headline={t('emptyHeadline')} body={t('emptyBody')} />
           )}
 
           <Text color="muted" variant="caption">
-            دنبال موضوع دیگری هستید؟ به <Link href={routes.news()}>همهٔ اخبار بازار</Link> سر بزنید.
+            {t('footerBefore')} <Link href={routes.news()}>{t('footerLink')}</Link>{' '}
+            {t('footerAfter')}
           </Text>
         </Stack>
       </Section>

@@ -16,6 +16,7 @@ export function ReorderButton({ items }: { items: LineItem[] }) {
   const add = useCartStore((s) => s.add);
   const toast = useToast();
   const t = useTranslations('account.orders');
+  const tr = useTranslations('account.reorder');
 
   // A line whose SKU was later deleted carries `orderable: false` (E-108;
   // see toLineItem) — there's nothing left to add it back as. This checks
@@ -26,29 +27,34 @@ export function ReorderButton({ items }: { items: LineItem[] }) {
 
   return (
     <>
-    {reorderable.length === 0 ? <span>کالاهای این سفارش دیگر قابل سفارش نیستند.</span> : null}
-    {reorderable.length > 0 && unorderable.length > 0 ? (
-      <span>
-        این کالاها دیگر قابل سفارش نیستند و در سفارش مجدد گنجانده نمی‌شوند:{' '}
-        {unorderable.map((it) => it.name).join('، ')}
-      </span>
-    ) : null}
-    <Button
-      size="sm"
-      variant="ghost"
-      disabled={reorderable.length === 0}
-      onClick={() => {
-        for (const it of reorderable) {
-          add({ skuId: it.skuId, name: it.name, qty: it.qty, unit: it.unit, unitPrice: it.unitPrice, weightKg: it.weightKg, priceBasis: inferSnapshotPriceBasis(it) });
-        }
-        toast.success(
-          reorderable.length < items.length ? t('reorderSuccessPartial') : t('reorderSuccessAll'),
-        );
-        router.push(routes.cart());
-      }}
-    >
-      {t('reorder')}
-    </Button>
+      {reorderable.length === 0 ? <span>{tr('noneOrderable')}</span> : null}
+      {reorderable.length > 0 && unorderable.length > 0 ? (
+        <span>{tr('someUnorderable', { items: unorderable.map((it) => it.name).join('، ') })}</span>
+      ) : null}
+      <Button
+        size="sm"
+        variant="ghost"
+        disabled={reorderable.length === 0}
+        onClick={() => {
+          for (const it of reorderable) {
+            add({
+              skuId: it.skuId,
+              name: it.name,
+              qty: it.qty,
+              unit: it.unit,
+              unitPrice: it.unitPrice,
+              weightKg: it.weightKg,
+              priceBasis: inferSnapshotPriceBasis(it),
+            });
+          }
+          toast.success(
+            reorderable.length < items.length ? t('reorderSuccessPartial') : t('reorderSuccessAll'),
+          );
+          router.push(routes.cart());
+        }}
+      >
+        {t('reorder')}
+      </Button>
     </>
   );
 }

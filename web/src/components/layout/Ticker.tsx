@@ -31,11 +31,17 @@ import { Link } from '@/i18n/navigation';
  * sample SKUs, price rows and articles into the bundle of EVERY page for the
  * sake of five labels. Values are deliberately null/zero — a plausible-looking
  * fake price at the top of the page would be worse than an obvious placeholder.
+ *
+ * i18n-exempt: the `label` fields below are never rendered. `TickerItem`
+ * resolves the displayed label through `LABEL_KEYS[v.key]` (see below), which
+ * covers all five keys, so `v.label` is only ever a fallback for a key that
+ * cannot occur. They are kept as readable Persian so the placeholder shape
+ * matches the real `MarketValue` rows it stands in for.
  */
 const PLACEHOLDER: MarketValue[] = [
   {
     key: 'usd',
-    label: 'دلار',
+    label: 'دلار', // i18n-exempt: see PLACEHOLDER note above
     value: 0,
     unit: 'تومان',
     source: 'tgju',
@@ -46,7 +52,7 @@ const PLACEHOLDER: MarketValue[] = [
   },
   {
     key: 'eur',
-    label: 'یورو',
+    label: 'یورو', // i18n-exempt: see PLACEHOLDER note above
     value: 0,
     unit: 'تومان',
     source: 'tgju',
@@ -57,7 +63,7 @@ const PLACEHOLDER: MarketValue[] = [
   },
   {
     key: 'gold18',
-    label: 'طلای ۱۸',
+    label: 'طلای ۱۸', // i18n-exempt: see PLACEHOLDER note above
     value: 0,
     unit: 'تومان',
     source: 'tgju',
@@ -68,7 +74,7 @@ const PLACEHOLDER: MarketValue[] = [
   },
   {
     key: 'ounce',
-    label: 'انس جهانی',
+    label: 'انس جهانی', // i18n-exempt: see PLACEHOLDER note above
     value: 0,
     unit: 'دلار',
     source: 'tgju',
@@ -79,7 +85,7 @@ const PLACEHOLDER: MarketValue[] = [
   },
   {
     key: 'billet',
-    label: 'شمش فولاد',
+    label: 'شمش فولاد', // i18n-exempt: see PLACEHOLDER note above
     value: 0,
     unit: 'تومان',
     source: 'admin',

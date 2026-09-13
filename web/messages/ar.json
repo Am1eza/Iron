@@ -135,7 +135,8 @@
     "registerNameSubtitle": "تم إنشاء حسابك. أدخل اسمك الأول واسم العائلة لإكمال التسجيل.",
     "completeRegistration": "إكمال التسجيل",
     "requestFlowNote": "سلة استعلامك محفوظة؛ بعد تأكيد رقمك، ستعود لإكمال تقديم الطلب.",
-    "otpLengthError": "يجب أن يتكون رمز التحقق من 6 أرقام."
+    "otpLengthError": "يجب أن يتكون رمز التحقق من 6 أرقام.",
+    "loadingLoginForm": "جارٍ تحميل نموذج الدخول"
   },
   "phone": {
     "country": "الدولة",
@@ -1230,6 +1231,21 @@
       "alreadyActive": "هذا التنبيه كان مفعّلاً من قبل",
       "confirmedNote": "سنرسل لك رسالة نصية عند وصول سعر {product} إلى {threshold}.",
       "manageAlerts": "إدارة التنبيهات"
+    },
+    "estimateCard": {
+      "badge": "تقدير تقريبي",
+      "kg": "كيلوغرام",
+      "totalWeight": "الوزن الإجمالي",
+      "approxCost": "التكلفة التقريبية",
+      "exactProforma": "احصل على فاتورة مبدئية دقيقة",
+      "talkToExpert": "تحدّث مع خبير"
+    },
+    "splitCard": {
+      "badge": "{tonnage} طن {category} · التوزيع حسب المصنع",
+      "best": "الأفضل",
+      "cheapest": "الأرخص: مصنع <f></f> بسعر <p></p> تومان للكيلوغرام.",
+      "proforma": "احصل على فاتورة مبدئية",
+      "talkToExpert": "تحدّث مع خبير"
     }
   },
   "account": {
@@ -1534,6 +1550,10 @@
       "warehouseItemsLabel": "بضاعة مودعة في المستودع",
       "warehouseItemsHintHas": "مخزون مستودع العملاء",
       "warehouseItemsHintEmpty": "لا توجد بضاعة مودعة"
+    },
+    "reorder": {
+      "noneOrderable": "لم تعد أصناف هذا الطلب قابلة للطلب.",
+      "someUnorderable": "لم تعد هذه الأصناف قابلة للطلب ولن تُدرج في إعادة الطلب: {items}"
     }
   },
   "warehouseForm": {
@@ -2502,5 +2522,58 @@
     },
     "tableHeading": "جدول التقدير",
     "tableLead": "لكل بند، اختر الفئة والمنتج والمقاس والكمية. يُحسب السعر والوزن والمجموع لكل صف مباشرةً."
+  },
+  "ui": {
+    "bestPrice": "أفضل سعر"
+  },
+  "blogCategory": {
+    "kicker": "فئة المنتج",
+    "heading": "مقالات {category}",
+    "listLabel": "مقالات فئة {category}",
+    "emptyHeadline": "لا توجد مقالات في هذه الفئة بعد",
+    "emptyBody": "ستُنشر هنا قريباً مقالات حول هذا المنتج.",
+    "footerBefore": "تبحث عن منتج آخر؟ تفضّل إلى",
+    "footerLink": "كل المقالات",
+    "footerAfter": ".",
+    "metaDescription": "أدلة الشراء وتحليل السوق وأخبار {category}. محتوى آهن‌تايم حول هذا المنتج."
+  },
+  "newsTopic": {
+    "kicker": "موضوع الخبر",
+    "heading": "أخبار {topic}",
+    "listLabel": "أخبار {topic}",
+    "emptyHeadline": "لا توجد أخبار في هذا الموضوع بعد",
+    "emptyBody": "ستظهر هنا أحدث أخبار هذا الموضوع فور نشرها.",
+    "footerBefore": "تبحث عن موضوع آخر؟ تفضّل إلى",
+    "footerLink": "كل أخبار السوق",
+    "footerAfter": "."
+  },
+  "pricesFacet": {
+    "byFactoryTitle": "أسعار {category} حسب المصنع",
+    "bySizeTitle": "أسعار {category} حسب {measure}",
+    "factoryPageTitle": "سعر اليوم لـ {category} {factory}",
+    "factoryPageDescription": "الأسعار اللحظية لـ {category} من إنتاج {factory} مصنّفة حسب {measure}.",
+    "sizesOfTitle": "{measure} {category}",
+    "otherFactoriesTitle": "مصانع {category} الأخرى",
+    "sizePageTitle": "سعر اليوم لـ {category} {measure} {size}",
+    "otherSizesTitle": "{measure} {category} الأخرى",
+    "factoriesTitle": "مصانع {category}",
+    "todayPrice": "سعر {subject} اليوم",
+    "todayPriceDescription": "سعر {subject} اليوم في آهن‌تايم مع التغيّر ووزن الشيش وزمن التسليم.",
+    "liveDescription": "أسعار {subject} اللحظية مع التغيّر ووزن الشيش وزمن التسليم.",
+    "emptyCategoryDescription": "لا توجد أصناف مسجّلة ضمن {subject} بعد. اتصل بخبراء آهن‌تايم للاستعلام عن السعر والتوفّر.",
+    "emptyCategoryBody": "لا توجد أصناف مسجّلة ضمن {subject} بعد. اتصل بخبرائنا للاستعلام عن السعر والتوفّر وزمن التسليم.",
+    "emptySubjectDescription": "لا توجد أصناف مسجّلة ضمن {subject} بعد. اتصل بخبراء آهن‌تايم للاستعلام عن السعر والتوفّر.",
+    "tableDescription": "جدول أسعار {subject} اليوم: {stats}، يُحدَّث يومياً في آهن‌تايم. استشر أولاً ثم اشترِ.",
+    "skuQuoteTitle": "استعلام سعر {subject}",
+    "skuQuoteDescription": "{subject}{mill} — لم يُعلَن سعر اليوم لهذا الصنف في آهن‌تايم. اتصل بخبيرنا للاستعلام عن السعر لكل {unit} ووزن الشيش وزمن التسليم.",
+    "skuPriceDescription": "سعر {subject}{mill} اليوم: {price} لكل {unit}، مع التغيّر ووزن الشيش وزمن التسليم في آهن‌تايم.",
+    "factoryPageDescriptionFull": "أسعار لحظية لكل {category} من إنتاج {factory} مصنّفة حسب {measure}، مع التغيّر ووزن الشيش وزمن التسليم.",
+    "factorySectionDescription": "أسعار لحظية لـ {category} من إنتاج {factory} مصنّفة حسب {measure}، مع التغيّر ووزن الشيش وزمن التسليم.",
+    "sizePageDescription": "سعر اليوم لـ {category} {measure} {factory}{byFactory}؛ أسعار لحظية مع التغيّر ووزن الشيش وزمن التسليم.",
+    "sizeSectionDescription": "آخر سعر منشور لـ {category} {measure} {size}{allMills}، مع التغيّر ووزن الشيش وزمن التسليم المعلن. استشر خبيرنا قبل الشراء.",
+    "byFactorySuffix": " حسب المصنع",
+    "statsWithFactories": "{products} صنفاً من {factories} مصنعاً",
+    "statsOnly": "{products} صنفاً",
+    "allMillsSuffix": " في جميع المصانع"
   }
 }

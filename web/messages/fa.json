@@ -135,7 +135,8 @@
     "registerNameSubtitle": "حساب شما ساخته شد. برای تکمیل ثبت‌نام، نام و نام خانوادگی‌تان را وارد کنید.",
     "completeRegistration": "تکمیل ثبت‌نام",
     "requestFlowNote": "سبد استعلام شما نگه داشته شده؛ پس از تأیید شماره، به ثبت درخواست بازمی‌گردید.",
-    "otpLengthError": "کد تأیید باید ۶ رقم باشد."
+    "otpLengthError": "کد تأیید باید ۶ رقم باشد.",
+    "loadingLoginForm": "در حال بارگذاری فرم ورود"
   },
   "phone": {
     "country": "کشور",
@@ -1230,6 +1231,21 @@
       "alreadyActive": "این هشدار از قبل فعال بود",
       "confirmedNote": "با رسیدن قیمت {product} به {threshold} برایت پیامک می‌شود.",
       "manageAlerts": "مدیریت هشدارها"
+    },
+    "estimateCard": {
+      "badge": "برآورد تخمینی",
+      "kg": "کیلوگرم",
+      "totalWeight": "وزن کل",
+      "approxCost": "هزینهٔ تقریبی",
+      "exactProforma": "دریافت پیش‌فاکتور دقیق",
+      "talkToExpert": "گفتگو با کارشناس"
+    },
+    "splitCard": {
+      "badge": "{tonnage} تن {category} · تفکیک کارخانه",
+      "best": "بهترین",
+      "cheapest": "ارزان‌ترین: کارخانهٔ <f></f> با <p></p> تومان بر کیلوگرم.",
+      "proforma": "دریافت پیش‌فاکتور",
+      "talkToExpert": "گفتگو با کارشناس"
     }
   },
   "account": {
@@ -1534,6 +1550,10 @@
       "warehouseItemsLabel": "کالای امانی در انبار",
       "warehouseItemsHintHas": "موجودی انبار مشتریان",
       "warehouseItemsHintEmpty": "کالای امانی ندارید"
+    },
+    "reorder": {
+      "noneOrderable": "کالاهای این سفارش دیگر قابل سفارش نیستند.",
+      "someUnorderable": "این کالاها دیگر قابل سفارش نیستند و در سفارش مجدد گنجانده نمی‌شوند: {items}"
     }
   },
   "warehouseForm": {
@@ -2502,5 +2522,58 @@
     },
     "tableHeading": "جدول برآورد",
     "tableLead": "برای هر قلم دسته، محصول، سایز و مقدار را انتخاب کنید. قیمت، وزن و جمع هر ردیف زنده محاسبه می‌شود."
+  },
+  "ui": {
+    "bestPrice": "بهترین قیمت"
+  },
+  "blogCategory": {
+    "kicker": "دستهٔ محصول",
+    "heading": "مقالات {category}",
+    "listLabel": "مقالات دستهٔ {category}",
+    "emptyHeadline": "هنوز مقاله‌ای در این دسته نیست",
+    "emptyBody": "به‌زودی مطالب مربوط به این محصول اینجا منتشر می‌شوند.",
+    "footerBefore": "دنبال محصول دیگری هستید؟ به",
+    "footerLink": "همهٔ مقالات",
+    "footerAfter": "سر بزنید.",
+    "metaDescription": "راهنمای خرید، تحلیل بازار و اخبار {category}. مطالب آهن‌تایم دربارهٔ این محصول."
+  },
+  "newsTopic": {
+    "kicker": "موضوع خبر",
+    "heading": "اخبار {topic}",
+    "listLabel": "اخبار {topic}",
+    "emptyHeadline": "هنوز خبری در این موضوع نیست",
+    "emptyBody": "به‌محض انتشار، تازه‌ترین اخبار این موضوع اینجا قرار می‌گیرند.",
+    "footerBefore": "دنبال موضوع دیگری هستید؟ به",
+    "footerLink": "همهٔ اخبار بازار",
+    "footerAfter": "سر بزنید."
+  },
+  "pricesFacet": {
+    "byFactoryTitle": "قیمت {category} بر اساس کارخانه",
+    "bySizeTitle": "قیمت {category} بر اساس {measure}",
+    "factoryPageTitle": "قیمت روز {category} {factory}",
+    "factoryPageDescription": "قیمت لحظه‌ای {category}‌های تولید {factory} به تفکیک {measure}.",
+    "sizesOfTitle": "{measure}‌های {category}",
+    "otherFactoriesTitle": "سایر کارخانه‌های {category}",
+    "sizePageTitle": "قیمت روز {category} {measure} {size}",
+    "otherSizesTitle": "سایر {measure}‌های {category}",
+    "factoriesTitle": "کارخانه‌های {category}",
+    "todayPrice": "قیمت روز {subject}",
+    "todayPriceDescription": "قیمت روز {subject} با نوسان، وزن شاخه و زمان تحویل در آهن‌تایم.",
+    "liveDescription": "قیمت‌های لحظه‌ای {subject} با نوسان، وزن شاخه و زمان تحویل.",
+    "emptyCategoryDescription": "هنوز کالایی در دستهٔ {subject} ثبت نشده است. برای استعلام قیمت و موجودی با کارشناسان آهن‌تایم تماس بگیرید.",
+    "emptyCategoryBody": "هنوز کالایی در دستهٔ {subject} ثبت نشده است. برای استعلام قیمت، موجودی و زمان تحویل با کارشناسان ما تماس بگیرید.",
+    "emptySubjectDescription": "هنوز کالایی در {subject} ثبت نشده است. برای استعلام قیمت و موجودی با کارشناسان آهن‌تایم تماس بگیرید.",
+    "tableDescription": "جدول قیمت روز {subject}: {stats}، به‌روزرسانی روزانه در آهن‌تایم. اول مشورت، بعد خرید.",
+    "skuQuoteTitle": "استعلام قیمت {subject}",
+    "skuQuoteDescription": "{subject}{mill} — قیمت امروز این کالا در آهن‌تایم اعلام نشده است. برای استعلام قیمت هر {unit}، وزن شاخه و زمان تحویل با کارشناس ما تماس بگیرید.",
+    "skuPriceDescription": "قیمت روز {subject}{mill}: {price} برای هر {unit}، همراه با نوسان، وزن شاخه و زمان تحویل در آهن‌تایم.",
+    "factoryPageDescriptionFull": "قیمت لحظه‌ای تمام {category}‌های تولید {factory} به تفکیک {measure}، همراه نوسان، وزن شاخه و زمان تحویل.",
+    "factorySectionDescription": "قیمت لحظه‌ای {category}‌های تولید {factory} به تفکیک {measure}، همراه نوسان، وزن شاخه و زمان تحویل.",
+    "sizePageDescription": "قیمت امروز {category} {measure} {factory}{byFactory}؛ قیمت‌ها لحظه‌ای، همراه نوسان، وزن شاخه و زمان تحویل.",
+    "sizeSectionDescription": "آخرین قیمت منتشرشدهٔ {category} {measure} {size}{allMills}، همراه با نوسان، وزن شاخه و زمان تحویل اعلام‌شده. پیش از خرید، با کارشناس ما مشورت کنید.",
+    "byFactorySuffix": " به تفکیک کارخانه",
+    "statsWithFactories": "{products} کالا از {factories} کارخانه",
+    "statsOnly": "{products} کالا",
+    "allMillsSuffix": " در همهٔ کارخانه‌ها"
   }
 }

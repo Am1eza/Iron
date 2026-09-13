@@ -4,7 +4,11 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
-import { getCategories, getArticlesPageByCategory, getBlogCategoryRailItems } from '@/lib/server/catalog';
+import {
+  getCategories,
+  getArticlesPageByCategory,
+  getBlogCategoryRailItems,
+} from '@/lib/server/catalog';
 import { categories as mockCategories } from '@/lib/mock/fixtures';
 import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
 import { Container, Section, Stack, Heading, Text, Breadcrumbs, EmptyState } from '@/components/ui';
@@ -30,18 +34,21 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
   const cat = (await getCategories()).find((c) => c.slug === slug);
+  const tMeta = await getTranslations('blogCategory');
   if (!cat) {
     const t = await getTranslations('meta.notFound');
     return buildMetadata({ title: t('blogCategory'), noindex: true });
   }
   return buildMetadata({
-    title: `مقالات ${cat.name}`,
-    description: `راهنمای خرید، تحلیل بازار و اخبار ${cat.name}. مطالب آهن‌تایم دربارهٔ این محصول.`,
+    title: tMeta('heading', { category: cat.name }),
+    description: tMeta('metaDescription', { category: cat.name }),
     path: routes.blogCategory(slug),
   });
 }
 
 export default async function BlogCategoryPage({ params }: Params) {
+  const tNav = await getTranslations();
+  const t = await getTranslations('blogCategory');
   const { slug } = await params;
   const cat = (await getCategories()).find((c) => c.slug === slug);
   if (!cat) notFound();
@@ -52,8 +59,8 @@ export default async function BlogCategoryPage({ params }: Params) {
   ]);
 
   const crumbs = [
-    { label: 'خانه', href: routes.home() },
-    { label: 'وبلاگ', href: routes.blog() },
+    { label: tNav('nav.home'), href: routes.home() },
+    { label: tNav('articleDetail.crumbBlog'), href: routes.blog() },
     { label: cat.name, href: routes.blogCategory(cat.slug) },
   ];
 
@@ -70,29 +77,28 @@ export default async function BlogCategoryPage({ params }: Params) {
           >
             <span className={styles.heroScrim} aria-hidden="true" />
             <div className={styles.heroContent}>
-              <span className={styles.heroKicker}>دستهٔ محصول</span>
-              <Heading level={1} color="inverse">{`مقالات ${cat.name}`}</Heading>
+              <span className={styles.heroKicker}>{t('kicker')}</span>
+              <Heading level={1} color="inverse">
+                {t('heading', { category: cat.name })}
+              </Heading>
             </div>
           </div>
 
           <CategoryRail items={railItems} activeSlug={cat.slug} />
 
           {articles.length > 0 ? (
-            <ul className={styles.grid} aria-label={`مقالات دستهٔ ${cat.name}`}>
+            <ul className={styles.grid} aria-label={t('listLabel', { category: cat.name })}>
               {articles.map((article) => (
                 <ArticleCard key={article.id} article={article} />
               ))}
             </ul>
           ) : (
-            <EmptyState
-              size="section"
-              headline="هنوز مقاله‌ای در این دسته نیست"
-              body="به‌زودی مطالب مربوط به این محصول اینجا منتشر می‌شوند."
-            />
+            <EmptyState size="section" headline={t('emptyHeadline')} body={t('emptyBody')} />
           )}
 
           <Text color="muted" variant="caption">
-            دنبال محصول دیگری هستید؟ به <Link href={routes.blog()}>همهٔ مقالات</Link> سر بزنید.
+            {t('footerBefore')} <Link href={routes.blog()}>{t('footerLink')}</Link>{' '}
+            {t('footerAfter')}
           </Text>
         </Stack>
       </Section>

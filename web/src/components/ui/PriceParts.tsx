@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import { formatToman, formatMovement, toPersianDigits } from '@/lib/utils/format';
 import type { MovementDir } from '@/lib/types/domain';
 import { ClockIcon, CheckIcon } from '@/components/primitives/icons';
@@ -19,12 +20,13 @@ import styles from './PriceParts.module.css';
  * is the obvious next caller.
  */
 export function BestPriceBadge() {
+  const t = useTranslations('ui');
   return (
     <span className={styles.bestPrice}>
       <span className={styles.bestPriceIcon} aria-hidden="true">
         <CheckIcon size={14} />
       </span>
-      بهترین قیمت
+      {t('bestPrice')}
     </span>
   );
 }
@@ -69,7 +71,9 @@ export function MovementBadge({
   // screen readers, so sighted users saw a blank pill that also collapsed in
   // height next to its siblings. Show the word itself instead of nothing.
   return (
-    <span className={`${styles.move} ${cls} ${pill ? styles.movePill : ''} ${onPanel ? styles.onPanel : ''} tnum`}>
+    <span
+      className={`${styles.move} ${cls} ${pill ? styles.movePill : ''} ${onPanel ? styles.onPanel : ''} tnum`}
+    >
       <span aria-hidden="true">{arrow}</span>
       <span className={text ? 'visually-hidden' : undefined}>{label} </span>
       {text}

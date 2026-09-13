@@ -111,6 +111,9 @@ export function CutToSizeForm() {
     // Mock/demo mode only — no server round trip to fail, so no try/catch.
     const created = addRequest({
       type: 'cutToSize',
+      // Mock/demo mode only — never reached in live mode, where the server
+      // builds the request subject for the sales team to read in Persian.
+      // i18n-exempt: never rendered to a customer in any locale.
       title: `کالا با ابعاد درخواستی: ${values.product}`,
       detail: `ابعاد درخواستی: ${clean.requestedDimensions} · مقدار: ${clean.quantity}`,
       note: clean.notes,
@@ -141,7 +144,12 @@ export function CutToSizeForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate style={{ maxInlineSize: 480 }}>
-      <Field label={t('productLabel')} htmlFor="cts-product" required error={formState.errors.product?.message}>
+      <Field
+        label={t('productLabel')}
+        htmlFor="cts-product"
+        required
+        error={formState.errors.product?.message}
+      >
         <select
           id="cts-product"
           className={fieldStyles.select}

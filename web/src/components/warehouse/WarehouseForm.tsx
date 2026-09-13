@@ -117,6 +117,9 @@ export function WarehouseForm() {
     // Mock/demo mode only — no server round trip to fail, so no try/catch.
     const created = addRequest({
       type: 'warehouse',
+      // Mock/demo mode only — never reached in live mode, where the server
+      // builds the request subject for the sales team to read in Persian.
+      // i18n-exempt: never rendered to a customer in any locale.
       title: `نگهداری ${values.product}، ${toPersianDigits(quantityTons)} تن`,
       detail: `مدت نگهداری: ${values.duration}`,
       note: values.notes?.trim() || undefined,
