@@ -48,6 +48,10 @@ const CACHE_MS = 60_000;
  *  under-utilizes the budget slightly; understating it is what would let the
  *  race back in. */
 const RESERVATION_CEILING = 6_000;
+/** Test/probe-only alias — `scripts/aiBudgetRaceProbe.ts` needs the real
+ *  ceiling to size its fixture budget exactly, without duplicating the
+ *  constant. */
+export const RESERVATION_CEILING_FOR_TESTS = RESERVATION_CEILING;
 
 /** A reservation older than this is either a genuinely abandoned request
  *  (crash, deploy) or one that ran past AI_TIMEOUT_MS anyway — either way it
@@ -83,8 +87,11 @@ export async function tokensUsedToday(now = Date.now()): Promise<number> {
       // Cache-hit tokens are a SUBSET of prompt tokens (they are the cached
       // part of the same prompt), so adding them would double-count. They are
       // also the cheap ones — counting them against the budget would punish
-      // the caching this app deliberately optimises for.
-      total: sql<number>`coalesce(sum(${aiUsage.promptTokens} + ${aiUsage.completionTokens}), 0)::int`,
+      // the caching this app deliberately optimises for. Reasoning tokens
+      // (J-238) ARE added: a silent provider switch to a reasoning-heavy
+      // model must actually cost against the cap, not just show up in a
+      // dashboard — see the column's own doc comment in schema/system.ts.
+      total: sql<number>`coalesce(sum(${aiUsage.promptTokens} + ${aiUsage.completionTokens} + ${aiUsage.reasoningTokens}), 0)::int`,
     })
     .from(aiUsage)
     .where(gte(aiUsage.createdAt, since));
@@ -120,7 +127,7 @@ export async function reserveBudget(now = Date.now()): Promise<BudgetReservation
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${day}))`);
 
       const usedRows = await tx
-        .select({ total: sql<number>`coalesce(sum(${aiUsage.promptTokens} + ${aiUsage.completionTokens}), 0)::int` })
+        .select({ total: sql<number>`coalesce(sum(${aiUsage.promptTokens} + ${aiUsage.completionTokens} + ${aiUsage.reasoningTokens}), 0)::int` })
         .from(aiUsage)
         .where(gte(aiUsage.createdAt, since));
       const used = usedRows[0]?.total ?? 0;

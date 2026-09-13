@@ -32,8 +32,8 @@ import {
 
 let close: () => Promise<void>;
 
-async function spend(promptTokens: number, completionTokens = 0, createdAt = new Date()) {
-  await getDb().insert(aiUsage).values({ id: ulid(), promptTokens, completionTokens, createdAt });
+async function spend(promptTokens: number, completionTokens = 0, createdAt = new Date(), reasoningTokens = 0) {
+  await getDb().insert(aiUsage).values({ id: ulid(), promptTokens, completionTokens, reasoningTokens, createdAt });
   resetBudgetCache();
 }
 
@@ -86,6 +86,11 @@ describe('tokensUsedToday', () => {
     await spend(9_000, 9_000, yesterday);
     await spend(1, 1);
     expect(await tokensUsedToday()).toBe(2);
+  });
+
+  it('J-238: reasoning tokens count against the budget too — a silent provider switch to a reasoning-heavy model must actually cost', async () => {
+    await spend(100, 50, new Date(), 4_000);
+    expect(await tokensUsedToday()).toBe(4_150);
   });
 });
 
@@ -158,6 +163,15 @@ describe('reserveBudget / releaseBudgetReservation (J-235/237)', () => {
 
   it('a budget of 0 refuses every reservation', async () => {
     process.env.AI_DAILY_TOKEN_BUDGET = '0';
+    expect(await reserveBudget()).toEqual({ ok: false });
+  });
+
+  it('J-238: already-spent reasoning tokens count toward "used", leaving less room for a new reservation', async () => {
+    process.env.AI_DAILY_TOKEN_BUDGET = '10000';
+    // 4500 real reasoning tokens already spent today + a 6000 reservation
+    // ceiling would cross the cap — the reservation must see that, not just
+    // prompt+completion.
+    await spend(0, 0, new Date(), 4_500);
     expect(await reserveBudget()).toEqual({ ok: false });
   });
 
