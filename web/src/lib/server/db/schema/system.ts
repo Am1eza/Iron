@@ -107,9 +107,11 @@ export const aiUsage = pgTable(
     cacheHitTokens: integer('cache_hit_tokens').notNull().default(0),
     /** J-238: the provider's own reasoning-token count, when it reports one
      *  (aiRelay.ts parses `usage.reasoning_tokens` /
-     *  `usage.completion_tokens_details.reasoning_tokens`). Deliberately NOT
-     *  summed into the daily budget (budget.ts) — visible/queryable only,
-     *  pending an owner decision on whether to count it. */
+     *  `usage.completion_tokens_details.reasoning_tokens`). Summed into the
+     *  daily budget alongside prompt/completion tokens (budget.ts) — a silent
+     *  provider switch to a reasoning-heavy model must actually cost against
+     *  the cap, not just become visible in a dashboard nobody is required to
+     *  watch. */
     reasoningTokens: integer('reasoning_tokens').notNull().default(0),
     violations: integer('violations').notNull().default(0),
     /** J-241: sha256 of the EXACT system-prompt text resolved for this

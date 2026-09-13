@@ -7,6 +7,7 @@ import { ulid } from 'ulid';
 import { getDb } from '@/lib/server/db/client';
 import { aiEvalCandidates, type AI_EVAL_CANDIDATE_STATUSES } from '@/lib/server/db/schema';
 import { scrubPii } from '@/lib/errors/scrub';
+import { namesForConversation, scrubKnownNames } from '@/lib/server/ai/piiScrub';
 
 export type AiEvalCandidateRow = typeof aiEvalCandidates.$inferSelect;
 export type AiEvalCandidateStatus = (typeof AI_EVAL_CANDIDATE_STATUSES)[number];
@@ -14,7 +15,10 @@ export type AiEvalCandidateStatus = (typeof AI_EVAL_CANDIDATE_STATUSES)[number];
 /** J-245: a promoted candidate's `question`/`badAnswer` can end up copied
  *  verbatim into `evals.test.ts` — committed, public source — so a customer's
  *  mobile/email in the raw flagged text is scrubbed the same way createCorrection
- *  scrubs its own free text, for the same reason (see that doc comment). */
+ *  scrubs its own free text, for the same reason (see that doc comment). Also
+ *  redacts the conversation owner's own known account name (piiScrub.ts) —
+ *  free-text names have no regex signature, but this ONE name is already
+ *  known to genuinely belong to this conversation. */
 export async function createEvalCandidate(input: {
   conversationId?: string | null;
   messageId?: string | null;
@@ -23,15 +27,17 @@ export async function createEvalCandidate(input: {
   note?: string | null;
   createdBy?: string | null;
 }): Promise<AiEvalCandidateRow> {
+  const names = input.conversationId ? await namesForConversation(input.conversationId) : [];
+  const clean = (t: string) => scrubPii(scrubKnownNames(t, names));
   const [row] = await getDb()
     .insert(aiEvalCandidates)
     .values({
       id: ulid(),
       conversationId: input.conversationId ?? null,
       messageId: input.messageId ?? null,
-      question: scrubPii(input.question),
-      badAnswer: scrubPii(input.badAnswer),
-      note: input.note ? scrubPii(input.note) : null,
+      question: clean(input.question),
+      badAnswer: clean(input.badAnswer),
+      note: input.note ? clean(input.note) : null,
       createdBy: input.createdBy ?? null,
     })
     .returning();

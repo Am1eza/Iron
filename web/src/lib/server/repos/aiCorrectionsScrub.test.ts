@@ -7,7 +7,10 @@
  * customer's raw mobile/email through to storage.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { ulid } from 'ulid';
 import { createTestDb } from '@/test/db';
+import { getDb } from '@/lib/server/db/client';
+import * as schema from '@/lib/server/db/schema';
 import { createCorrection } from './aiCorrectionsRepo';
 import { createEvalCandidate } from './aiEvalCandidatesRepo';
 
@@ -19,6 +22,19 @@ beforeAll(async () => {
 afterAll(async () => {
   await close();
 });
+
+/** A real user + conversation (+ optionally one message), so
+ *  `namesForConversation`/`conversationIdForMessage` (piiScrub.ts) have a
+ *  genuine row to resolve — not a mock. */
+async function seedConversation(name: string): Promise<{ conversationId: string; messageId: string }> {
+  const userId = ulid();
+  const conversationId = ulid();
+  const messageId = ulid();
+  await getDb().insert(schema.users).values({ id: userId, mobile: `0912${String(Math.random()).slice(2, 9)}`, name });
+  await getDb().insert(schema.aiConversations).values({ id: conversationId, userId });
+  await getDb().insert(schema.aiMessages).values({ id: messageId, conversationId, role: 'assistant', content: 'x' });
+  return { conversationId, messageId };
+}
 
 describe('createCorrection — PII scrub (J-245)', () => {
   it('scrubs a mobile number out of both question and answer', async () => {
@@ -49,6 +65,29 @@ describe('createCorrection — PII scrub (J-245)', () => {
     expect(row.question).toBe('قیمت میلگرد ۱۴ ذوب‌آهن چند است؟');
     expect(row.answer).toBe('قیمت میلگرد ۱۴ ذوب‌آهن ۴۲٬۵۰۰ تومان بر کیلوگرم است.');
   });
+
+  it('J-245 (name half): redacts the conversation OWNER\'S OWN account name, resolved via sourceMessageId — the exact PII type mobile/email scrubbing cannot catch', async () => {
+    const { messageId } = await seedConversation('رضا کریمی');
+    const row = await createCorrection({
+      question: 'من رضا کریمی هستم، میلگرد ۱۴ چند؟',
+      answer: 'سلام رضا کریمی، قیمت ۴۲٬۰۰۰ تومان است.',
+      sourceMessageId: messageId,
+    });
+    expect(row.question).not.toContain('رضا کریمی');
+    expect(row.answer).not.toContain('رضا کریمی');
+    expect(row.question).toContain('[redacted-name]');
+  });
+
+  it('never touches a name that is NOT this conversation\'s own owner', async () => {
+    const { messageId } = await seedConversation('رضا کریمی');
+    const row = await createCorrection({
+      question: 'میلگرد ۱۴ ذوب‌آهن چند است؟', // no name at all in this one
+      answer: 'قیمت ۴۲٬۰۰۰ تومان است.',
+      sourceMessageId: messageId,
+    });
+    expect(row.question).toBe('میلگرد ۱۴ ذوب‌آهن چند است؟');
+    expect(row.answer).toBe('قیمت ۴۲٬۰۰۰ تومان است.');
+  });
 });
 
 describe('createEvalCandidate — PII scrub (J-245)', () => {
@@ -70,5 +109,18 @@ describe('createEvalCandidate — PII scrub (J-245)', () => {
     });
     expect(row.question).toBe('قیمت میلگرد ۱۴ چند است؟');
     expect(row.badAnswer).toBe('حدوداً ۴۵ هزار تومان.');
+  });
+
+  it('J-245 (name half): redacts the conversation owner\'s own account name, resolved via conversationId', async () => {
+    const { conversationId } = await seedConversation('سارا احمدی');
+    const row = await createEvalCandidate({
+      conversationId,
+      question: 'من سارا احمدی هستم، پیگیری کن.',
+      badAnswer: 'باشه سارا احمدی، بررسی می‌کنیم.',
+      note: 'مشتری (سارا احمدی) شکایت داشت.',
+    });
+    expect(row.question).not.toContain('سارا احمدی');
+    expect(row.badAnswer).not.toContain('سارا احمدی');
+    expect(row.note).not.toContain('سارا احمدی');
   });
 });

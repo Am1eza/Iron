@@ -7,6 +7,7 @@ import { aiCorrections } from '@/lib/server/db/schema';
 import { normalizeDigits, toPersianDigits } from '@/lib/utils/format';
 import { likeContains } from '@/lib/server/utils/likeEscape';
 import { scrubPii } from '@/lib/errors/scrub';
+import { conversationIdForMessage, namesForConversation, scrubKnownNames } from '@/lib/server/ai/piiScrub';
 
 export type AiCorrectionRow = typeof aiCorrections.$inferSelect;
 
@@ -19,9 +20,13 @@ export type AiCorrectionRow = typeof aiCorrections.$inferSelect;
  * own conversation would see it could otherwise resurface in front of a
  * stranger. Reuses the same value-level scrubber already trusted for
  * logs/Sentry (errors/scrub.ts) rather than inventing a second PII pattern
- * set. Free-text names/addresses have no reliable regex signature the way a
- * mobile/email does, so they are NOT caught here — this closes the
- * structured, highest-likelihood case, not every conceivable one.
+ * set. Free-text names have no reliable regex signature the way a
+ * mobile/email does — instead of guessing at names in general, the ONE
+ * name/names known to genuinely belong to this exact conversation (its
+ * owner's account name, resolved via `sourceMessageId`) are redacted too;
+ * see piiScrub.ts. A different name typed in the text (a colleague's, a
+ * delivery recipient's) is still not caught — no regex could distinguish it
+ * from ordinary prose either.
  */
 export async function createCorrection(input: {
   question: string;
@@ -29,12 +34,15 @@ export async function createCorrection(input: {
   sourceMessageId?: string | null;
   createdBy?: string | null;
 }): Promise<AiCorrectionRow> {
+  const conversationId = input.sourceMessageId ? await conversationIdForMessage(input.sourceMessageId) : null;
+  const names = conversationId ? await namesForConversation(conversationId) : [];
+  const clean = (t: string) => scrubPii(scrubKnownNames(t, names));
   const [row] = await getDb()
     .insert(aiCorrections)
     .values({
       id: ulid(),
-      question: scrubPii(input.question),
-      answer: scrubPii(input.answer),
+      question: clean(input.question),
+      answer: clean(input.answer),
       sourceMessageId: input.sourceMessageId ?? null,
       createdBy: input.createdBy ?? null,
     })
