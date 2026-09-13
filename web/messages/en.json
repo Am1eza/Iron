@@ -1216,6 +1216,20 @@
       "openingConversation": "Opening conversation…",
       "openConversationFailed": "This conversation didn't open. Try again or start a new one.",
       "defaultHeading": "Ahantime AI Advisor"
+    },
+    "alertCard": {
+      "badge": "Price alert",
+      "confirmCta": "Confirm and set alert",
+      "confirming": "Setting…",
+      "loginCta": "Log in",
+      "confirmFailed": "Could not set the alert; please try again.",
+      "summaryBelow": "If {product} reaches {threshold} or less, we will text you.",
+      "summaryAbove": "If {product} reaches {threshold} or more, we will text you.",
+      "pendingNote": "No alert is set until you press this button.",
+      "confirmed": "Alert set",
+      "alreadyActive": "This alert was already active",
+      "confirmedNote": "We will text you when {product} reaches {threshold}.",
+      "manageAlerts": "Manage alerts"
     }
   },
   "account": {

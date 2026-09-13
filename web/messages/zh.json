@@ -1216,6 +1216,20 @@
       "openingConversation": "正在打开对话…",
       "openConversationFailed": "该对话未能打开。请重试或开始新对话。",
       "defaultHeading": "安通智能顾问"
+    },
+    "alertCard": {
+      "badge": "价格提醒",
+      "confirmCta": "确认并设置提醒",
+      "confirming": "正在设置…",
+      "loginCta": "登录",
+      "confirmFailed": "提醒设置失败，请重试。",
+      "summaryBelow": "当 {product} 的价格降至 {threshold} 或以下时，我们会发短信通知您。",
+      "summaryAbove": "当 {product} 的价格涨至 {threshold} 或以上时，我们会发短信通知您。",
+      "pendingNote": "在您点击此按钮之前，不会设置任何提醒。",
+      "confirmed": "提醒已设置",
+      "alreadyActive": "该提醒此前已启用",
+      "confirmedNote": "当 {product} 的价格达到 {threshold} 时，我们会发短信通知您。",
+      "manageAlerts": "管理提醒"
     }
   },
   "account": {

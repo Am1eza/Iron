@@ -1216,6 +1216,20 @@
       "openingConversation": "جارٍ فتح المحادثة…",
       "openConversationFailed": "لم تُفتح هذه المحادثة. حاول مجدداً أو ابدأ محادثة جديدة.",
       "defaultHeading": "مستشار Ahantime الذكي"
+    },
+    "alertCard": {
+      "badge": "تنبيه سعري",
+      "confirmCta": "تأكيد وتسجيل التنبيه",
+      "confirming": "جارٍ التسجيل…",
+      "loginCta": "تسجيل الدخول",
+      "confirmFailed": "لم يتم تسجيل التنبيه؛ حاول مرة أخرى.",
+      "summaryBelow": "إذا وصل سعر {product} إلى {threshold} أو أقل، سنرسل لك رسالة نصية.",
+      "summaryAbove": "إذا وصل سعر {product} إلى {threshold} أو أكثر، سنرسل لك رسالة نصية.",
+      "pendingNote": "لن يُسجَّل أي تنبيه ما لم تضغط هذا الزر.",
+      "confirmed": "تم تسجيل التنبيه",
+      "alreadyActive": "هذا التنبيه كان مفعّلاً من قبل",
+      "confirmedNote": "سنرسل لك رسالة نصية عند وصول سعر {product} إلى {threshold}.",
+      "manageAlerts": "إدارة التنبيهات"
     }
   },
   "account": {

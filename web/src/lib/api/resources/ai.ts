@@ -105,4 +105,20 @@ export const aiApi = {
     }
     return http.post('/api/ai/lead/confirm', { draftId });
   },
+
+  /** J-223: the visitor pressed «تأیید و ثبت هشدار» on the advisor's alert
+   *  card. The ONLY path that actually arms a price alert from a chat — the
+   *  `setPriceAlert` tool just prepares the draft this confirms. 401 means
+   *  sign-in is needed first; the draft stays valid meanwhile. */
+  async confirmAlert(draftId: string): Promise<{
+    ok: true;
+    merged: boolean;
+    product: string;
+    message: string;
+  }> {
+    if (API_MODE === 'mock') {
+      throw new ApiError(501, 'دستیار هوشمند در بخش بعدی فعال می‌شود.');
+    }
+    return http.post('/api/ai/alert/confirm', { draftId });
+  },
 };

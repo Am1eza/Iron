@@ -1216,6 +1216,20 @@
       "openingConversation": "در حال باز کردن گفتگو…",
       "openConversationFailed": "این گفتگو باز نشد. دوباره تلاش کن یا گفتگوی تازه‌ای شروع کن.",
       "defaultHeading": "مشاور هوشمند آهن‌تایم"
+    },
+    "alertCard": {
+      "badge": "هشدار قیمت",
+      "confirmCta": "تأیید و ثبت هشدار",
+      "confirming": "در حال ثبت…",
+      "loginCta": "ورود به حساب کاربری",
+      "confirmFailed": "ثبت هشدار انجام نشد؛ دوباره تلاش کن.",
+      "summaryBelow": "اگر قیمت {product} به {threshold} یا کمتر برسد، برایت پیامک می‌شود.",
+      "summaryAbove": "اگر قیمت {product} به {threshold} یا بیشتر برسد، برایت پیامک می‌شود.",
+      "pendingNote": "تا وقتی این دکمه را نزنی هیچ هشداری ثبت نمی‌شود.",
+      "confirmed": "هشدار ثبت شد",
+      "alreadyActive": "این هشدار از قبل فعال بود",
+      "confirmedNote": "با رسیدن قیمت {product} به {threshold} برایت پیامک می‌شود.",
+      "manageAlerts": "مدیریت هشدارها"
     }
   },
   "account": {

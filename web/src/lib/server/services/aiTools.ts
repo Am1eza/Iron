@@ -16,9 +16,12 @@ import {
 } from '@/lib/server/repos/catalogRepo';
 import { searchPublishedGuides, type ArticleFull } from '@/lib/server/repos/articlesRepo';
 import { searchCorrections } from '@/lib/server/repos/aiCorrectionsRepo';
+import { neutralizeRetrievedText } from '@/lib/server/ai/retrievedContent';
 import { estimateProject, logisticsContext } from '@/lib/server/services/estimate.service';
 import { priceItems } from '@/lib/server/services/leads.service';
 import { putDraft, type DraftItem } from '@/lib/server/ai/leadDraft';
+import { putAlertDraft } from '@/lib/server/ai/alertDraft';
+import { priceUnitCaption } from '@/lib/utils/catalogLabels';
 import { computeBulkSplit, pickBestGroup } from '@/lib/utils/bulkSplit';
 // The ONE weight formula table — shared with POST /api/tools/weight and the
 // وزن‌سنج UI. These numbers become پیش‌فاکتور line weights, so the advisor and
@@ -44,12 +47,10 @@ import { cityDistance } from '@/lib/data/logistics';
 import { marketHistory } from '@/lib/server/repos/marketRepo';
 import { computeForecast, HORIZON_LABEL, MIN_HISTORY_POINTS } from '@/lib/server/ai/forecast';
 import type { MemoryFacts } from '@/lib/server/ai/memory';
-import {
-  createAlert,
-  alertCapForTier,
-  AlertCapExceededError,
-  AlertTargetNotFoundError,
-} from '@/lib/server/repos/alertsRepo';
+// J-223: the alert WRITE moved out of this file entirely — `setPriceAlert`
+// prepares a draft and /api/ai/alert/confirm is the only caller of
+// alertsRepo#createAlert now, so no model tool can arm an SMS alert without
+// the visitor pressing the card's button.
 
 export const AI_TOOLS: ToolDef[] = [
   {
@@ -678,6 +679,10 @@ export interface ToolRunContext {
   /** Emitted when prepareProforma builds a draft — the pipeline forwards it to
    *  the client as a `leadDraft` SSE frame (the confirmation card). */
   onDraft?: (draft: Record<string, unknown>) => void;
+  /** Emitted when setPriceAlert builds a draft (J-223) — forwarded as an
+   *  `alertDraft` SSE frame, the alert equivalent of `onDraft`. Nothing is
+   *  written until the visitor confirms it (/api/ai/alert/confirm). */
+  onAlertDraft?: (draft: Record<string, unknown>) => void;
   /** Emitted for every UI block a tool produces — the pipeline forwards each
    *  as a `{type:'block'}` SSE frame. Blocks are built in code from repo rows
    *  (see ai/blockBuilders.ts); the model never authors one. */
@@ -703,7 +708,7 @@ export async function runTool(
   session: AuthUser | null,
   ctx: ToolRunContext = {},
 ): Promise<unknown> {
-  const { conversationId, transcript, onDraft } = ctx;
+  const { conversationId, transcript, onDraft, onAlertDraft } = ctx;
   // `ctx.onBlock` is deliberately read through `ctx` (and passed as `ctx`) so
   // the block-emitting helpers below take one object rather than a callback
   // plus the two fields that decide what a card may contain.
@@ -942,35 +947,39 @@ export async function runTool(
         // «۵٪ پایین‌تر» would be a number this tool invented.
         const threshold = parsed.data.threshold ?? row.current.price;
         const op = parsed.data.direction ?? 'below';
-        try {
-          const cap = await alertCapForTier(session.clubTier);
-          const created = await createAlert({
-            userId: session.id,
-            target: { type: 'sku', skuId: row.id },
-            op,
-            threshold,
-            channel: 'sms',
-            cap,
-          });
-          rememberRow(row, ctx);
-          return {
-            status: created.merged ? 'already_set' : 'created',
-            product: row.name,
-            op,
-            threshold,
-            note: created.merged
-              ? 'همین هشدار از قبل فعال بوده؛ بگو دوباره ثبت نشد چون قبلاً هست و با تغییر قیمت پیامک می‌شود.'
-              : 'هشدار ثبت شد. کوتاه بگو با رسیدن قیمت به این حد برایش پیامک می‌شود و می‌تواند در حسابش مدیریتش کند.',
-          };
-        } catch (err) {
-          if (err instanceof AlertCapExceededError) {
-            return {
-              error: `سقف هشدارهای فعال این کاربر پر است (${toPersianDigits(String(err.cap))} مورد). بگو یکی از هشدارهای قبلی‌اش را در حسابش غیرفعال کند و دوباره بگوید.`,
-            };
-          }
-          if (err instanceof AlertTargetNotFoundError) return { error: 'این محصول یافت نشد.' };
-          throw err;
-        }
+        // J-223: this tool used to write a real `alerts` row (and therefore
+        // arm real SMS) straight from a model tool call — the only write in
+        // the whole tool set with no human confirmation step. It now PREPARES
+        // a draft exactly the way prepareProforma does, and
+        // POST /api/ai/alert/confirm is the only thing that writes, driven by
+        // the visitor pressing the card's own button.
+        rememberRow(row, ctx);
+        const draft = await putAlertDraft({
+          skuId: row.id,
+          productName: row.name,
+          op,
+          threshold,
+          userId: session.id,
+          ...(conversationId ? { conversationId } : {}),
+        });
+        onAlertDraft?.({
+          draftId: draft.id,
+          product: row.name,
+          op,
+          threshold,
+          currentPrice: row.current.price,
+          unitLabel: priceUnitCaption(row.current.priceBasis, row.branchLengthM),
+        });
+        // What the MODEL is told — deliberately not "it's set": nothing is
+        // armed until the visitor presses the button on the card.
+        return {
+          status: 'awaiting_user_confirmation',
+          draftId: draft.id,
+          product: row.name,
+          op,
+          threshold,
+          note: 'هنوز هیچ هشداری ثبت نشده. یک کارت تأیید زیر پیام تو به کاربر نشان داده شد؛ فقط بگو برای فعال‌شدن هشدار، دکمهٔ «تأیید و ثبت هشدار» را بزند. هرگز نگو «هشدار ثبت شد».',
+        };
       }
       case 'calcWeight': {
         const parsed = calcWeightArgs.safeParse(args);
@@ -1139,13 +1148,21 @@ export async function runTool(
         // so a live answer never depends on it.
         const corrections = await searchCorrections(q, 2);
         const hits = await searchPublishedGuides(q, 3);
+        // J-222: both sources are admin-written, but neither is an
+        // instruction — defang anything instruction-SHAPED at the one
+        // boundary where retrieved rows become model context, rather than
+        // trusting the authoring process. See ai/retrievedContent.ts.
         const results = [
           ...corrections.map((c) => ({
             title: 'پاسخ تأییدشدهٔ کارشناسان آهن‌تایم',
             slug: 'curated',
-            excerpt: c.answer,
+            excerpt: neutralizeRetrievedText(c.answer),
           })),
-          ...hits.map((a) => ({ title: a.title, slug: a.slug, excerpt: guideExcerpt(a, q) })),
+          ...hits.map((a) => ({
+            title: neutralizeRetrievedText(a.title),
+            slug: a.slug,
+            excerpt: neutralizeRetrievedText(guideExcerpt(a, q)),
+          })),
         ];
         if (results.length === 0)
           return { results: [], note: 'راهنمای مرتبطی در آهن‌تایم منتشر نشده؛ صادقانه بگو راهنمایی برای این موضوع نداریم.' };

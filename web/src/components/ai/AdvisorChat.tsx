@@ -31,6 +31,7 @@ import { ChatMarkdown } from './ChatMarkdown';
 // cart hand-off and a WhatsApp hand-off, and it was the last thing keeping
 // this file's card section as long as its chat section.
 import { ProformaCard, type DraftLine, type LeadDraftView } from './ProformaCard';
+import { AlertCard, type AlertDraftView } from './AlertCard';
 import { AdvisorBlocks } from './blocks/AdvisorBlocks';
 import { ConversationRail } from './ConversationRail';
 import { isAdvisorBlock, type AdvisorBlock } from '@/lib/ai/blocks';
@@ -60,7 +61,7 @@ type Estimate = {
 };
 
 /** Re-exported so the chat's own message type stays self-describing. */
-export type { DraftLine, LeadDraftView };
+export type { DraftLine, LeadDraftView, AlertDraftView };
 
 type SplitAnswer = { categoryName: string; split: BulkSplit };
 export type Msg = {
@@ -72,6 +73,9 @@ export type Msg = {
   split?: SplitAnswer;
   /** Pending پیش‌فاکتور confirmation card (server `leadDraft` frame). */
   draft?: LeadDraftView;
+  /** Pending price-alert confirmation card (server `alertDraft` frame,
+   *  J-223) — nothing is armed until the visitor presses its button. */
+  alertDraft?: AlertDraftView;
   /**
    * Generative-UI cards for this answer (server `block` frames), in the order
    * the tools produced them — the price quote, the factory comparison, the
@@ -185,6 +189,15 @@ type ServerEvent =
       allPriced?: boolean;
       city?: string;
       signedIn?: boolean;
+    }
+  | {
+      type: 'alertDraft';
+      draftId: string;
+      product?: string;
+      op?: 'below' | 'above';
+      threshold?: number;
+      currentPrice?: number;
+      unitLabel?: string;
     }
   | { type: 'block'; block: unknown }
   | { type: 'chips'; chips: string[] }
@@ -578,6 +591,7 @@ const MessageBubble = memo(function MessageBubble({
   onPick,
   onRetry,
   onDraftPatch,
+  onAlertDraftPatch,
   hidden,
 }: {
   message: Msg;
@@ -586,6 +600,9 @@ const MessageBubble = memo(function MessageBubble({
   /** Confirmation OR an edit — both are a partial update of the draft stored
    *  on this message (see ProformaCard). */
   onDraftPatch: (messageId: string, patch: Partial<LeadDraftView>) => void;
+  /** J-223: the alert card's equivalent — confirmation is stored on the
+   *  message so a restored thread never offers to arm it twice. */
+  onAlertDraftPatch: (messageId: string, patch: Partial<AlertDraftView>) => void;
   hidden?: boolean;
 }) {
   const t = useTranslations('ai.chat');
@@ -655,6 +672,14 @@ const MessageBubble = memo(function MessageBubble({
             // a re-render of the thread restores what the visitor edited
             // rather than the advisor's original quantities.
             onChanged={(patch) => onDraftPatch(m.id, patch)}
+          />
+        )}
+        {/* J-223: same placement and same aria-hidden rule as the proforma
+         *  card above — this is the ONLY way a chat arms a price alert. */}
+        {m.alertDraft && !hidden && (
+          <AlertCard
+            draft={m.alertDraft}
+            onConfirmed={(patch) => onAlertDraftPatch(m.id, patch)}
           />
         )}
         {m.split && <SplitCard answer={m.split} />}
@@ -938,6 +963,7 @@ export function AdvisorChat({
     // BEFORE any 'token' (the buffered, sanitized final text) — so it's held
     // and attached to the finished message, under the model's own prose.
     let draftBuf: LeadDraftView | undefined;
+    let alertDraftBuf: AlertDraftView | undefined;
     // Cards, in arrival order. Like `leadDraft`, every block frame is on the
     // wire before the first `token` frame, so this is complete by the time the
     // finished message is committed.
@@ -1026,6 +1052,20 @@ export function AdvisorChat({
               signedIn: ev.signedIn,
             };
           }
+        } else if (ev.type === 'alertDraft') {
+          // J-223: same contract as `leadDraft` — the card is the ONLY way
+          // this becomes a real alert row, so a frame missing the fields the
+          // card needs is dropped rather than rendered half-armed.
+          if (ev.draftId && ev.product && ev.op && typeof ev.threshold === 'number') {
+            alertDraftBuf = {
+              draftId: ev.draftId,
+              product: ev.product,
+              op: ev.op,
+              threshold: ev.threshold,
+              currentPrice: ev.currentPrice,
+              unitLabel: ev.unitLabel,
+            };
+          }
         } else if (ev.type === 'block') {
           // The guard checks the discriminant only (see lib/ai/blocks.ts):
           // an unknown kind from a newer server is dropped here rather than
@@ -1055,6 +1095,7 @@ export function AdvisorChat({
       // the card IS the message. Blocks already open the preview themselves
       // when they arrive; this covers the draft-only case.
       if (!opened && draftBuf) open({ draft: draftBuf });
+      if (!opened && alertDraftBuf) open({ alertDraft: alertDraftBuf });
       if (!opened) throw new Error('empty');
       if (streamedText.trim()) transcriptRef.current.push({ role: 'ai', text: streamedText });
       // Streaming is done — clear the presentational preview and commit the
@@ -1068,6 +1109,7 @@ export function AdvisorChat({
           text: streamedText,
           chips: chipsBuf,
           draft: draftBuf,
+          alertDraft: alertDraftBuf,
           blocks: blocksBuf.length ? blocksBuf : undefined,
           dbMessageId,
           conversationId: conversationIdRef.current,
@@ -1235,6 +1277,14 @@ export function AdvisorChat({
     setMessages((all) =>
       all.map((m) =>
         m.id === messageId && m.draft ? { ...m, draft: { ...m.draft, ...patch } } : m,
+      ),
+    );
+  }, []);
+
+  const stableAlertDraftPatch = useCallback((messageId: string, patch: Partial<AlertDraftView>) => {
+    setMessages((all) =>
+      all.map((m) =>
+        m.id === messageId && m.alertDraft ? { ...m, alertDraft: { ...m.alertDraft, ...patch } } : m,
       ),
     );
   }, []);
@@ -1456,6 +1506,7 @@ export function AdvisorChat({
               onPick={stableSend}
               onRetry={stableRetry}
               onDraftPatch={stableDraftPatch}
+              onAlertDraftPatch={stableAlertDraftPatch}
             />
           ))}
 
@@ -1468,6 +1519,7 @@ export function AdvisorChat({
               onPick={stableSend}
               onRetry={stableRetry}
               onDraftPatch={stableDraftPatch}
+              onAlertDraftPatch={stableAlertDraftPatch}
               hidden
             />
           )}

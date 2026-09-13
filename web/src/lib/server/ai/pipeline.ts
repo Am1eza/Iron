@@ -357,6 +357,10 @@ export async function runAdvisorPipeline(opts: PipelineOptions): Promise<Pipelin
             // strictly before this turn's text, exactly like the old `lead`
             // frame, so the client can attach it to the committed message.
             onDraft: (draft) => send({ type: 'leadDraft', ...draft }),
+            // J-223: the alert equivalent — same timing (on the wire before
+            // this turn's first token), same "nothing is written until the
+            // visitor presses the button" contract.
+            onAlertDraft: (draft) => send({ type: 'alertDraft', ...draft }),
             // Generative-UI blocks, same timing and same reasoning: every
             // block is on the wire before the first token of prose, so the
             // client attaches them to the finished message in tool-call
