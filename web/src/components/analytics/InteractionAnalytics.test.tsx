@@ -10,6 +10,7 @@ describe('InteractionAnalytics', () => {
 
   it('consumes declarative data-event annotations', () => {
     const { getByRole } = render(
+      // eslint-disable-next-line @next/next/no-html-link-for-pages -- test fixture asserting click-tracking on a plain anchor, not a real page navigation.
       <><InteractionAnalytics /><a href="/search" data-event="search_use" onClick={(e) => e.preventDefault()}>جست‌وجو</a></>,
     );
     fireEvent.click(getByRole('link'));
