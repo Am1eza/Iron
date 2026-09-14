@@ -77,8 +77,7 @@ jobs:
         # worse than not previewing these routes at all. Real production
         # (SSR, not `output: export`) still renders these correctly — it
         # just does it dynamically instead of from a static/ISR cache; see
-        # the project's own tracking note for the follow-up to fix that
-        # properly upstream, not here.
+        # https://github.com/Am1eza/Iron/issues/400 for that follow-up.
         run: |
           rm -rf src/app/api src/app/admin src/app/uploads src/app/sitemap.ts
           rm -rf "src/app/[locale]/account" "src/app/[locale]/proforma"
