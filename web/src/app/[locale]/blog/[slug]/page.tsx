@@ -3,9 +3,7 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
-import { articlesByType } from '@/lib/mock/catalogData';
 import { getArticle, getRelatedArticles } from '@/lib/server/catalog';
-import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
 import { decodeArticleSlugParam } from '@/lib/utils/articleSlug';
 import { ArticleBody, articleDoc } from '@/components/content/ArticleBody';
 import { TableOfContents } from '@/components/content/TableOfContents';
@@ -18,11 +16,13 @@ type Params = { params: Promise<{ slug: string }> };
 // Matches the /blog list's cadence.
 export const revalidate = 600;
 
-/** Fixture-derived — gated. See `lib/server/seo/prerenderParams.ts`. */
-export function generateStaticParams() {
-  if (!shouldPrerenderMockParams()) return [];
-  return articlesByType('blog').map((a) => ({ slug: a.slug }));
-}
+// No `generateStaticParams` here (deliberately, not an oversight): under the
+// `[locale]` segment, an empty return combined with the parent's non-empty
+// locale params makes Next's on-demand ISR fallback throw
+// `DYNAMIC_SERVER_USAGE` for every request — this route 500'd in production
+// live (2026-09-14) until this was removed. Omitting the export entirely
+// keeps the route plain server-rendered per request instead; `revalidate`
+// above no longer applies HTML caching, only request-level dedup.
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug: rawSlug } = await params;

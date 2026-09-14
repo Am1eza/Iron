@@ -17,20 +17,17 @@ type Params = { params: Promise<{ n: string }> };
  */
 export const revalidate = 600;
 
-/**
- * Empty on purpose, but NOT optional: without a `generateStaticParams` export
- * Next classifies this route as fully dynamic (`f` in the build output) and
- * never caches it, which is the exact defect being fixed here. With one — even
- * returning nothing — the route is SSG with `dynamicParams`, so each page is
- * rendered on first request and then ISR-cached for `revalidate`. Verified in
- * the build manifest, and it is the same shape `[slug]` already relies on.
- *
- * Nothing is enumerated at build time because the build has no DATABASE_URL,
- * so a page count taken there would be a fixture count.
- */
-export function generateStaticParams(): { n: string }[] {
-  return [];
-}
+// No `generateStaticParams` here. It used to return `[]` deliberately, to
+// get ISR-cached SSG-with-dynamicParams instead of plain `ƒ` dynamic — see
+// git history on this file for that rationale. But under the `[locale]`
+// segment (added after that comment was written), an empty return combined
+// with the parent's non-empty locale params makes Next's on-demand ISR
+// fallback throw `DYNAMIC_SERVER_USAGE` for every request — this route
+// 500'd in production live (2026-09-14) until the export was removed.
+// `dynamicParams` stays at its default `true`, so this does NOT reintroduce
+// the `NoFallbackError` flood `dynamicParams = false` caused (knownPaths.ts)
+// — it only gives up the HTML-level ISR cache; `revalidate` above no longer
+// applies without a static shell to attach it to.
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { n } = await params;

@@ -3,15 +3,12 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { buildMetadata, itemListJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
-import { categories as mockCategories } from '@/lib/mock/fixtures';
 import { getCategories, getRows, getSubRows, getFactoryOrder } from '@/lib/server/catalog';
-import { MOCK_CATEGORY_SUBS } from '@/lib/data/nav';
 import { getSubsMap } from '@/lib/data/catalog';
 import { getSetting, getVatRate } from '@/lib/server/repos/settingsRepo';
 import { factoryIsMeaningful, subCategorySubject } from '@/lib/utils/catalogLabels';
 import { toPersianDigits } from '@/lib/utils/format';
 import { DEFAULT_LOGISTICS_CONFIG, type LogisticsConfig } from '@/lib/data/logistics';
-import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
 import { taxonomyIsIndexable } from '../../_seo/indexability';
 import { Container, Section, Stack, Breadcrumbs } from '@/components/ui';
 import { EmptyCategoryState } from '@/components/catalog/EmptyCategoryState';
@@ -27,18 +24,13 @@ type Params = {
 // Prices change intraday (admin-entered) → revalidate often (ROUTING.md §6).
 export const revalidate = 300;
 
-/**
- * Fixture-derived — gated. See `lib/server/seo/prerenderParams.ts`. These pairs
- * come from `MOCK_CATEGORY_SUBS`, which is a mock/seed fixture and no longer matches
- * the live taxonomy in either direction, so prerendering from it baked pages
- * for sub-categories that do not exist and none for the ones that do.
- */
-export function generateStaticParams() {
-  if (!shouldPrerenderMockParams()) return [];
-  return mockCategories.flatMap((c) =>
-    (MOCK_CATEGORY_SUBS[c.slug] ?? []).map((s) => ({ category: c.slug, sub: s.slug })),
-  );
-}
+// No `generateStaticParams` here (deliberately, not an oversight): under the
+// `[locale]` segment, an empty return combined with the parent's non-empty
+// locale params makes Next's on-demand ISR fallback throw
+// `DYNAMIC_SERVER_USAGE` for every request — this route 500'd in production
+// live (2026-09-14) until this was removed. Omitting the export entirely
+// keeps the route plain server-rendered per request instead; `revalidate`
+// above no longer applies HTML caching, only request-level dedup.
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { category, sub } = await params;
