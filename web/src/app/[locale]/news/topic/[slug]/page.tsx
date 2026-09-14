@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { findNewsTopic, NEWS_TOPICS } from '@/lib/data/newsTopics';
@@ -12,7 +12,7 @@ import { ArticleCard } from '@/components/content/ArticleCard';
 import { NewsTopicRail } from '@/components/content/NewsTopicRail';
 import styles from './page.module.css';
 
-type Params = { params: Promise<{ slug: string }> };
+type Params = { params: Promise<{ locale: string; slug: string }> };
 
 const PER_PAGE = 24;
 
@@ -27,7 +27,8 @@ export function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const { slug } = await params;
+  const { locale, slug } = await params;
+  setRequestLocale(locale);
   const topic = findNewsTopic(slug);
   const tMeta = await getTranslations('newsTopic');
   if (!topic) {
@@ -41,10 +42,12 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   });
 }
 
+
 export default async function NewsTopicPage({ params }: Params) {
+  const { locale, slug } = await params;
+  setRequestLocale(locale);
   const tNav = await getTranslations();
   const t = await getTranslations('newsTopic');
-  const { slug } = await params;
   const topic = findNewsTopic(slug);
   if (!topic) notFound();
 

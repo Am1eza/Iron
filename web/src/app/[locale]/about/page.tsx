@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { buildMetadata, orgJsonLd, ORG_NAME } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { Container, Section } from '@/components/ui';
@@ -7,10 +7,17 @@ import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { ContactCard } from '@/components/company/ContactCard';
 import { AboutContent } from '@/components/company/AboutContent';
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  setRequestLocale(locale);
   const t = await getTranslations('meta.about');
   return buildMetadata({ title: t('title'), description: t('description'), path: routes.about() });
 }
+
 
 /**
  * «درباره ما» — the company page, carrying the «چرا آهن‌تایم؟» advantages merged
@@ -22,7 +29,9 @@ export async function generateMetadata(): Promise<Metadata> {
  * real per-locale URLs now exist under `[locale]`, so a crawler indexing
  * `/en/about` must see English, not fa).
  */
-export default async function AboutPage() {
+export default async function AboutPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  setRequestLocale(locale);
   const t = await getTranslations();
   const crumbs = [
     { label: t('nav.home'), href: routes.home() },

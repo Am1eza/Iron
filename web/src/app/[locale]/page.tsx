@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { getCategories, getSubsMap } from '@/lib/data/catalog';
 import { getRows } from '@/lib/server/catalog';
 
@@ -28,7 +28,13 @@ import { getSetting } from '@/lib/server/repos/settingsRepo';
 import { hasDb } from '@/lib/server/db/client';
 import { HeroVideo } from '@/components/home/HeroVideo';
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  setRequestLocale(locale);
   const t = await getTranslations('meta.home');
   return buildMetadata({
     title: t('title'),
@@ -53,7 +59,9 @@ export const dynamic = 'force-dynamic';
  * → hover-reveal product menu → compare explorer → why us → dark factory block
  * (mills & customers). Price data is the visual anchor.
  */
-export default async function HomePage() {
+export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  setRequestLocale(locale);
   const [contact, categories, subsMap] = await Promise.all([
     getContact(),
     getCategories(),

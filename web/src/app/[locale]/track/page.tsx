@@ -1,17 +1,26 @@
 import type { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { Container, Section, Stack, Breadcrumbs } from '@/components/ui';
 import { TrackPageHeader } from './TrackPageHeader';
 import { TrackLookup } from './TrackLookup';
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  setRequestLocale(locale);
   const t = await getTranslations('meta.track');
   return buildMetadata({ title: t('title'), description: t('description'), path: routes.track(), noindex: true });
 }
 
-export default async function TrackPage() {
+
+export default async function TrackPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  setRequestLocale(locale);
   const t = await getTranslations();
   return (
     <Container>

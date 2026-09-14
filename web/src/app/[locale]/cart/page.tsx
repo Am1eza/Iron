@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { Container, Section, Stack } from '@/components/ui';
 import { CartPageHeader } from '@/components/cart/CartPageHeader';
@@ -12,10 +12,17 @@ import { DEFAULT_VOLUME_DISCOUNT_POLICY } from '@/lib/config/pricingTiers';
 
 // noindex'd (personal/transient cart state) — no canonical `path` since
 // canonical is meaningless on a page that's never indexed.
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  setRequestLocale(locale);
   const t = await getTranslations('meta.cart');
   return buildMetadata({ title: t('title'), description: t('description'), noindex: true });
 }
+
 
 export default async function CartPage() {
   const [policy, volumePolicy] =

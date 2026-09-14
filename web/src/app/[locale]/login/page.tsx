@@ -1,16 +1,25 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { LoginForm } from '@/components/forms/LoginForm';
 import styles from '@/components/forms/LoginForm.module.css';
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  setRequestLocale(locale);
   const t = await getTranslations('meta.login');
   return buildMetadata({ title: t('title'), noindex: true });
 }
 
-export default async function LoginPage() {
+
+export default async function LoginPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  setRequestLocale(locale);
   const t = await getTranslations('auth');
   // The form is a self-contained card with its own title/subtitle — the page is
   // just a centered stage for it (no duplicate heading, no mixed fonts).

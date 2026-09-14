@@ -1,7 +1,16 @@
+import { routing } from '@/i18n/routing';
 import { routes } from '@/lib/routes';
 import { ORG_NAME } from '@/lib/seo';
 import { getArticlesPage, isLiveCatalog } from '@/lib/server/catalog';
 import { buildRssFeed, RSS_HEADERS, RSS_ITEM_LIMIT } from '@/lib/server/rss';
+
+// Route Handlers under `[locale]` don't inherit the layout's
+// `generateStaticParams` — they need their own, or the build can't enumerate
+// this dynamic segment at all (`output: export` errors outright; a normal
+// build silently falls back to per-request dynamic rendering instead of ISR).
+export function generateStaticParams() {
+  return routing.locales.map((locale) => ({ locale }));
+}
 
 /**
  * /news/rss.xml — the timely market-news feed. See `lib/server/rss.ts` for why
@@ -13,6 +22,12 @@ import { buildRssFeed, RSS_HEADERS, RSS_ITEM_LIMIT } from '@/lib/server/rss';
  * prerendered pages does not apply here.
  */
 export const revalidate = 600;
+// Route Handlers don't render through the React tree next-intl's plugin
+// scopes `setRequestLocale` to, so there's no escape hatch for the global
+// per-route locale resolution it still runs here — `force-static` (still
+// governed by `revalidate` above) avoids the `headers()` call that would
+// otherwise silently downgrade this to a per-request dynamic render.
+export const dynamic = 'force-static';
 
 export async function GET(): Promise<Response> {
   // Same rule as the sitemap (see `app/sitemap.ts`): this route is prerendered

@@ -6,6 +6,13 @@ import { LoginForm } from '@/components/forms/LoginForm';
 import styles from './panelLogin.module.css';
 import logoMark from '../../../public/brand/ahantime-logo.png';
 
+// This route sits outside `app/[locale]/` (see header comment below), so
+// there's no `setRequestLocale` escape hatch from the next-intl plugin's
+// global per-route locale resolution — `force-static` keeps this genuinely
+// static page (no per-request data) from being downgraded to a per-request
+// dynamic render over a `headers()` call it never actually needs.
+export const dynamic = 'force-static';
+
 export const metadata: Metadata = buildMetadata({ title: 'ورود به پنل', noindex: true });
 
 /**

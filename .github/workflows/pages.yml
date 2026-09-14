@@ -52,35 +52,65 @@ jobs:
         # build` type-checks every file tsconfig includes, and some tests
         # import the api routes just deleted above.
         #
-        # blog/news page/[n] archive routes deliberately return an empty
-        # generateStaticParams (see their own comments) so the real app stays
-        # ISR instead of fully dynamic — but `output: export` requires at
-        # least one static path per dynamic segment, and the mock fixture set
-        # (4 blog + 3 news articles) never reaches a page 2 to enumerate. Real
-        # archive pagination is untestable from fixtures this small anyway.
+        # blog/news page/[n] archive routes never had a way to enumerate a
+        # mock-fixture page 2 (4 blog + 3 news articles), so they're removed
+        # rather than built.
+        #
+        # blog/[slug], blog/category/[slug], news/[slug], and everything
+        # under prices/ no longer ship `generateStaticParams` at all (see
+        # their own comments — removed so the real app renders them fresh per
+        # request instead of relying on ISR/SSG), so `output: export` can no
+        # longer build them either. They're removed here too, same as the
+        # pre-existing factory/size removal below.
+        #
+        # about, cart, club, contact, cooperation(+[track]), cut-to-size,
+        # login, market, privacy, tender, terms, tools/[tool], track,
+        # warehouse, news/topic/[slug], blog/(index), news/(index) are
+        # removed for a different, confirmed reason: the next-intl plugin
+        # runs a second, separate per-route locale-resolution pass that
+        # calls `headers()` on its own, outside of what `setRequestLocale`
+        # (already added to each of these) can reach — `output: export`
+        # hard-fails on it, and forcing these to `force-static` anyway was
+        # tried and reverted because it built successfully but silently
+        # served the DEFAULT locale's text on every OTHER locale's URL
+        # (e.g. /en/about rendering Persian). That data-correctness bug is
+        # worse than not previewing these routes at all. Real production
+        # (SSR, not `output: export`) still renders these correctly — it
+        # just does it dynamically instead of from a static/ISR cache; see
+        # the project's own tracking note for the follow-up to fix that
+        # properly upstream, not here.
         run: |
-          rm -rf src/app/api src/app/account src/app/admin src/app/proforma src/app/uploads src/app/sitemap.ts
+          rm -rf src/app/api src/app/admin src/app/uploads src/app/sitemap.ts
+          rm -rf "src/app/[locale]/account" "src/app/[locale]/proforma"
           # /ai and /search opt into `dynamic = "error"` and read
           # searchParams — interactive, request-driven pages, not ones with
           # a static form.
-          rm -rf src/app/ai src/app/search
-          rm -rf src/app/blog/page src/app/news/page
+          rm -rf "src/app/[locale]/ai" "src/app/[locale]/search"
+          rm -rf "src/app/[locale]/blog/page" "src/app/[locale]/news/page"
+          rm -rf "src/app/[locale]/blog/[slug]" "src/app/[locale]/blog/category" "src/app/[locale]/news/[slug]"
+          rm -rf "src/app/[locale]/blog/(index)" "src/app/[locale]/news/(index)"
+          rm -rf "src/app/[locale]/about" "src/app/[locale]/cart" "src/app/[locale]/club" \
+            "src/app/[locale]/contact" "src/app/[locale]/cooperation" "src/app/[locale]/cut-to-size" \
+            "src/app/[locale]/login" "src/app/[locale]/market" "src/app/[locale]/privacy" \
+            "src/app/[locale]/tender" "src/app/[locale]/terms" "src/app/[locale]/tools" \
+            "src/app/[locale]/track" "src/app/[locale]/warehouse" "src/app/[locale]/news/topic"
+          # /request is also genuinely auth-gated (`requireUser` reads the
+          # session cookie) on top of the same next-intl issue — it was
+          # never a static-export candidate regardless.
+          rm -rf "src/app/[locale]/request"
           # factory/size are free-text facets (skus.factory/size), not a
           # fixture-known taxonomy like category/sub — each route's own
           # comment explains why it has no generateStaticParams even in
-          # EXPORT mode.
-          rm -rf "src/app/prices/[category]/factory" "src/app/prices/[category]/size"
+          # EXPORT mode. The whole prices/ tree (index included) is removed
+          # for the same reason as the list above: no build-time locale left
+          # to fall back on once `force-dynamic` is stripped below.
+          rm -rf "src/app/[locale]/prices"
+          # Homepage hits the exact same next-intl issue as the list above
+          # (confirmed directly, not assumed) — `force-dynamic` also means
+          # `output: export` would refuse it outright even before that,
+          # so there is no working middle ground for it here either.
+          rm -rf "src/app/[locale]/page.tsx"
           find src -name '*.test.ts' -o -name '*.test.tsx' | xargs rm -f
-          # Homepage and blog/news index pages are `force-dynamic` for the
-          # same no-build-time-content reason as sitemap.ts (see their own
-          # comments) — but that value must be a literal Next can statically
-          # parse, so it can't be made conditional in the source itself.
-          # `output: export` has no runtime to force-dynamic render against,
-          # and this IS the one build where the fixtures are the intended
-          # content, so drop the line for this build only.
-          sed -i "/^export const dynamic = 'force-dynamic';$/d" \
-            src/app/page.tsx src/app/prices/page.tsx \
-            "src/app/blog/(index)/page.tsx" "src/app/news/(index)/page.tsx"
 
       - name: Build static export
         run: pnpm build

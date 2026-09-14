@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { Container, Section } from '@/components/ui';
@@ -7,10 +7,17 @@ import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { getArticle } from '@/lib/server/catalog';
 import { MarketPageContent } from './MarketPageContent';
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  setRequestLocale(locale);
   const t = await getTranslations('meta.market');
   return buildMetadata({ title: t('title'), description: t('description'), path: routes.market() });
 }
+
 
 // Category list is admin-curated and rarely changes, but without a revalidate
 // window this page would otherwise cache forever after build (no
@@ -24,7 +31,9 @@ export const revalidate = 300;
  *  normal state, not an error, so the section below just doesn't render. */
 const RELATED_ARTICLE_SLUG = 'عوامل-موثر-بر-قیمت-ورق-فولادی';
 
-export default async function MarketPage() {
+export default async function MarketPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  setRequestLocale(locale);
   const [relatedArticle, t] = await Promise.all([getArticle(RELATED_ARTICLE_SLUG), getTranslations()]);
   const crumbs = [
     { label: t('nav.home'), href: routes.home() },
