@@ -3,7 +3,6 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { buildMetadata, productJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
-import { allRows } from '@/lib/mock/catalogData';
 import {
   findSku,
   relatedRows,
@@ -18,7 +17,6 @@ import { priceBasisNoun } from '@/lib/utils/catalogLabels';
 import { productImage } from '@/lib/data/productImages';
 import { getSetting, getVatRate, getStaleHideAfterDays } from '@/lib/server/repos/settingsRepo';
 import { DEFAULT_LOGISTICS_CONFIG, type LogisticsConfig } from '@/lib/data/logistics';
-import { shouldPrerenderMockParams } from '@/lib/server/seo/prerenderParams';
 import { skuHasPublishedPrice } from '../../../_seo/indexability';
 import { JsonLd, BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { Container, Section } from '@/components/ui';
@@ -171,13 +169,10 @@ export default async function SkuPage({ params }: Params) {
   );
 }
 
-/**
- * Fixture-derived — gated. See `lib/server/seo/prerenderParams.ts`. `allRows`
- * is mock data: baking these produced 243 SKU pages of invented prices in the
- * image, which stale-while-revalidate then served to the first visitor after
- * every deploy.
- */
-export function generateStaticParams() {
-  if (!shouldPrerenderMockParams()) return [];
-  return allRows.map((r) => ({ category: r.categoryId, sub: r.subCategoryId, sku: r.slug }));
-}
+// No `generateStaticParams` here (deliberately, not an oversight): under the
+// `[locale]` segment, an empty return combined with the parent's non-empty
+// locale params makes Next's on-demand ISR fallback throw
+// `DYNAMIC_SERVER_USAGE` for every request — this route 500'd in production
+// live (2026-09-14) until this was removed. Omitting the export entirely
+// keeps the route plain server-rendered per request instead; `revalidate`
+// above no longer applies HTML caching, only request-level dedup.
