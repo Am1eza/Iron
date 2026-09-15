@@ -16,6 +16,13 @@ import { NotFoundEmptyState } from '@/components/ui/NotFoundEmptyState';
 import { SearchBar } from '@/components/layout/SearchBar';
 import styles from './not-found.module.css';
 
+// Confirmed statically pre-rendered at build time regardless (see header
+// comment) — `force-static` just makes that explicit instead of implicit,
+// which also stops the next-intl plugin's global per-route locale
+// resolution from calling `headers()` here (this route sits outside
+// `[locale]`, so there is no `setRequestLocale` escape hatch available).
+export const dynamic = 'force-static';
+
 export const metadata: Metadata = {
   title: 'صفحه پیدا نشد',
   robots: { index: false, follow: true },

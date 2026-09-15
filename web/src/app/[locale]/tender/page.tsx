@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { listCategories, listAllSubCategories } from '@/lib/server/repos/catalogRepo';
@@ -9,10 +9,17 @@ import { Container, Section, Stack, Grid, Heading, Text, Card, Breadcrumbs } fro
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { TenderEstimator } from '@/components/tender/TenderEstimator';
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  setRequestLocale(locale);
   const t = await getTranslations('meta.tender');
   return buildMetadata({ title: t('title'), description: t('description'), path: routes.tender() });
 }
+
 
 // Same cadence as the price pages this reads from — the catalog list feeding
 // the form changes about as often.
@@ -20,7 +27,9 @@ export const revalidate = 600;
 
 const BENEFIT_KEYS = ['bulkEstimate', 'cheapestFactory', 'livePricing', 'officialProforma'] as const;
 
-export default async function TenderPage() {
+export default async function TenderPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  setRequestLocale(locale);
   // No DB at build/prerender → an empty form shell; the client still renders
   // and repopulates once the ISR revalidate lands with real data.
   const [categories, subsByCat, t] = hasDb()

@@ -1,12 +1,18 @@
 import type { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { requireUser } from '@/lib/auth/guards';
 import { RequestFlow } from '@/components/forms/RequestFlow';
 import { RequestPageHeading } from '@/components/forms/RequestPageHeading';
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  setRequestLocale(locale);
   const t = await getTranslations('meta.request');
   return buildMetadata({ title: t('title'), noindex: true });
 }

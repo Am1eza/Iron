@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { Container, Section, Stack, Breadcrumbs } from '@/components/ui';
@@ -21,7 +21,7 @@ function isToolSlug(value: string): value is ToolSlug {
   return (TOOL_SLUGS as string[]).includes(value);
 }
 
-type Params = { params: Promise<{ tool: string }> };
+type Params = { params: Promise<{ locale: string; tool: string }> };
 
 export function generateStaticParams() {
   return TOOL_SLUGS.map((tool) => ({ tool }));
@@ -32,7 +32,8 @@ export function generateStaticParams() {
  * in this Next version, so on its own it produced a cached Soft 404 200. */
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const { tool } = await params;
+  const { locale, tool } = await params;
+  setRequestLocale(locale);
   if (!isToolSlug(tool)) {
     const t = await getTranslations('meta.notFound');
     return buildMetadata({ title: t('tools'), path: routes.tool('weight') });
@@ -45,8 +46,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   });
 }
 
+
 export default async function ToolPage({ params }: Params) {
-  const { tool } = await params;
+  const { locale, tool } = await params;
+  setRequestLocale(locale);
   if (!isToolSlug(tool)) notFound();
 
   const t = await getTranslations('toolsPage');

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { Container, Section, Stack, Breadcrumbs } from '@/components/ui';
@@ -8,7 +8,7 @@ import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { CooperationTrackContent } from '@/components/cooperation/CooperationTrackContent';
 import { TRACKS, TRACK_ORDER, isTrackKey } from '@/components/cooperation/tracks';
 
-type Params = { params: Promise<{ track: string }> };
+type Params = { params: Promise<{ locale: string; track: string }> };
 
 export function generateStaticParams() {
   return TRACK_ORDER.map((track) => ({ track }));
@@ -19,7 +19,8 @@ export function generateStaticParams() {
  * in this Next version, so on its own it produced a cached Soft 404 200. */
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const { track } = await params;
+  const { locale, track } = await params;
+  setRequestLocale(locale);
   const tMeta = await getTranslations('meta.cooperation');
   if (!isTrackKey(track)) {
     return buildMetadata({ title: tMeta('title'), path: routes.cooperation() });
@@ -36,8 +37,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   });
 }
 
+
 export default async function CooperationTrackPage({ params }: Params) {
-  const { track } = await params;
+  const { locale, track } = await params;
+  setRequestLocale(locale);
   if (!isTrackKey(track)) notFound();
   const [tNav, tTrack] = await Promise.all([getTranslations(), getTranslations(`cooperation.tracks.${track}`)]);
 
