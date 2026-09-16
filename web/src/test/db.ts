@@ -27,6 +27,14 @@ export async function createTestDb(): Promise<{ db: Db; close: () => Promise<voi
     const url = new URL(process.env.TEST_DATABASE_URL);
     url.pathname = `/${name}`;
     const pool = new pg.Pool({ connectionString: url.toString(), max: 10 });
+    // `close()` below drops this database WITH (FORCE), which terminates any
+    // connection still attached to it. `pool.end()` runs first, but a pooled
+    // client caught between "idle" and "closed" can still receive that
+    // termination and emit 'error' — without a listener, Node treats that as
+    // an uncaught exception and vitest fails the whole run despite every
+    // assertion passing (seen in CI, not locally, because of the extra
+    // network hop to a containerized Postgres).
+    pool.on('error', () => {});
     const db = pgDrizzle(pool, { schema });
     try {
       await pgMigrate(db, { migrationsFolder: path.join(process.cwd(), 'drizzle') });
