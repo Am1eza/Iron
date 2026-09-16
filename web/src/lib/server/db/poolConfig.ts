@@ -1,4 +1,5 @@
 import { Pool, type PoolConfig } from 'pg';
+import { reportError } from '@/lib/errors/report';
 
 function positive(name: string, fallback: number, max: number): number {
   const raw = process.env[name];
@@ -31,7 +32,7 @@ export function createDatabasePool(connectionString: string, requestScoped = fal
   // pg removes the failed idle client. Handle its event so a PG restart does
   // not become an uncaught EventEmitter error that kills the worker.
   pool.on('error', (error: Error & { code?: string }) => {
-    console.error('[db] idle connection failed', { code: error.code ?? 'unknown' });
+    reportError(error, { where: 'db.pool.idle' });
   });
   return pool;
 }

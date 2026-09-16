@@ -13,19 +13,23 @@ try {
  const before = await client.query('select count(*)::int n from drizzle.__drizzle_migrations');
  await migrate(db, { migrationsFolder: './drizzle' });
  const after = await client.query('select count(*)::int n from drizzle.__drizzle_migrations');
- const columns = (await client.query<any>("select table_name,column_name,is_nullable,data_type from information_schema.columns where table_schema='public'")).rows;
+ interface ColumnRow { table_name: string; column_name: string; is_nullable: string; data_type: string }
+ interface ForeignKeyRow { table_name: string; conname: string; definition: string; covered: boolean }
+ interface IndexRow { tablename: string; indexname: string; indexdef: string }
+ interface DriftRow { table: string; column: string; expectedNotNull: boolean; actual: ColumnRow | undefined }
+ const columns = (await client.query<ColumnRow>("select table_name,column_name,is_nullable,data_type from information_schema.columns where table_schema='public'")).rows;
  const configs = Object.values(schema).filter(v => v instanceof PgTable).map(v => getTableConfig(v));
- const drift:any[] = [];
+ const drift: DriftRow[] = [];
  for (const t of configs) for(const c of t.columns) {
   const actual = columns.find(r=>r.table_name===t.name && r.column_name===c.name);
   if(!actual || (actual.is_nullable==='NO')!==c.notNull) drift.push({table:t.name,column:c.name,expectedNotNull:c.notNull,actual});
  }
  const extraColumns = columns.filter(r=> !configs.some(t=>t.name===r.table_name && t.columns.some(c=>c.name===r.column_name)));
- const fks = (await client.query<any>(`SELECT c.conrelid::regclass::text AS table_name,c.conname,pg_get_constraintdef(c.oid) definition,
+ const fks = (await client.query<ForeignKeyRow>(`SELECT c.conrelid::regclass::text AS table_name,c.conname,pg_get_constraintdef(c.oid) definition,
  EXISTS(SELECT 1 FROM pg_index i WHERE i.indrelid=c.conrelid AND i.indisvalid AND i.indpred IS NULL
  AND (i.indkey::smallint[])[0:cardinality(c.conkey)-1] @> c.conkey) AS covered
  FROM pg_constraint c WHERE c.contype='f' ORDER BY 1,2`)).rows;
- const indexes = (await client.query<any>("select tablename,indexname,indexdef from pg_indexes where schemaname='public' order by tablename,indexname")).rows;
+ const indexes = (await client.query<IndexRow>("select tablename,indexname,indexdef from pg_indexes where schemaname='public' order by tablename,indexname")).rows;
  const duplicates = indexes.filter((r,i)=>indexes.some((s,j)=>j<i && s.tablename===r.tablename && s.indexdef.split(' USING ')[1]===r.indexdef.split(' USING ')[1] && s.indexdef.includes('UNIQUE')===r.indexdef.includes('UNIQUE')));
  const checks = (await client.query("select conrelid::regclass::text table_name, conname, pg_get_constraintdef(oid) definition from pg_constraint where contype='c' and connamespace='public'::regnamespace order by 1,2")).rows;
  await client.exec('BEGIN');

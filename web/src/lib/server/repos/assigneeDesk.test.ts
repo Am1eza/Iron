@@ -187,7 +187,7 @@ describe('assigneeDesk — row projection', () => {
 
     expect(row).not.toHaveProperty('context');
     expect(Object.keys(row).sort()).toEqual(
-      ['callbackAt', 'contactMobile', 'contactName', 'createdAt', 'id', 'isOverdue', 'ref', 'source', 'status'].sort(),
+      ['callbackAt', 'contactMobile', 'contactName', 'createdAt', 'id', 'isOverdue', 'ref', 'source', 'status', 'version'].sort(),
     );
     // The TIME must survive — the UI shows an appointment, not just a day.
     expect(row.callbackAt).toBeInstanceOf(Date);
