@@ -64,4 +64,15 @@ describe('K database integrity', () => {
     try { expect(() => databasePoolConfig('postgres://localhost/test')).toThrow('budget'); }
     finally { vi.unstubAllEnvs(); }
   });
+  it('accepts the production host\'s real WEB_CONCURRENCY against the default budget', () => {
+    // .env.example's own math for the deployed 8-core host: WEB_CONCURRENCY=5
+    // with the default PG_POOL_MAX=10 -> 60 connections, well under
+    // max_connections=100. This must not throw with no other env override —
+    // it did in production once (replicas defaulted to 2, an unrelated
+    // blue/green assumption this single-instance-recreate deploy never
+    // matches), which took the site down until rolled back.
+    vi.stubEnv('WEB_CONCURRENCY', '5');
+    try { expect(() => databasePoolConfig('postgres://localhost/test')).not.toThrow(); }
+    finally { vi.unstubAllEnvs(); }
+  });
 });
