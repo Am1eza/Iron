@@ -3,6 +3,7 @@
  * thin market history so the ticker table never grows unbounded.
  */
 import { sql } from 'drizzle-orm';
+import { pruneRetainedTable } from './retention';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { decodeTime } from 'ulid';
@@ -240,32 +241,32 @@ export const cleanupJob: Job = {
     // ---- Append-only table retention (conservative; adjust per policy) ----
     // sms_log: delivery-debugging window — 90 days is far past any dispute
     // window for an OTP/notification text.
-    await db.execute(sql`DELETE FROM sms_log WHERE at < now() - interval '90 days'`);
+    await pruneRetainedTable('sms_log');
     // AI conversations (messages cascade via FK): the review/curation loop
     // works on recent answers; 90 days keeps /admin/ai relevant. Curated
     // corrections (ai_corrections) are permanent and carry the distilled
     // value forward, so nothing learned is lost by pruning raw threads.
-    await db.execute(sql`DELETE FROM ai_conversations WHERE updated_at < now() - interval '90 days'`);
+    await pruneRetainedTable('ai_conversations');
     // Per-request cost telemetry + raw feedback signals: two quarters for
     // trend analysis, then drop.
-    await db.execute(sql`DELETE FROM ai_usage WHERE created_at < now() - interval '180 days'`);
-    await db.execute(sql`DELETE FROM ai_feedback WHERE created_at < now() - interval '180 days'`);
+    await pruneRetainedTable('ai_usage');
+    await pruneRetainedTable('ai_feedback');
     // J-235/237: a reservation is released the instant its request finishes;
     // anything still here is one that crashed/hung without ever reaching its
     // `finally`. `reserveBudget()` already ignores rows older than its own
     // 5-minute TTL for the budget check itself — this just keeps the table
     // from growing on those abandoned rows forever. 1 day is generous margin.
-    await db.execute(sql`DELETE FROM ai_budget_reservations WHERE created_at < now() - interval '1 day'`);
+    await pruneRetainedTable('ai_budget_reservations');
     // price_sync_runs (entries cascade via FK): the automated mirror writes
     // one entry per considered SKU per run, twice a day, so this is the
     // fastest-growing table after sms_log. 180 days is two full quarters of
     // "why did this price change?" — well past the point where the answer
     // would still be actionable, and the prices themselves keep their own
     // permanent history in `price_points` regardless.
-    await db.execute(sql`DELETE FROM price_sync_runs WHERE started_at < now() - interval '180 days'`);
+    await pruneRetainedTable('price_sync_runs');
     // audit_entries: accountability trail — keep a full year (deliberately the
     // longest window here; do NOT shorten without an operator decision).
-    await db.execute(sql`DELETE FROM audit_entries WHERE at < now() - interval '365 days'`);
+    await pruneRetainedTable('audit_entries');
     // contact_messages are business correspondence — never auto-deleted.
 
     // I-212 — orphaned upload files (see reconcileOrphanUploads' docstring).

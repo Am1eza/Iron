@@ -953,6 +953,7 @@ export async function deleteSkuGuarded(
   opts: { override: boolean },
 ): Promise<DeleteSkuGuardedResult> {
   return getDb().transaction(async (tx) => {
+    await authorizePricePurge(tx);
     const [locked] = await tx.select({ id: skus.id }).from(skus).where(eq(skus.id, id)).for('update');
     if (!locked) return { status: 'not_found' as const };
 
@@ -1027,6 +1028,7 @@ export async function deleteSkusBulkGuarded(
 ): Promise<BulkDeleteSkusResult> {
   if (ids.length === 0) return { ok: true, removed: [] };
   return getDb().transaction(async (tx) => {
+    await authorizePricePurge(tx);
     await tx.select({ id: skus.id }).from(skus).where(inArray(skus.id, ids)).for('update');
 
     if (!opts.override) {
@@ -1053,6 +1055,20 @@ export type SubCategorySubtreeSnapshot = {
 export type CategorySubtreeSnapshot = SubCategorySubtreeSnapshot & {
   subCategories: (typeof subCategories.$inferSelect)[];
 };
+
+/** K-258: the database refuses to delete a sku that carries published price
+ *  history (trigger `skus_refuse_priced_delete`), because the catalog FK chain
+ *  cascades into `price_points` and a stray `DELETE FROM categories` would
+ *  otherwise erase every price this business ever published.
+ *
+ *  These guarded paths ARE the authorized purge: each one locks the rows,
+ *  computes the impact, makes the operator confirm it, and returns what was
+ *  removed. `SET LOCAL` scopes the grant to this transaction, so it is gone
+ *  the moment the transaction ends and can never leak onto a pooled
+ *  connection that happens to reuse the same backend. */
+async function authorizePricePurge(tx: DbOrTx): Promise<void> {
+  await tx.execute(sql`SET LOCAL ahantime.purge_authorized = 'on'`);
+}
 
 async function pricePointsCountFor(tx: DbOrTx, skuIds: string[]): Promise<number> {
   if (skuIds.length === 0) return 0;
@@ -1137,6 +1153,7 @@ export async function deleteSubCategoryGuarded(
   opts: { override: boolean },
 ): Promise<DeleteSubCategoryGuardedResult> {
   return getDb().transaction(async (tx) => {
+    await authorizePricePurge(tx);
     const skuRows = await tx.select().from(skus).where(eq(skus.subCategoryId, id)).for('update');
     const skuIds = skuRows.map((s) => s.id);
 
@@ -1171,6 +1188,7 @@ export async function deleteCategoryGuarded(
   opts: { override: boolean },
 ): Promise<DeleteCategoryGuardedResult> {
   return getDb().transaction(async (tx) => {
+    await authorizePricePurge(tx);
     const subCategoryRows = await tx.select().from(subCategories).where(eq(subCategories.categoryId, id));
     const skuRows = await tx.select().from(skus).where(eq(skus.categoryId, id)).for('update');
     const skuIds = skuRows.map((s) => s.id);

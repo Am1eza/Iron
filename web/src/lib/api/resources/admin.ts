@@ -162,6 +162,7 @@ export interface AdminLeadContext {
 }
 
 export interface AdminLead {
+  version: number;
   id: string;
   ref: string;
   userId: string | null;
@@ -414,6 +415,7 @@ export interface SeoPageSpeedRes {
 }
 
 export interface DeskLead {
+  version: number;
   id: string;
   ref: string;
   contactName?: string;
@@ -768,6 +770,7 @@ export const adminApi = {
   updateLead: (
     id: string,
     patch: {
+      expectedVersion: number;
       status?: string;
       assigneeId?: string | null;
       callbackAt?: string | null;

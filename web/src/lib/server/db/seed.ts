@@ -13,7 +13,7 @@ import { eq, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 
 import * as schema from './schema';
-import type { Db } from './client';
+import type { Db, DbOrTx } from './client';
 import { categories as categoryFixtures, marketValues } from '@/lib/mock/fixtures';
 import { MOCK_CATEGORY_SUBS } from '@/lib/data/nav';
 import { rowsByCategory, priceSeries, articles as articleFixtures } from '@/lib/mock/catalogData';
@@ -41,6 +41,14 @@ export interface SeedOptions {
 }
 
 export async function seedDatabase(db: Db, opts: SeedOptions = {}): Promise<void> {
+  if (process.env.NODE_ENV === 'production') throw new Error('Fixture seeding is forbidden in production');
+  await db.transaction(async tx => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(740275)`);
+    await seedFixtures(tx, opts);
+  });
+}
+
+async function seedFixtures(db: DbOrTx, opts: SeedOptions): Promise<void> {
   const { force = false, historyDays = 90, log = () => {} } = opts;
 
   /* ---------- dev admin ---------- */

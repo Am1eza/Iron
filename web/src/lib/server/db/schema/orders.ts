@@ -52,6 +52,7 @@ export const orders = pgTable(
   },
   (t) => [
     index('orders_user_idx').on(t.userId),
+    index('orders_lead_idx').on(t.leadId),
     // FK with no covering index (W29) — the `leads` ON DELETE SET NULL.
     // Partial: only active orders must be unique per lead. Legacy data has
     // leads with multiple orders where all but one were soft-deleted, and a
@@ -91,6 +92,7 @@ export const orderItems = pgTable(
     lineTotal: bigint('line_total', { mode: 'number' }),
   },
   (t) => [
+    check('order_items_weight_ck', sql`${t.weightKg} is null or (${t.weightKg} > 0 and ${t.weightKg} < 1000000000000)`),
     check('order_items_qty_ck', sql`${t.qty} > 0 and ${t.qty} < 1000000000000`),
     check('order_items_money_ck', sql`(${t.unitPrice} is null or ${t.unitPrice} between 0 and 10000000000000) and (${t.lineTotal} is null or ${t.lineTotal} between 0 and 9007199254740991)`),
     index('order_items_order_idx').on(t.orderId),

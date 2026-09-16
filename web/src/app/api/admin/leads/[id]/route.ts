@@ -63,6 +63,7 @@ async function businessCustomerOf(userId: string) {
 }
 
 const patchPayload = z.object({
+  expectedVersion: z.number().int().positive(),
   status: z.enum(['new', 'contacted', 'won', 'lost']).optional(),
   // min(1): the picker sends `null` to unassign, never ''. An empty string was
   // reaching the FK as a literal id and blowing up as a 500.
@@ -130,6 +131,7 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
 
   const before = await findLead(id);
   if (!before) return NextResponse.json({ error: 'not_found', message: 'سرنخ یافت نشد.' }, { status: 404 });
+  if (v.data.expectedVersion !== before.version) return NextResponse.json({ error: 'lead_conflict', message: 'این سرنخ تغییر کرده است؛ اطلاعات تازه را بررسی و دوباره تلاش کنید.' }, { status: 409 });
   if (v.data.assigneeId !== undefined) {
     // 403, not the route-level 404: this caller legitimately holds leads:write
     // and belongs on this endpoint — they are being refused ONE field, and a
@@ -202,7 +204,7 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
       assigneeId: v.data.assigneeId === undefined ? undefined : v.data.assigneeId,
       callbackAt: v.data.callbackAt === undefined ? undefined : v.data.callbackAt ? new Date(v.data.callbackAt) : null,
     },
-    ownershipGated ? { ifAssigneeId: before.assigneeId } : {},
+    { expectedVersion: v.data.expectedVersion, ...(ownershipGated ? { ifAssigneeId: before.assigneeId } : {}) },
   );
   if (!lead) {
     // The guard matched nothing. Re-read to report WHICH of the two it was
@@ -213,7 +215,7 @@ async function PATCHImpl(req: NextRequest, ctx: { params: Promise<{ id: string }
     if (!now) return NextResponse.json({ error: 'not_found', message: 'سرنخ یافت نشد.' }, { status: 404 });
     return NextResponse.json(
       {
-        error: 'assignee_conflict',
+        error: 'lead_conflict',
         message:
           'این سرنخ همین الان توسط شخص دیگری برداشته یا واگذار شد. صفحه را تازه کنید و دوباره تلاش کنید.',
         assigneeId: now.assigneeId,

@@ -817,23 +817,17 @@ export async function unmatchedQueryTokens(q: string): Promise<string[]> {
   const tokens = tokenizeQuery(q);
   if (tokens.length === 0) return [];
   const db = getDb();
-  const results = await Promise.all(
-    tokens.map(async (token) => {
-      const hit = await db
-        .select({ one: sql<number>`1` })
-        .from(skus)
-        .innerJoin(categories, eq(skus.categoryId, categories.id))
-        .innerJoin(subCategories, eq(skus.subCategoryId, subCategories.id))
-        .where(
-          and(
-            tokenMatchCondition(token),
-          ),
-        )
-        .limit(1);
-      return hit.length === 0 ? token : null;
-    }),
+  // One round trip for all tokens. Each EXISTS retains the exact search
+  // predicate and stops on its first match; SQL parameters remain bound.
+  const probes = tokens.map((token, i) => sql`SELECT ${i}::int AS ordinal,
+    EXISTS(SELECT 1 FROM ${skus}
+      INNER JOIN ${categories} ON ${skus.categoryId} = ${categories.id}
+      INNER JOIN ${subCategories} ON ${skus.subCategoryId} = ${subCategories.id}
+      WHERE ${tokenMatchCondition(token)} LIMIT 1) AS matched`);
+  const result = rowsOf<{ ordinal: number; matched: boolean }>(
+    await db.execute(sql.join(probes, sql` UNION ALL `)),
   );
-  return results.filter((t): t is string => t !== null);
+  return result.filter(r => !r.matched).map(r => tokens[r.ordinal]!);
 }
 
 /**

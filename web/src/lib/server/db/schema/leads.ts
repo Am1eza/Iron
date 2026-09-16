@@ -75,6 +75,7 @@ export const leads = pgTable(
   {
     id: text('id').primaryKey(),
     ref: text('ref').notNull().unique(),
+    version: integer('version').notNull().default(1),
     // Leads are real business records — a deleted user/staff account must
     // not take the lead down with it, just detach from it.
     userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),

@@ -11,7 +11,7 @@
  * softDeleteLead, proformas.status='cancelled' via cancelProforma).
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { createTestDb } from '@/test/db';
 import * as schema from '@/lib/server/db/schema';
@@ -51,17 +51,66 @@ async function makeUser() {
 }
 
 describe('FK onDelete — cascade for structural/non-historical rows', () => {
-  it('deleting a category cascades through sub_category → sku → current_prices/price_points', async () => {
+  it('deleting a category cascades through sub_category → sku → current_prices', async () => {
     const { catId, subId, skuId } = await makeCategoryChain();
     await db.insert(schema.currentPrices).values({ skuId, price: 100000, unit: 'kg' });
-    await db.insert(schema.pricePoints).values({ id: ulid(), skuId, price: 100000, unit: 'kg' });
 
     await db.delete(schema.categories).where(eq(schema.categories.id, catId));
 
     expect((await db.select().from(schema.subCategories).where(eq(schema.subCategories.id, subId))).length).toBe(0);
     expect((await db.select().from(schema.skus).where(eq(schema.skus.id, skuId))).length).toBe(0);
     expect((await db.select().from(schema.currentPrices).where(eq(schema.currentPrices.skuId, skuId))).length).toBe(0);
+  });
+
+  /* K-258. The chain above is ON DELETE CASCADE all the way into
+   * `price_points`, so before this guard one `DELETE FROM categories` — a
+   * migration, a psql session, a cascade the author had not traced — erased
+   * every price this business ever published, with no trash and no undo. The
+   * admin routes already made an operator confirm that impact; the database
+   * did not, and the audit rated raw SQL the likelier path. */
+  it('refuses to delete a category whose skus carry published price history', async () => {
+    const { catId, subId, skuId } = await makeCategoryChain();
+    await db.insert(schema.pricePoints).values({ id: ulid(), skuId, price: 100000, unit: 'kg' });
+
+    await expect(db.delete(schema.categories).where(eq(schema.categories.id, catId))).rejects.toMatchObject({
+      cause: { code: '23001', message: expect.stringContaining('published price history') },
+    });
+
+    // Nothing partially removed: the trigger aborts the whole statement.
+    expect((await db.select().from(schema.categories).where(eq(schema.categories.id, catId))).length).toBe(1);
+    expect((await db.select().from(schema.subCategories).where(eq(schema.subCategories.id, subId))).length).toBe(1);
+    expect((await db.select().from(schema.pricePoints).where(eq(schema.pricePoints.skuId, skuId))).length).toBe(1);
+  });
+
+  it('still purges the history when the transaction authorizes it, as the admin routes do', async () => {
+    const { catId, skuId } = await makeCategoryChain();
+    await db.insert(schema.pricePoints).values({ id: ulid(), skuId, price: 100000, unit: 'kg' });
+
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`SET LOCAL ahantime.purge_authorized = 'on'`);
+      await tx.delete(schema.categories).where(eq(schema.categories.id, catId));
+    });
+
+    expect((await db.select().from(schema.skus).where(eq(schema.skus.id, skuId))).length).toBe(0);
     expect((await db.select().from(schema.pricePoints).where(eq(schema.pricePoints.skuId, skuId))).length).toBe(0);
+  });
+
+  it('does not leave the purge grant behind on the connection', async () => {
+    const { catId: purgedCat, skuId: purgedSku } = await makeCategoryChain();
+    await db.insert(schema.pricePoints).values({ id: ulid(), skuId: purgedSku, price: 1, unit: 'kg' });
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`SET LOCAL ahantime.purge_authorized = 'on'`);
+      await tx.delete(schema.categories).where(eq(schema.categories.id, purgedCat));
+    });
+
+    // A later statement on the same pool must be refused again.
+    const { catId } = await makeCategoryChain();
+    const { skuId } = await makeCategoryChain();
+    await db.insert(schema.pricePoints).values({ id: ulid(), skuId, price: 1, unit: 'kg' });
+    await expect(db.delete(schema.categories).where(eq(schema.categories.id, catId))).resolves.toBeDefined();
+    await expect(
+      db.delete(schema.skus).where(eq(schema.skus.id, skuId)),
+    ).rejects.toMatchObject({ cause: { code: '23001' } });
   });
 
   it('deleting a user cascades to their favorites, refresh tokens, and club membership', async () => {

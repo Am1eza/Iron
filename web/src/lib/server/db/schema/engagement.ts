@@ -4,6 +4,7 @@
 import { sql } from 'drizzle-orm';
 import {
   bigint,
+  check,
   index,
   pgTable,
   text,
@@ -71,6 +72,8 @@ export const alerts = pgTable(
     // query (user_id is the leading column, so it still serves a bare
     // user_id lookup) — kept `alerts_status_idx` alone since the ADMIN list
     // filters by status ACROSS every user, which the composite can't serve.
+    check('alerts_target_ck', sql`(${t.targetType} = 'sku' and ${t.skuId} is not null and ${t.marketKey} is null) or (${t.targetType} = 'market' and ${t.marketKey} is not null and ${t.skuId} is null)`),
+    check('alerts_values_ck', sql`${t.op} in ('below','above') and ${t.status} in ('active','triggered','paused') and ${t.channel} in ('sms','telegram','whatsapp','eitaa') and ${t.threshold} between 1 and 10000000000000`),
     index('alerts_status_idx').on(t.status),
     index('alerts_user_status_idx').on(t.userId, t.status),
     // FK with no covering index (W29) — the `skus` ON DELETE CASCADE above.

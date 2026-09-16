@@ -1,171 +1,55 @@
 #!/usr/bin/env bash
-# Nightly Postgres backup for ahantime. Keeps 14 daily dumps, gzipped.
+# All-engine, encrypted backup. No fixture seeding or production restore.
 set -euo pipefail
-BACKUP_DIR=/var/backups/ahantime
-# These dumps are a full pg_dump of production — every lead, customer mobile,
-# order and proforma. The default umask left them 0644, world-readable to any
-# non-root user or any process that gets a foothold on the host.
 umask 077
-mkdir -p "$BACKUP_DIR"
-chmod 700 "$BACKUP_DIR"
-cd /opt/ahantime
-TS=$(date +%F_%H%M)
-TMP="$BACKUP_DIR/.ahantime-$TS.sql.gz.partial"
-docker compose exec -T db pg_dump -U ahantime -d ahantime | gzip > "$TMP"
-# Only publish if the dump is non-trivial (guards against a 0-byte dump on failure)
-if [ "$(stat -c%s "$TMP")" -gt 1000 ]; then
-  mv -f "$TMP" "$BACKUP_DIR/ahantime-$TS.sql.gz"
-else
-  rm -f "$TMP"; echo "backup too small — aborted" >&2; exit 1
-fi
-find "$BACKUP_DIR" -name 'ahantime-*.sql.gz' -mtime +14 -delete
-
-# ---------------------------------------------------------------------------
-# Off-site copy (restic). Everything above this line is unchanged and still
-# works on its own — the local dump is taken and retained first, so a failure
-# down here can never cost us the nightly backup we already have.
-#
-# Why this exists: for months every backup lived on the same disk as the
-# database it was protecting. A lost disk, a lost hosting account or a bad
-# `rm` would have taken the dumps with it. The DB is ~16MB gzipped, so the
-# off-site copy is essentially free.
-#
-# Credentials + destination: /etc/ahantime-backup.env (root-only). While the
-# owner has not supplied a bucket yet, RESTIC_REPOSITORY points at a second
-# local path — that is NOT off-site and does not close the risk; it exists so
-# the whole pipeline is proven and switching to the real bucket is a one-line
-# change. See docs/BACKUP.md.
-# ---------------------------------------------------------------------------
-CONF=/etc/ahantime-backup.env
-if [ ! -r "$CONF" ]; then
-  echo "restic: $CONF missing — local dump kept, OFF-SITE COPY SKIPPED" >&2
-  exit 0
-fi
-set -a; . "$CONF"; set +a
-if [ -z "${RESTIC_REPOSITORY:-}" ] || [ -z "${RESTIC_PASSWORD:-}" ]; then
-  echo "restic: repository/password unset — local dump kept, OFF-SITE COPY SKIPPED" >&2
-  exit 0
-fi
-
-# systemd hands a Type=oneshot unit a minimal environment: no HOME, no
-# XDG_CACHE_HOME. restic needs one of them to site its cache and hard-fails
-# without it ("unable to locate cache directory: neither $XDG_CACHE_HOME nor
-# $HOME are defined"). That is exactly how the off-site copy failed silently
-# on three consecutive nights (2026-08-01/02/03) while the local dump kept
-# succeeding — the timer ran, the dump landed, and only restic died. Default
-# them here rather than in the unit file so the script behaves identically
-# under systemd, cron, and an interactive shell.
-export HOME="${HOME:-/root}"
-export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
-mkdir -p "$XDG_CACHE_HOME"
-
-# Back up the published dump only (never the .partial), tagged so `restic
-# snapshots --tag` can find them and so a future non-DB backup can coexist.
-if ! restic backup --tag ahantime-db --host ahantime \
-      "$BACKUP_DIR/ahantime-$TS.sql.gz" >/dev/null; then
-  echo "restic: backup FAILED — local dump is still intact at $BACKUP_DIR" >&2
-  exit 1
-fi
-
-# The DB dump alone is not a restorable system. skus.image_url,
-# categories.image_url, articles.cover_url and brand_logos.logo_url are columns
-# in the dump, but the FILES they point at live only in the `uploads` Docker
-# volume — restore the DB after a host loss and every product image, article
-# cover and partner logo is a broken link with no way to reconstruct it.
-# Tagged separately so it gets its own retention rule below.
-#
-# I-213: this used to be `|| echo ... FAILED` — the exact "silently stops
-# mattering" shape the db copy already learned the hard way above (see the
-# --group-by comment below). A failed uploads copy left the run green while
-# quietly losing the only thing that makes the db dump restorable. Fail loud
-# like the db copy does, unless there's nothing to back up in the first
-# place (the directory doesn't exist yet — a fresh host before first upload).
-uploads_failed=0
-UPLOADS=/var/lib/docker/volumes/ahantime_uploads/_data
-if [ -d "$UPLOADS" ]; then
-  if ! restic backup --tag ahantime-uploads --host ahantime "$UPLOADS" >/dev/null; then
-    echo "restic: uploads copy FAILED — db copy succeeded but uploads did NOT" >&2
-    uploads_failed=1
-  fi
-fi
-
-# Mirror the local 14-day policy. --prune reclaims the space; it is safe to
-# interrupt (restic repositories are append-only until prune completes).
-# --tag is matched per-snapshot, so each tag needs its own forget call; a single
-# call would leave the untagged-for-that-run snapshots unpruned forever.
-#
-# --group-by is the whole ballgame here and was the bug: restic's DEFAULT
-# grouping is `host,paths`, and every db dump is backed up under a UNIQUE path
-# because the filename carries a timestamp (ahantime-2026-08-04_0301.sql.gz).
-# So each snapshot landed in a group of its own, `--keep-daily 14` kept the one
-# snapshot in every group, and restic dutifully reported "keep 1 / remove 0"
-# for each — forever. Retention was never applied to a single snapshot since
-# the off-site copy was introduced, and because the whole thing was `|| echo`
-# it also could never fail the run. Group by tag+host so all dumps for a tag
-# are one timeline and the daily/weekly policy actually bites.
-#
-# These are NOT `|| echo` any more. A retention policy that silently stops
-# applying is exactly the failure mode this script already learned the hard way
-# (see the freshness check below); an unpruned repository grows without bound
-# until the disk fills and then the *backup* starts failing. Loud, non-zero,
-# visible to `systemctl status` and `OnFailure=`.
-forget_failed=0
-if ! restic forget --tag ahantime-db --host ahantime \
-      --group-by tag,host --keep-daily 14 --keep-weekly 8 --prune >/dev/null; then
-  echo "restic: forget/prune FAILED for ahantime-db — retention is NOT being applied" >&2
-  forget_failed=1
-fi
-if ! restic forget --tag ahantime-uploads --host ahantime \
-      --group-by tag,host --keep-daily 14 --keep-weekly 8 --prune >/dev/null; then
-  echo "restic: forget/prune FAILED for ahantime-uploads — retention is NOT being applied" >&2
-  forget_failed=1
-fi
-
-# Assert the copy we just took is actually IN the repository. Without this the
-# script's own success message is the only evidence, and for three nights that
-# message never printed while nothing noticed. A freshness check turns a silent
-# failure into a non-zero exit that `systemctl status` and OnFailure= can see.
-# NOT `--latest 1`: restic applies that per distinct (host, paths) group, and
-# every dump has a unique path because the filename carries a timestamp — so
-# it returns the newest snapshot of EACH path, oldest first, not the newest
-# overall. Take the max date across all snapshots for the tag instead.
-NEWEST=$(restic snapshots --tag ahantime-db --host ahantime --json 2>/dev/null \
-  | grep -o '"time":"[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}' | cut -d'"' -f4 | sort | tail -1)
-if [ "$NEWEST" != "$(date +%F)" ]; then
-  echo "restic: VERIFY FAILED — newest ahantime-db snapshot is '${NEWEST:-none}', expected $(date +%F)" >&2
-  exit 1
-fi
-
-echo "restic: off-site copy ok ($(restic snapshots --tag ahantime-db --json 2>/dev/null | grep -o '"id"' | wc -l) db snapshots, newest $NEWEST)"
-
-# I-213: the db copy above has always had this freshness assertion; the
-# uploads copy never did, so a silently-stale (or never-run) uploads backup
-# had no way to turn the unit red — the same blind spot --group-by fixed for
-# retention, just for verification instead. Only asserted when the uploads
-# directory exists at all (see the `-d "$UPLOADS"` guard above) so a fresh
-# host with no uploads yet doesn't fail on a tag that was never expected to
-# have a snapshot today.
-if [ -d "$UPLOADS" ]; then
-  UPLOADS_NEWEST=$(restic snapshots --tag ahantime-uploads --host ahantime --json 2>/dev/null \
-    | grep -o '"time":"[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}' | cut -d'"' -f4 | sort | tail -1)
-  if [ "$UPLOADS_NEWEST" != "$(date +%F)" ]; then
-    echo "restic: VERIFY FAILED — newest ahantime-uploads snapshot is '${UPLOADS_NEWEST:-none}', expected $(date +%F)" >&2
-    uploads_failed=1
-  else
-    echo "restic: uploads copy ok ($(restic snapshots --tag ahantime-uploads --json 2>/dev/null | grep -o '"id"' | wc -l) snapshots, newest $UPLOADS_NEWEST)"
-  fi
-fi
-
-# The dump landed and is verifiably in the repository — that part is fine and
-# has already been reported above. But exit non-zero anyway if retention did
-# not run, or the uploads copy failed/is stale, so the unit goes red and
-# OnFailure= fires. Reported last so the operator sees "backup ok, X broken"
-# rather than a bare failure.
-if [ "$forget_failed" -ne 0 ]; then
-  echo "restic: backup succeeded but RETENTION FAILED — repository will grow unbounded" >&2
-  exit 1
-fi
-if [ "$uploads_failed" -ne 0 ]; then
-  echo "restic: db backup succeeded but the UPLOADS copy did not — see above" >&2
-  exit 1
-fi
+CONF=${AHANTIME_BACKUP_CONFIG:-/etc/ahantime-backup.env}
+[[ -r "$CONF" ]] || { echo 'backup configuration missing' >&2; exit 1; }
+set -a
+. "$CONF"
+set +a
+: "${RESTIC_REPOSITORY:?off-host repository required}"
+: "${RESTIC_PASSWORD_FILE:?independent recovery password file required}"
+: "${LOCAL_RESTIC_REPOSITORY:?encrypted local repository required}"
+# Reject local paths; the operator must additionally verify failure-domain independence.
+case "$RESTIC_REPOSITORY" in
+  s3:*|sftp:*|rest:https:*|b2:*|azure:*|gs:*|rclone:*) ;;
+  *) echo 'An off-host restic repository is required' >&2; exit 1;;
+esac
+[[ -s "$RESTIC_PASSWORD_FILE" ]] || exit 1
+export RESTIC_CACHE_DIR=${RESTIC_CACHE_DIR:-/var/cache/ahantime-restic}
+mkdir -p "$RESTIC_CACHE_DIR"
+cd "${AHANTIME_DEPLOY_DIR:-/opt/ahantime}"
+# flock is available on the Linux production host. Concurrent dumps/prune are forbidden.
+exec 9>/var/lock/ahantime-backup.lock
+flock -n 9 || { echo 'another backup is running' >&2; exit 1; }
+STAGE=$(mktemp -d /var/tmp/ahantime-backup.XXXXXX)
+trap 'rm -rf "$STAGE"' EXIT
+RUN_ID=$(date -u +%Y%m%dT%H%M%SZ)
+printf '%s\n' "$RUN_ID" > "$STAGE/run-id"
+pg_backup() {
+  local service=$1 user=$2 database=$3
+  docker compose exec -T "$service" pg_dump -U "$user" -d "$database" -Fc > "$STAGE/$service.dump"
+  docker compose exec -T "$service" pg_dumpall -U "$user" --globals-only > "$STAGE/$service-globals.sql"
+  [[ -s "$STAGE/$service.dump" && -s "$STAGE/$service-globals.sql" ]]
+}
+pg_backup db ahantime ahantime
+pg_backup glitchtip-db glitchtip glitchtip
+# Password expanded inside container, never in the host command or log.
+docker compose exec -T matomo-db sh -c 'MYSQL_PWD="$MARIADB_ROOT_PASSWORD" exec mariadb-dump -uroot --single-transaction --routines --events --triggers --all-databases' > "$STAGE/matomo.sql"
+[[ -s "$STAGE/matomo.sql" ]]
+# Discover the real mounted upload volume, do not assume a Compose project name.
+WEB_ID=$(docker compose ps -q web)
+[[ -n "$WEB_ID" ]] || { echo 'web container missing' >&2; exit 1; }
+UPLOADS=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/app/public/uploads"}}{{.Source}}{{end}}{{end}}' "$WEB_ID")
+[[ -d "$UPLOADS" ]] || { echo 'uploads mount missing' >&2; exit 1; }
+tar -C "$UPLOADS" -cf "$STAGE/uploads.tar" .
+(cd "$STAGE" && sha256sum db.dump db-globals.sql glitchtip-db.dump glitchtip-db-globals.sql matomo.sql uploads.tar > SHA256SUMS)
+# Fixed path inside repository via stdin tar: one snapshot is a complete restore set.
+# Repositories must be initialized explicitly; a typo must not create a new empty one.
+for repository in "$LOCAL_RESTIC_REPOSITORY" "$RESTIC_REPOSITORY"; do
+  tar -C "$STAGE" -cf - . | restic -r "$repository" backup --stdin --stdin-filename complete.tar --tag ahantime-complete --tag "$RUN_ID" --host ahantime >/dev/null
+  restic -r "$repository" snapshots --tag "$RUN_ID" --json | python3 -c 'import json,sys; assert len(json.load(sys.stdin)) == 1'
+  restic -r "$repository" forget --tag ahantime-complete --host ahantime --group-by host --keep-daily 14 --keep-weekly 8 --prune >/dev/null
+ done
+# tags include a unique run id; group by host, NOT tags, for retention.
+echo "backup complete: $RUN_ID (all databases + uploads; encrypted local and remote)"
