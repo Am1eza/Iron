@@ -22,7 +22,8 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { after } from 'next/server';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
-import { Pool } from 'pg';
+import type { Pool } from 'pg';
+import { createDatabasePool } from './poolConfig';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from './schema';
 
@@ -113,7 +114,7 @@ export function getDb(): Db {
     // headroom for a handful of concurrent queries within that request; it
     // never needs to amortize connections across requests (Hyperdrive, when
     // bound, is what does that at the edge).
-    const pool = new Pool({ connectionString: url, max: 5, connectionTimeoutMillis: 5000 });
+    const pool = createDatabasePool(url, true);
     const db = drizzle(pool, { schema });
     workersRequestDb.set(ctxKey, { pool, db });
     after(() => {
@@ -152,8 +153,7 @@ export function getDb(): Db {
   // That product must stay under Postgres `max_connections` (100 on this
   // deploy) — docker-compose.yml sets both explicitly. Left at 15 when unset
   // so single-process runs (tests, local, 1-core hosts) are unchanged.
-  const poolMax = Number(process.env.PG_POOL_MAX) || 15;
-  const pool = new Pool({ connectionString: url, max: poolMax, connectionTimeoutMillis: 5000 });
+  const pool = createDatabasePool(url);
   globalForDb.__ahantimeDb = { pool, db: drizzle(pool, { schema }) };
   return globalForDb.__ahantimeDb.db;
 }

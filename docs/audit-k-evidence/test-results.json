@@ -1,0 +1,16 @@
+{
+  "date": "2026-09-15",
+  "engine": "PGlite (not multi-connection PostgreSQL)",
+  "passed": 70,
+  "failed": 0,
+  "files": {
+    "schemaCascade.test.ts": 8,
+    "seed.test.ts": 2,
+    "operations.pg.test.ts": 15,
+    "service.pg.test.ts": 5,
+    "catalogRepo.search.pg.test.ts": 2,
+    "catalogRiskyDelete.pg.test.ts": 11,
+    "catalogDelete.pg.test.ts": 6,
+    "pricing.adminGrid.pg.test.ts": 21
+  }
+}

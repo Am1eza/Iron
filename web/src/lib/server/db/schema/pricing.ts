@@ -94,6 +94,7 @@ export const pricePoints = pgTable(
   (t) => [
     index('price_points_sku_at_idx').on(t.skuId, t.at),
     index('price_points_version_idx').on(t.version),
+    index('price_points_actor_idx').on(t.actorId),
     check('price_points_price_toman_range', sql`${t.price} BETWEEN 1 AND 10000000000000`),
   ],
 );

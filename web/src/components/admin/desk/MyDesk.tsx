@@ -145,13 +145,13 @@ export function MyDesk() {
   };
 
   const patchLead = useMutation({
-    mutationFn: (v: { id: string; patch: { status?: string; callbackAt?: string | null }; done: string }) =>
-      adminApi.updateLead(v.id, v.patch),
+    mutationFn: (v: { id: string; version: number; patch: { status?: string; callbackAt?: string | null }; done: string }) =>
+      adminApi.updateLead(v.id, { ...v.patch, expectedVersion: v.version }),
     onSuccess: (_res, v) => {
       toast.success(v.done);
       invalidate(v.id);
     },
-    onError: (e) => toast.error(toUserMessage(e)),
+    onError: (e, v) => { toast.error(toUserMessage(e)); invalidate(v.id); },
   });
 
   const addNote = useMutation({
@@ -167,6 +167,7 @@ export function MyDesk() {
   const setCallback = (lead: DeskLead, at: Date | null, label: string) =>
     patchLead.mutate({
       id: lead.id,
+      version: lead.version,
       patch: { callbackAt: at ? at.toISOString() : null },
       done: at ? `زمان تماس ${lead.ref} روی ${label} تنظیم شد.` : `زمان تماس ${lead.ref} حذف شد.`,
     });
@@ -196,6 +197,7 @@ export function MyDesk() {
     if (Object.keys(patch).length > 0) {
       patchLead.mutate({
         id: lead.id,
+        version: lead.version,
         patch,
         done: patch.status ? `${lead.ref} «در تماس» شد.` : `زمان تماس ${lead.ref} تنظیم شد.`,
       });
@@ -497,7 +499,7 @@ export function MyDesk() {
                   size="sm"
                   loading={patchLead.isPending}
                   onClick={() => {
-                    patchLead.mutate({ id: sheetLead.id, patch: { status: 'won' }, done: `${sheetLead.ref} موفق ثبت شد. 🎉` });
+                    patchLead.mutate({ id: sheetLead.id, version: sheetLead.version, patch: { status: 'won' }, done: `${sheetLead.ref} موفق ثبت شد. 🎉` });
                     setSheetId(null);
                   }}
                 >
@@ -520,7 +522,7 @@ export function MyDesk() {
                         .addLeadNote(sheetLead.id, `دلیل ناموفق: ${reason}`)
                         .catch((e: unknown) => toast.error(toUserMessage(e)));
                     }
-                    patchLead.mutate({ id: sheetLead.id, patch: { status: 'lost' }, done: `${sheetLead.ref} ناموفق ثبت شد.` });
+                    patchLead.mutate({ id: sheetLead.id, version: sheetLead.version, patch: { status: 'lost' }, done: `${sheetLead.ref} ناموفق ثبت شد.` });
                     setSheetId(null);
                   }}
                 >

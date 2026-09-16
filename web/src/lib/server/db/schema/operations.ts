@@ -42,6 +42,9 @@ export const warehouseReservations = pgTable('warehouse_reservations', {
   status: text('status', { enum: ['reserved', 'released', 'consumed'] }).notNull().default('reserved'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [index('warehouse_reservations_item_idx').on(t.warehouseItemId, t.status),
+  index('warehouse_reservations_order_item_idx').on(t.orderItemId),
+  index('warehouse_reservations_owner_idx').on(t.ownerId),
+  check('reservation_quantity_ck_status', sql`${t.status} in ('reserved','released','consumed')`),
   check('reservation_quantity_ck', sql`${t.quantityTons}>0 and ${t.quantityTons}<=100000`)]);
 
 export const warehouseWithdrawals = pgTable('warehouse_withdrawals', {
@@ -56,6 +59,9 @@ export const warehouseWithdrawals = pgTable('warehouse_withdrawals', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [index('warehouse_withdrawals_owner_idx').on(t.ownerId, t.createdAt),
+  index('warehouse_withdrawals_item_idx').on(t.warehouseItemId),
+  index('warehouse_withdrawals_reservation_idx').on(t.reservationId),
+  check('withdrawal_quantity_ck_status', sql`${t.status} in ('requested','approved','delivered','cancelled')`),
   check('withdrawal_quantity_ck', sql`${t.quantityTons}>0 and ${t.quantityTons}<=100000`)]);
 
 export const orderFulfillments = pgTable('order_fulfillments', {
@@ -68,6 +74,8 @@ export const orderFulfillments = pgTable('order_fulfillments', {
   actorId: text('actor_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [index('order_fulfillments_item_idx').on(t.orderItemId),
+  index('order_fulfillments_reservation_idx').on(t.reservationId),
+  check('fulfillment_quantity_ck_status', sql`${t.kind} in ('delivery','return')`),
   check('fulfillment_quantity_ck', sql`${t.quantity}>0 and ${t.quantity}<1000000000000`)]);
 
 /** Positive amounts are payable to the owner; negative amounts are payouts.
@@ -86,6 +94,10 @@ export const warehouseCashEntries = pgTable('warehouse_cash_entries', {
   actorId: text('actor_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [index('warehouse_cash_owner_idx').on(t.ownerId, t.createdAt),
+  index('warehouse_cash_item_idx').on(t.warehouseItemId),
+  index('warehouse_cash_order_idx').on(t.orderId),
+  index('warehouse_cash_settlement_idx').on(t.settlementId),
+  check('warehouse_cash_amount_ck_status', sql`${t.kind} in ('sale','payout','payment','refund','reversal')`),
   check('warehouse_cash_amount_ck', sql`${t.amountToman}<>0 and ${t.amountToman} between -9007199254740991 and 9007199254740991`)]);
 
 export const operationOutbox = pgTable('operation_outbox', {
@@ -99,4 +111,5 @@ export const operationOutbox = pgTable('operation_outbox', {
   claimedAt: timestamp('claimed_at', { withTimezone: true }),
   lastError: text('last_error'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, t => [index('operation_outbox_pending_idx').on(t.status, t.nextAttemptAt)]);
+}, t => [index('operation_outbox_pending_idx').on(t.status, t.nextAttemptAt),
+  check('outbox_state_ck', sql`${t.status} in ('pending','sending','sent','uncertain','failed') and ${t.attempts} >= 0`)]);

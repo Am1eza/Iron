@@ -470,6 +470,20 @@
       "when": 1789207817833,
       "tag": "0066_classy_thunderbolts",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1789464841650,
+      "tag": "0067_k_foreign_key_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1789591501078,
+      "tag": "0068_k_integrity",
+      "breakpoints": true
     }
   ]
 }

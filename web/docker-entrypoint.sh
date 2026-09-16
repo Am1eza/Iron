@@ -18,7 +18,14 @@ if [ -n "$DATABASE_URL" ]; then
   # Deliberately ONE process regardless of web clustering — the scheduler
   # additionally takes a Postgres advisory lock per run, so web workers can
   # never double-run a job.
-  node scripts/jobs.mjs &
+  (
+    trap 'exit 0' TERM INT
+    while true; do
+      PG_APPLICATION_NAME=ahantime-jobs PG_STATEMENT_TIMEOUT_MS=60000 node scripts/jobs.mjs
+      echo "[jobs] exited; restarting in 5 seconds" >&2
+      sleep 5
+    done
+  ) &
 else
   echo "[entrypoint] DATABASE_URL not set — starting without a database (mock mode)."
 fi

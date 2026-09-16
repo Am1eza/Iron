@@ -72,7 +72,7 @@ services:
       # step in the deploy path.
       APP_RELEASE: ${WEB_IMAGE:-local}
       DATABASE_URL: postgres://ahantime:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/ahantime
-      SEED_ON_START: ${SEED_ON_START:-true}   # idempotent — only fills empty tables
+      SEED_ON_START: "false" # Production never loads fixture data.
       # SMS.ir — REQUIRED with the defaults above (live mode + AUTH_ENFORCED):
       # OTP login has no fallback, so the app refuses to boot without these.
       SMSIR_API_KEY: ${SMSIR_API_KEY:?set SMSIR_API_KEY in .env (OTP login has no fallback in live mode)}

@@ -430,7 +430,7 @@ export function LeadDetail({ id }: { id: string }) {
     // The toast alone would leave the rep staring at a screen that still shows
     // the old owner — and the buttons that go with it — so refetch: what they
     // are told and what they see have to agree.
-    if (err instanceof ApiError && err.code === 'assignee_conflict') invalidate();
+    if (err instanceof ApiError && ['assignee_conflict', 'lead_conflict'].includes(err.code ?? '')) invalidate();
     toast.error(err instanceof ApiError ? err.message : fallback);
   };
 
@@ -458,8 +458,8 @@ export function LeadDetail({ id }: { id: string }) {
     // for the ones it refuses without a justification (leaving «موفق»).
     mutationFn: (v: string | { status: string; reason: string }) =>
       typeof v === 'string'
-        ? adminApi.updateLead(id, { status: v })
-        : adminApi.updateLead(id, { status: v.status, statusReason: v.reason }),
+        ? adminApi.updateLead(id, { expectedVersion: data!.lead.version, status: v })
+        : adminApi.updateLead(id, { expectedVersion: data!.lead.version, status: v.status, statusReason: v.reason }),
     onSuccess: (_res, v) => {
       const status = typeof v === 'string' ? v : v.status;
       // Acknowledge explicitly — a badge repaint alone reads as "nothing
@@ -550,7 +550,7 @@ export function LeadDetail({ id }: { id: string }) {
   });
 
   const assign = useMutation({
-    mutationFn: (assigneeId: string | null) => adminApi.updateLead(id, { assigneeId }),
+    mutationFn: (assigneeId: string | null) => adminApi.updateLead(id, { expectedVersion: data!.lead.version, assigneeId }),
     onSuccess: (_res, assigneeId) => {
       toast.success(assigneeId ? 'سرنخ واگذار شد.' : 'واگذاری برداشته شد.');
       invalidate();
@@ -559,7 +559,7 @@ export function LeadDetail({ id }: { id: string }) {
     onError: (e) => showError(e, 'واگذاری ناموفق بود.'),
   });
   const setCallback = useMutation({
-    mutationFn: (callbackAt: string | null) => adminApi.updateLead(id, { callbackAt }),
+    mutationFn: (callbackAt: string | null) => adminApi.updateLead(id, { expectedVersion: data!.lead.version, callbackAt }),
     onSuccess: () => {
       toast.success('زمان تماس ثبت شد.');
       invalidate();

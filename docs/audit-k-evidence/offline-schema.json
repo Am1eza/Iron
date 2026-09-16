@@ -1,0 +1,4772 @@
+{
+  "scope": "Ephemeral PGlite; column presence/nullability only, not full semantic schema diff or production proof",
+  "before": [
+    {
+      "n": 67
+    }
+  ],
+  "after": [
+    {
+      "n": 67
+    }
+  ],
+  "tables": 58,
+  "columns": [
+    {
+      "table_name": "orders",
+      "column_name": "deleted_at",
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "ai_budget_reservations",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "carrier_name",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "articles",
+      "column_name": "faq",
+      "is_nullable": "YES",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "warehouse_items",
+      "column_name": "request_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_settlements",
+      "column_name": "actor_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_settlements",
+      "column_name": "paid_at",
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "sms_log",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "order_events",
+      "column_name": "actor_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "rate_limit_windows",
+      "column_name": "expires_at",
+      "is_nullable": "NO",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "articles",
+      "column_name": "excerpt",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "audit_entries",
+      "column_name": "after",
+      "is_nullable": "YES",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "warehouse_withdrawals",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "proformas",
+      "column_name": "subtotal",
+      "is_nullable": "NO",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "ai_corrections",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "favorites",
+      "column_name": "user_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "image_approved_at",
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "contact_mobile",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "price_sync_entries",
+      "column_name": "source_updated_at",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "idempotency_keys",
+      "column_name": "response_status",
+      "is_nullable": "YES",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "comment_helpful_votes",
+      "column_name": "comment_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_items",
+      "column_name": "size_label",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_cash_entries",
+      "column_name": "order_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "articles",
+      "column_name": "related_sku_ids",
+      "is_nullable": "YES",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "market_values",
+      "column_name": "key",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_items",
+      "column_name": "insured",
+      "is_nullable": "NO",
+      "data_type": "boolean"
+    },
+    {
+      "table_name": "warehouse_withdrawals",
+      "column_name": "reservation_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "proformas",
+      "column_name": "discount_toman",
+      "is_nullable": "NO",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "ref",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "contact_messages",
+      "column_name": "message",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "ai_eval_candidates",
+      "column_name": "bad_answer",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "image_approved_by",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_settlements",
+      "column_name": "warehouse_item_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "identity_key",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "callback_at",
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "factory_registry",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "search_console_auth",
+      "column_name": "refresh_token",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "price_sync_entries",
+      "column_name": "reason",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_billing_events",
+      "column_name": "note",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "sub_categories",
+      "column_name": "name_zh",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "price_points",
+      "column_name": "source_event_key",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "branch_length_m",
+      "is_nullable": "YES",
+      "data_type": "double precision"
+    },
+    {
+      "table_name": "price_points",
+      "column_name": "sku_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "market_values",
+      "column_name": "unit",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "sub_categories",
+      "column_name": "category_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "business_operations",
+      "column_name": "request_hash",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_withdrawals",
+      "column_name": "owner_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_cash_entries",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "proformas",
+      "column_name": "volume_tier",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "current_prices",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "warehouse_settlements",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "tracking_number",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "name",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "search_console_auth",
+      "column_name": "oauth_state_at",
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "articles",
+      "column_name": "seo",
+      "is_nullable": "YES",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "warehouse_billing_events",
+      "column_name": "effective_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "warehouse_movements",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "operation_outbox",
+      "column_name": "attempts",
+      "is_nullable": "NO",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "contact_messages",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "factory_order",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "ai_messages",
+      "column_name": "conversation_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "otp_rate_limits",
+      "column_name": "mobile",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "audit_entries",
+      "column_name": "action",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "lead_notes",
+      "column_name": "lead_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_settlements",
+      "column_name": "segments",
+      "is_nullable": "YES",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "price_sync_entries",
+      "column_name": "applied_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "lead_items",
+      "column_name": "qty",
+      "is_nullable": "NO",
+      "data_type": "double precision"
+    },
+    {
+      "table_name": "ai_budget_reservations",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "ai_feedback",
+      "column_name": "message_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "sub_categories",
+      "column_name": "name_ar",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "price_points",
+      "column_name": "source",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "idempotency_keys",
+      "column_name": "key",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "price_points",
+      "column_name": "source_published_label",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "search_console_auth",
+      "column_name": "last_error",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "ai_corrections",
+      "column_name": "answer",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_items",
+      "column_name": "arrived_at",
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "redirects",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "price_sync_runs",
+      "column_name": "skipped",
+      "is_nullable": "NO",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "warehouse_billing_events",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "users",
+      "column_name": "economic_code",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "search_console_auth",
+      "column_name": "access_token",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "sub_category_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "contact_messages",
+      "column_name": "mobile",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "club_memberships",
+      "column_name": "letterhead_logo_url",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "otp_rate_limits",
+      "column_name": "locked_until",
+      "is_nullable": "YES",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "alerts",
+      "column_name": "user_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "categories",
+      "column_name": "name_zh",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "market_values",
+      "column_name": "movement_pct",
+      "is_nullable": "YES",
+      "data_type": "double precision"
+    },
+    {
+      "table_name": "warehouse_withdrawals",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_cash_entries",
+      "column_name": "owner_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "weight_kg",
+      "is_nullable": "YES",
+      "data_type": "double precision"
+    },
+    {
+      "table_name": "otp_codes",
+      "column_name": "prev_hash",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "refresh_tokens",
+      "column_name": "parent_hash",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "alerts",
+      "column_name": "last_triggered_at",
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "idempotency_keys",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "alerts",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "ai_corrections",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_movements",
+      "column_name": "note",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "operation_outbox",
+      "column_name": "claimed_at",
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "dimensions",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "price_sync_runs",
+      "column_name": "source",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "audit_entries",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "categories",
+      "column_name": "icon_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "market_values",
+      "column_name": "is_stale",
+      "is_nullable": "NO",
+      "data_type": "boolean"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "line_total",
+      "is_nullable": "YES",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "theoretical_weight_kg",
+      "is_nullable": "YES",
+      "data_type": "double precision"
+    },
+    {
+      "table_name": "ai_budget_reservations",
+      "column_name": "tokens",
+      "is_nullable": "NO",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "ai_feedback",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "current_prices",
+      "column_name": "movement_pct",
+      "is_nullable": "YES",
+      "data_type": "double precision"
+    },
+    {
+      "table_name": "ai_usage",
+      "column_name": "completion_tokens",
+      "is_nullable": "NO",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "articles",
+      "column_name": "body_json",
+      "is_nullable": "YES",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "user_requests",
+      "column_name": "title",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "ai_corrections",
+      "column_name": "source_message_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "price_sync_runs",
+      "column_name": "error",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "factory_registry",
+      "column_name": "verified_at",
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "ai_feedback",
+      "column_name": "rating",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_cash_entries",
+      "column_name": "proof",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "utm_campaign",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "rate_limit_windows",
+      "column_name": "key",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "article_comments",
+      "column_name": "article_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "users",
+      "column_name": "is_active",
+      "is_nullable": "NO",
+      "data_type": "boolean"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "cross_listed_category_ids",
+      "is_nullable": "YES",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "audit_entries",
+      "column_name": "entity_type",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "search_console_metrics",
+      "column_name": "impressions",
+      "is_nullable": "NO",
+      "data_type": "real"
+    },
+    {
+      "table_name": "contact_messages",
+      "column_name": "reply",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_billing_events",
+      "column_name": "quantity_tons",
+      "is_nullable": "NO",
+      "data_type": "double precision"
+    },
+    {
+      "table_name": "search_console_auth",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_items",
+      "column_name": "intake_note",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "alerts",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "ai_conversations",
+      "column_name": "prompt_version_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "brand_logos",
+      "column_name": "is_active",
+      "is_nullable": "NO",
+      "data_type": "boolean"
+    },
+    {
+      "table_name": "warehouse_cash_entries",
+      "column_name": "amount_toman",
+      "is_nullable": "NO",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "unit",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "sku_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_reservations",
+      "column_name": "warehouse_item_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "order_fulfillments",
+      "column_name": "order_item_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_withdrawals",
+      "column_name": "quantity_tons",
+      "is_nullable": "NO",
+      "data_type": "double precision"
+    },
+    {
+      "table_name": "market_values",
+      "column_name": "value",
+      "is_nullable": "NO",
+      "data_type": "double precision"
+    },
+    {
+      "table_name": "users",
+      "column_name": "company_name",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "ai_usage",
+      "column_name": "prompt_text_hash",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "club_memberships",
+      "column_name": "user_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "audit_entries",
+      "column_name": "before",
+      "is_nullable": "YES",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "users",
+      "column_name": "invite_code",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "name",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "order_events",
+      "column_name": "at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "categories",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "current_prices",
+      "column_name": "sku_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_cash_entries",
+      "column_name": "reverses_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "categories",
+      "column_name": "name_ar",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "ai_feedback",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "price_sync_excluded",
+      "is_nullable": "NO",
+      "data_type": "boolean"
+    },
+    {
+      "table_name": "factory_registry",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "admin_allowlist",
+      "column_name": "added_by",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "redirects",
+      "column_name": "to_path",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_movements",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "alerts",
+      "column_name": "market_key",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "contact_messages",
+      "column_name": "replied_at",
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "market_points",
+      "column_name": "at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "ai_corrections",
+      "column_name": "created_by",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_withdrawals",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "ref_counters",
+      "column_name": "scope",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "seo",
+      "is_nullable": "YES",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "refresh_tokens",
+      "column_name": "user_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "otp_codes",
+      "column_name": "mobile",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "users",
+      "column_name": "national_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_billing_events",
+      "column_name": "actor_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "user_requests",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "ai_usage",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "ai_conversations",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "brand_logos",
+      "column_name": "logo_url",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "price_sync_runs",
+      "column_name": "started_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "categories",
+      "column_name": "slug",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "alerts",
+      "column_name": "deleted_at",
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "operation_outbox",
+      "column_name": "message",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "current_prices",
+      "column_name": "source_event_key",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "categories",
+      "column_name": "name_en",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "otp_codes",
+      "column_name": "attempts",
+      "is_nullable": "NO",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "user_requests",
+      "column_name": "ref",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "articles",
+      "column_name": "related_news_topic_ids",
+      "is_nullable": "YES",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "article_comments",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "users",
+      "column_name": "mobile",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "operation_outbox",
+      "column_name": "next_attempt_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "ai_conversations",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "brand_logos",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "search_console_auth",
+      "column_name": "oauth_state",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "landing_referrer",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "search_console_metrics",
+      "column_name": "fetched_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "unit_price",
+      "is_nullable": "YES",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "warehouse_items",
+      "column_name": "contract_ref",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "current_prices",
+      "column_name": "delivery_time",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "users",
+      "column_name": "last_name",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "users",
+      "column_name": "id_verify_status",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "users",
+      "column_name": "referred_by",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "search_console_metrics",
+      "column_name": "path",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "order_events",
+      "column_name": "kind",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "market_values",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "market_points",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "operation_outbox",
+      "column_name": "last_error",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_movements",
+      "column_name": "delta_tons",
+      "is_nullable": "NO",
+      "data_type": "double precision"
+    },
+    {
+      "table_name": "factory_registry",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "user_requests",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "warehouse_reservations",
+      "column_name": "quantity_tons",
+      "is_nullable": "NO",
+      "data_type": "double precision"
+    },
+    {
+      "table_name": "order_fulfillments",
+      "column_name": "kind",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "operation_outbox",
+      "column_name": "notification",
+      "is_nullable": "YES",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "warehouse_movements",
+      "column_name": "operation_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "articles",
+      "column_name": "slug",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "price_sync_entries",
+      "column_name": "matched_unit",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "price_sync_entries",
+      "column_name": "matched_factory",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "ai_conversations",
+      "column_name": "summary",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "brand_logos",
+      "column_name": "name",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "sms_log",
+      "column_name": "to",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "current_prices",
+      "column_name": "updated_by",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_items",
+      "column_name": "received_by",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "ref",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "otp_codes",
+      "column_name": "prev_expires_at",
+      "is_nullable": "YES",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "unit",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "proformas",
+      "column_name": "lead_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "terms",
+      "is_nullable": "YES",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "market_values",
+      "column_name": "movement_dir",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_items",
+      "column_name": "deleted_at",
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "warehouse_settlements",
+      "column_name": "payment_note",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_items",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "assignee_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "channel_pref",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "market_points",
+      "column_name": "value",
+      "is_nullable": "NO",
+      "data_type": "double precision"
+    },
+    {
+      "table_name": "warehouse_movements",
+      "column_name": "actor_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "condition",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "admin_allowlist",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "redirects",
+      "column_name": "permanent",
+      "is_nullable": "NO",
+      "data_type": "boolean"
+    },
+    {
+      "table_name": "proformas",
+      "column_name": "volume_policy_version",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "proformas",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "factory_registry",
+      "column_name": "normalized_name",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "search_console_auth",
+      "column_name": "last_sync_at",
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "proformas",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_items",
+      "column_name": "ref",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "utm_medium",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "articles",
+      "column_name": "publish_at",
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "current_prices",
+      "column_name": "movement_dir",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "articles",
+      "column_name": "author_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "price_sync_entries",
+      "column_name": "run_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "ai_eval_candidates",
+      "column_name": "conversation_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_settlements",
+      "column_name": "period_to",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "order_events",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "articles",
+      "column_name": "tags",
+      "is_nullable": "YES",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "factory_registry",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "utm_source",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "idempotency_keys",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "proformas",
+      "column_name": "quoted_weight_kg",
+      "is_nullable": "YES",
+      "data_type": "double precision"
+    },
+    {
+      "table_name": "price_sync_entries",
+      "column_name": "matched_code",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "admin_allowlist",
+      "column_name": "mobile",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "redirects",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "price_points",
+      "column_name": "at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "warehouse_movements",
+      "column_name": "kind",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "sub_categories",
+      "column_name": "order",
+      "is_nullable": "NO",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "price_basis",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_items",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "articles",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "order_events",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_withdrawals",
+      "column_name": "proof",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "ai_messages",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "factory_order",
+      "column_name": "category_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "current_prices",
+      "column_name": "unit",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "lead_items",
+      "column_name": "order",
+      "is_nullable": "NO",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "warehouse_settlements",
+      "column_name": "voids_settlement_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "proformas",
+      "column_name": "pdf_url",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "price_points",
+      "column_name": "confirmed_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "contact_messages",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "operation_outbox",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "lead_items",
+      "column_name": "lead_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "current_prices",
+      "column_name": "version",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "lead_notes",
+      "column_name": "at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "audit_entries",
+      "column_name": "at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "settings",
+      "column_name": "value",
+      "is_nullable": "NO",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "otp_codes",
+      "column_name": "expires_at",
+      "is_nullable": "NO",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "warehouse_items",
+      "column_name": "location",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "articles",
+      "column_name": "approved_by",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_cash_entries",
+      "column_name": "kind",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "users",
+      "column_name": "company_national_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_items",
+      "column_name": "version",
+      "is_nullable": "NO",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "order_fulfillments",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "price_sync_entries",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "ai_eval_candidates",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "factory_order",
+      "column_name": "order",
+      "is_nullable": "NO",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "club_memberships",
+      "column_name": "letterhead_address",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "order_events",
+      "column_name": "order_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "search_console_metrics",
+      "column_name": "query",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "categories",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "market_values",
+      "column_name": "source",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "qty",
+      "is_nullable": "NO",
+      "data_type": "double precision"
+    },
+    {
+      "table_name": "ai_usage",
+      "column_name": "reasoning_tokens",
+      "is_nullable": "NO",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "warehouse_items",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "articles",
+      "column_name": "translations",
+      "is_nullable": "YES",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "article_comments",
+      "column_name": "moderated_at",
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "proformas",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "user_requests",
+      "column_name": "user_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "lead_items",
+      "column_name": "name",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_settlements",
+      "column_name": "quantity_tons",
+      "is_nullable": "NO",
+      "data_type": "double precision"
+    },
+    {
+      "table_name": "articles",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "users",
+      "column_name": "name",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "placed_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "ai_usage",
+      "column_name": "violations",
+      "is_nullable": "NO",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "sms_log",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "price_sync_runs",
+      "column_name": "considered_skus",
+      "is_nullable": "NO",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "user_requests",
+      "column_name": "note",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "price_points",
+      "column_name": "price_basis",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "search_console_metrics",
+      "column_name": "period_end",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "proformas",
+      "column_name": "lines",
+      "is_nullable": "NO",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "settings",
+      "column_name": "key",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "refresh_tokens",
+      "column_name": "expires_at",
+      "is_nullable": "NO",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "idempotency_keys",
+      "column_name": "response_body",
+      "is_nullable": "YES",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "contact_name",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "sms_log",
+      "column_name": "payload",
+      "is_nullable": "YES",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "ai_usage",
+      "column_name": "conversation_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_items",
+      "column_name": "released_at",
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "categories",
+      "column_name": "name",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "operation_outbox",
+      "column_name": "mobile",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "lead_items",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "users",
+      "column_name": "last_seen_at",
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "articles",
+      "column_name": "title",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "proformas",
+      "column_name": "volume_discount_label",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "alerts",
+      "column_name": "channel",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "user_requests",
+      "column_name": "lead_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "club_memberships",
+      "column_name": "tier",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "ai_eval_candidates",
+      "column_name": "question",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "contact_messages",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "factory_order",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "search_console_metrics",
+      "column_name": "position",
+      "is_nullable": "NO",
+      "data_type": "real"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "deleted_at",
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "price_sync_entries",
+      "column_name": "outcome",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "operation_outbox",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "warehouse_items",
+      "column_name": "product",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_cash_entries",
+      "column_name": "settlement_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "admin_allowlist",
+      "column_name": "label",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "redirects",
+      "column_name": "from_path",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "articles",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "users",
+      "column_name": "first_name",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "grade",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "ai_usage",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_items",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "ai_feedback",
+      "column_name": "reason",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "audit_entries",
+      "column_name": "entity_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "categories",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "current_prices",
+      "column_name": "is_stale",
+      "is_nullable": "NO",
+      "data_type": "boolean"
+    },
+    {
+      "table_name": "users",
+      "column_name": "role",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "articles",
+      "column_name": "cover_url",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "current_prices",
+      "column_name": "price_is_estimated",
+      "is_nullable": "NO",
+      "data_type": "boolean"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "standard",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "lead_items",
+      "column_name": "sku_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "ai_eval_candidates",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "ref_counters",
+      "column_name": "seq",
+      "is_nullable": "NO",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "proformas",
+      "column_name": "vat_amount",
+      "is_nullable": "NO",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "ai_corrections",
+      "column_name": "is_active",
+      "is_nullable": "NO",
+      "data_type": "boolean"
+    },
+    {
+      "table_name": "user_requests",
+      "column_name": "type",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "alerts",
+      "column_name": "op",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "settings",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "refresh_tokens",
+      "column_name": "token_hash",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "source",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "otp_codes",
+      "column_name": "code_hash",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "price_sync_entries",
+      "column_name": "matched_name",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_items",
+      "column_name": "monthly_fee_toman",
+      "is_nullable": "NO",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "warehouse_movements",
+      "column_name": "warehouse_item_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "articles",
+      "column_name": "source",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_withdrawals",
+      "column_name": "recipient",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "users",
+      "column_name": "biz_verify_status",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "ai_eval_candidates",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "price_points",
+      "column_name": "price_is_estimated",
+      "is_nullable": "NO",
+      "data_type": "boolean"
+    },
+    {
+      "table_name": "proformas",
+      "column_name": "valid_until",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "sub_categories",
+      "column_name": "group_label",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "search_console_metrics",
+      "column_name": "clicks",
+      "is_nullable": "NO",
+      "data_type": "real"
+    },
+    {
+      "table_name": "price_sync_runs",
+      "column_name": "finished_at",
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "club_memberships",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "factory_order",
+      "column_name": "factory",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "current_prices",
+      "column_name": "price",
+      "is_nullable": "NO",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "context",
+      "is_nullable": "YES",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "warehouse_billing_events",
+      "column_name": "monthly_fee_toman",
+      "is_nullable": "NO",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "price_sync_entries",
+      "column_name": "new_price",
+      "is_nullable": "YES",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "market_points",
+      "column_name": "key",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "lead_items",
+      "column_name": "line_total",
+      "is_nullable": "YES",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "warehouse_settlements",
+      "column_name": "amount_toman",
+      "is_nullable": "NO",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "current_prices",
+      "column_name": "price_basis",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "factory_registry",
+      "column_name": "name",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "proformas",
+      "column_name": "volume_discount_toman",
+      "is_nullable": "NO",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "warehouse_items",
+      "column_name": "user_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "search_console_auth",
+      "column_name": "access_token_expires_at",
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "articles",
+      "column_name": "related_category_ids",
+      "is_nullable": "YES",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "price_sync_entries",
+      "column_name": "sku_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "club_memberships",
+      "column_name": "joined_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "ai_eval_candidates",
+      "column_name": "message_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "article_comments",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "search_console_metrics",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "price_sync_entries",
+      "column_name": "confidence",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "articles",
+      "column_name": "type",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "categories",
+      "column_name": "order",
+      "is_nullable": "NO",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "lead_items",
+      "column_name": "weight_kg",
+      "is_nullable": "YES",
+      "data_type": "double precision"
+    },
+    {
+      "table_name": "users",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "ai_usage",
+      "column_name": "prompt_tokens",
+      "is_nullable": "NO",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "ai_conversations",
+      "column_name": "user_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "brand_logos",
+      "column_name": "kind",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "current_prices",
+      "column_name": "source_published_label",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "sms_log",
+      "column_name": "kind",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_reservations",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "order_fulfillments",
+      "column_name": "proof",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "user_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "refresh_tokens",
+      "column_name": "family_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_items",
+      "column_name": "lead_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "proformas",
+      "column_name": "ref",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "user_requests",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "price_sync_runs",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "club_memberships",
+      "column_name": "letterhead_company_name",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "audit_entries",
+      "column_name": "actor_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "lead_notes",
+      "column_name": "author_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "article_comments",
+      "column_name": "body",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "ai_feedback",
+      "column_name": "conversation_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "otp_codes",
+      "column_name": "name",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "current_prices",
+      "column_name": "confirmed_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "warehouse_withdrawals",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "ai_corrections",
+      "column_name": "question",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_settlements",
+      "column_name": "note",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "lead_items",
+      "column_name": "unit_price",
+      "is_nullable": "YES",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "warehouse_movements",
+      "column_name": "quantity_after_tons",
+      "is_nullable": "NO",
+      "data_type": "double precision"
+    },
+    {
+      "table_name": "sub_categories",
+      "column_name": "slug",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "price_points",
+      "column_name": "price",
+      "is_nullable": "NO",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "alerts",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "business_operations",
+      "column_name": "result",
+      "is_nullable": "NO",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "search_console_auth",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "schedule",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_withdrawals",
+      "column_name": "warehouse_item_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "order_fulfillments",
+      "column_name": "quantity",
+      "is_nullable": "NO",
+      "data_type": "double precision"
+    },
+    {
+      "table_name": "warehouse_reservations",
+      "column_name": "owner_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "refresh_tokens",
+      "column_name": "rotated_at",
+      "is_nullable": "YES",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "current_prices",
+      "column_name": "vat_included",
+      "is_nullable": "NO",
+      "data_type": "boolean"
+    },
+    {
+      "table_name": "ai_usage",
+      "column_name": "cache_hit_tokens",
+      "is_nullable": "NO",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "warehouse_billing_events",
+      "column_name": "warehouse_item_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "last_update",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_settlements",
+      "column_name": "monthly_fee_toman",
+      "is_nullable": "NO",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "categories",
+      "column_name": "image_url",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "ai_messages",
+      "column_name": "role",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "factory_registry",
+      "column_name": "source",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "comment_helpful_votes",
+      "column_name": "user_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "order",
+      "is_nullable": "NO",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "price_sync_entries",
+      "column_name": "source",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_reservations",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "order_fulfillments",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "sub_categories",
+      "column_name": "seo",
+      "is_nullable": "YES",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "price_points",
+      "column_name": "version",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "ai_eval_candidates",
+      "column_name": "created_by",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "alerts",
+      "column_name": "sku_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "user_requests",
+      "column_name": "detail",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "slug",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "user_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "users",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "warehouse_settlements",
+      "column_name": "user_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "search_console_auth",
+      "column_name": "site_url",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_items",
+      "column_name": "stored_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "cooperation_type",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "ai_conversations",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "brand_logos",
+      "column_name": "order",
+      "is_nullable": "NO",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "warehouse_settlements",
+      "column_name": "voided_at",
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "rate_limit_windows",
+      "column_name": "count",
+      "is_nullable": "NO",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "price_points",
+      "column_name": "actor_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "proformas",
+      "column_name": "total",
+      "is_nullable": "NO",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "current_prices",
+      "column_name": "source",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "search_console_metrics",
+      "column_name": "ctr",
+      "is_nullable": "NO",
+      "data_type": "real"
+    },
+    {
+      "table_name": "sub_categories",
+      "column_name": "name_en",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "search_console_auth",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "article_comments",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "price_sync_runs",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "articles",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "favorites",
+      "column_name": "sku_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "image_url",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "ai_messages",
+      "column_name": "content",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "size",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_settlements",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "order_events",
+      "column_name": "note",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "articles",
+      "column_name": "body_md",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_cash_entries",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "sms_log",
+      "column_name": "at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "order_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "comment_helpful_votes",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "contact_verified",
+      "is_nullable": "NO",
+      "data_type": "boolean"
+    },
+    {
+      "table_name": "order_fulfillments",
+      "column_name": "reservation_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_reservations",
+      "column_name": "order_item_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "business_operations",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "alerts",
+      "column_name": "threshold",
+      "is_nullable": "NO",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "price_sync_runs",
+      "column_name": "written",
+      "is_nullable": "NO",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "sub_categories",
+      "column_name": "name",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "proformas",
+      "column_name": "vat_rate",
+      "is_nullable": "NO",
+      "data_type": "double precision"
+    },
+    {
+      "table_name": "search_console_metrics",
+      "column_name": "period_start",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "price_points",
+      "column_name": "unit",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "market_values",
+      "column_name": "label",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "sku_code",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "favorites",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "historical_sku_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "factory",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "users",
+      "column_name": "token_version",
+      "is_nullable": "NO",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "warehouse_items",
+      "column_name": "quantity_tons",
+      "is_nullable": "NO",
+      "data_type": "double precision"
+    },
+    {
+      "table_name": "price_sync_entries",
+      "column_name": "old_price",
+      "is_nullable": "YES",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "lead_notes",
+      "column_name": "text",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "alerts",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "user_requests",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "article_comments",
+      "column_name": "user_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "price_sync_runs",
+      "column_name": "source_rows",
+      "is_nullable": "NO",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "ai_eval_candidates",
+      "column_name": "note",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "idempotency_keys",
+      "column_name": "route",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "ai_usage",
+      "column_name": "answer_trace",
+      "is_nullable": "YES",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "warehouse_cash_entries",
+      "column_name": "actor_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "categories",
+      "column_name": "seo",
+      "is_nullable": "YES",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "warehouse_settlements",
+      "column_name": "operation_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "favorites",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "factory_order",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "article_comments",
+      "column_name": "moderated_by",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "price_sync_runs",
+      "column_name": "trigger",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "lead_notes",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "operation_outbox",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "ai_budget_reservations",
+      "column_name": "day",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_settlements",
+      "column_name": "period_from",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "lead_items",
+      "column_name": "unit",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "skus",
+      "column_name": "category_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "lead_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "contact_messages",
+      "column_name": "name",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "snapshot",
+      "is_nullable": "YES",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "ai_messages",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "otp_rate_limits",
+      "column_name": "sends",
+      "is_nullable": "NO",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "price_points",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "alerts",
+      "column_name": "target_type",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "sub_categories",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "admin_allowlist",
+      "column_name": "role",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "redirects",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "business_operations",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "club_memberships",
+      "column_name": "letterhead_phone",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "warehouse_cash_entries",
+      "column_name": "warehouse_item_id",
+      "is_nullable": "NO",
+      "data_type": "text"
+    },
+    {
+      "table_name": "order_fulfillments",
+      "column_name": "actor_id",
+      "is_nullable": "YES",
+      "data_type": "text"
+    },
+    {
+      "table_name": "comment_helpful_votes",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "warehouse_reservations",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone"
+    }
+  ],
+  "columnDrift": [],
+  "extraColumns": [],
+  "foreignKeys": [
+    {
+      "table_name": "admin_allowlist",
+      "conname": "admin_allowlist_added_by_users_id_fk",
+      "definition": "FOREIGN KEY (added_by) REFERENCES users(id) ON DELETE SET NULL",
+      "covered": true
+    },
+    {
+      "table_name": "ai_conversations",
+      "conname": "ai_conversations_user_id_users_id_fk",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL",
+      "covered": true
+    },
+    {
+      "table_name": "ai_messages",
+      "conname": "ai_messages_conversation_id_ai_conversations_id_fk",
+      "definition": "FOREIGN KEY (conversation_id) REFERENCES ai_conversations(id) ON DELETE CASCADE",
+      "covered": true
+    },
+    {
+      "table_name": "alerts",
+      "conname": "alerts_sku_id_skus_id_fk",
+      "definition": "FOREIGN KEY (sku_id) REFERENCES skus(id) ON DELETE CASCADE",
+      "covered": true
+    },
+    {
+      "table_name": "alerts",
+      "conname": "alerts_user_id_users_id_fk",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "covered": true
+    },
+    {
+      "table_name": "article_comments",
+      "conname": "article_comments_article_id_articles_id_fk",
+      "definition": "FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE",
+      "covered": true
+    },
+    {
+      "table_name": "article_comments",
+      "conname": "article_comments_moderated_by_users_id_fk",
+      "definition": "FOREIGN KEY (moderated_by) REFERENCES users(id) ON DELETE SET NULL",
+      "covered": true
+    },
+    {
+      "table_name": "article_comments",
+      "conname": "article_comments_user_id_users_id_fk",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL",
+      "covered": true
+    },
+    {
+      "table_name": "articles",
+      "conname": "articles_approved_by_users_id_fk",
+      "definition": "FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL",
+      "covered": true
+    },
+    {
+      "table_name": "articles",
+      "conname": "articles_author_id_users_id_fk",
+      "definition": "FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE SET NULL",
+      "covered": true
+    },
+    {
+      "table_name": "audit_entries",
+      "conname": "audit_entries_actor_id_users_id_fk",
+      "definition": "FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL",
+      "covered": true
+    },
+    {
+      "table_name": "club_memberships",
+      "conname": "club_memberships_user_id_users_id_fk",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "covered": true
+    },
+    {
+      "table_name": "comment_helpful_votes",
+      "conname": "comment_helpful_votes_comment_id_article_comments_id_fk",
+      "definition": "FOREIGN KEY (comment_id) REFERENCES article_comments(id) ON DELETE CASCADE",
+      "covered": true
+    },
+    {
+      "table_name": "comment_helpful_votes",
+      "conname": "comment_helpful_votes_user_id_users_id_fk",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "covered": true
+    },
+    {
+      "table_name": "current_prices",
+      "conname": "current_prices_sku_id_skus_id_fk",
+      "definition": "FOREIGN KEY (sku_id) REFERENCES skus(id) ON DELETE CASCADE",
+      "covered": true
+    },
+    {
+      "table_name": "current_prices",
+      "conname": "current_prices_updated_by_users_id_fk",
+      "definition": "FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL",
+      "covered": true
+    },
+    {
+      "table_name": "factory_order",
+      "conname": "factory_order_category_id_categories_id_fk",
+      "definition": "FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE",
+      "covered": true
+    },
+    {
+      "table_name": "favorites",
+      "conname": "favorites_sku_id_skus_id_fk",
+      "definition": "FOREIGN KEY (sku_id) REFERENCES skus(id) ON DELETE CASCADE",
+      "covered": true
+    },
+    {
+      "table_name": "favorites",
+      "conname": "favorites_user_id_users_id_fk",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "covered": true
+    },
+    {
+      "table_name": "lead_items",
+      "conname": "lead_items_lead_id_leads_id_fk",
+      "definition": "FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE",
+      "covered": true
+    },
+    {
+      "table_name": "lead_items",
+      "conname": "lead_items_sku_id_skus_id_fk",
+      "definition": "FOREIGN KEY (sku_id) REFERENCES skus(id) ON DELETE SET NULL",
+      "covered": true
+    },
+    {
+      "table_name": "lead_notes",
+      "conname": "lead_notes_author_id_users_id_fk",
+      "definition": "FOREIGN KEY (author_id) REFERENCES users(id)",
+      "covered": true
+    },
+    {
+      "table_name": "lead_notes",
+      "conname": "lead_notes_lead_id_leads_id_fk",
+      "definition": "FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE",
+      "covered": true
+    },
+    {
+      "table_name": "leads",
+      "conname": "leads_assignee_id_users_id_fk",
+      "definition": "FOREIGN KEY (assignee_id) REFERENCES users(id) ON DELETE SET NULL",
+      "covered": true
+    },
+    {
+      "table_name": "leads",
+      "conname": "leads_user_id_users_id_fk",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL",
+      "covered": true
+    },
+    {
+      "table_name": "order_events",
+      "conname": "order_events_order_id_orders_id_fk",
+      "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE RESTRICT",
+      "covered": true
+    },
+    {
+      "table_name": "order_fulfillments",
+      "conname": "order_fulfillments_order_item_id_order_items_id_fk",
+      "definition": "FOREIGN KEY (order_item_id) REFERENCES order_items(id) ON DELETE RESTRICT",
+      "covered": true
+    },
+    {
+      "table_name": "order_fulfillments",
+      "conname": "order_fulfillments_reservation_id_warehouse_reservations_id_fk",
+      "definition": "FOREIGN KEY (reservation_id) REFERENCES warehouse_reservations(id)",
+      "covered": false
+    },
+    {
+      "table_name": "order_items",
+      "conname": "order_items_order_id_orders_id_fk",
+      "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE",
+      "covered": true
+    },
+    {
+      "table_name": "order_items",
+      "conname": "order_items_sku_id_skus_id_fk",
+      "definition": "FOREIGN KEY (sku_id) REFERENCES skus(id) ON DELETE SET NULL",
+      "covered": true
+    },
+    {
+      "table_name": "orders",
+      "conname": "orders_lead_id_leads_id_fk",
+      "definition": "FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE SET NULL",
+      "covered": false
+    },
+    {
+      "table_name": "orders",
+      "conname": "orders_user_id_users_id_fk",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL",
+      "covered": true
+    },
+    {
+      "table_name": "price_points",
+      "conname": "price_points_actor_id_users_id_fk",
+      "definition": "FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL",
+      "covered": false
+    },
+    {
+      "table_name": "price_points",
+      "conname": "price_points_sku_id_skus_id_fk",
+      "definition": "FOREIGN KEY (sku_id) REFERENCES skus(id) ON DELETE CASCADE",
+      "covered": true
+    },
+    {
+      "table_name": "price_sync_entries",
+      "conname": "price_sync_entries_run_id_price_sync_runs_id_fk",
+      "definition": "FOREIGN KEY (run_id) REFERENCES price_sync_runs(id) ON DELETE CASCADE",
+      "covered": true
+    },
+    {
+      "table_name": "price_sync_entries",
+      "conname": "price_sync_entries_sku_id_skus_id_fk",
+      "definition": "FOREIGN KEY (sku_id) REFERENCES skus(id) ON DELETE CASCADE",
+      "covered": true
+    },
+    {
+      "table_name": "proformas",
+      "conname": "proformas_lead_id_leads_id_fk",
+      "definition": "FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE",
+      "covered": true
+    },
+    {
+      "table_name": "refresh_tokens",
+      "conname": "refresh_tokens_user_id_users_id_fk",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "covered": true
+    },
+    {
+      "table_name": "skus",
+      "conname": "skus_category_id_categories_id_fk",
+      "definition": "FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE",
+      "covered": true
+    },
+    {
+      "table_name": "skus",
+      "conname": "skus_sub_category_id_sub_categories_id_fk",
+      "definition": "FOREIGN KEY (sub_category_id) REFERENCES sub_categories(id) ON DELETE CASCADE",
+      "covered": true
+    },
+    {
+      "table_name": "skus",
+      "conname": "skus_sub_category_parent_fk",
+      "definition": "FOREIGN KEY (sub_category_id, category_id) REFERENCES sub_categories(id, category_id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "covered": false
+    },
+    {
+      "table_name": "sub_categories",
+      "conname": "sub_categories_category_id_categories_id_fk",
+      "definition": "FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE",
+      "covered": true
+    },
+    {
+      "table_name": "user_requests",
+      "conname": "user_requests_lead_id_leads_id_fk",
+      "definition": "FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE SET NULL",
+      "covered": true
+    },
+    {
+      "table_name": "user_requests",
+      "conname": "user_requests_user_id_users_id_fk",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id)",
+      "covered": true
+    },
+    {
+      "table_name": "users",
+      "conname": "users_referred_by_users_id_fk",
+      "definition": "FOREIGN KEY (referred_by) REFERENCES users(id) ON DELETE SET NULL",
+      "covered": true
+    },
+    {
+      "table_name": "warehouse_billing_events",
+      "conname": "warehouse_billing_events_warehouse_item_id_warehouse_items_id_f",
+      "definition": "FOREIGN KEY (warehouse_item_id) REFERENCES warehouse_items(id) ON DELETE RESTRICT",
+      "covered": true
+    },
+    {
+      "table_name": "warehouse_cash_entries",
+      "conname": "warehouse_cash_entries_order_id_orders_id_fk",
+      "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE RESTRICT",
+      "covered": false
+    },
+    {
+      "table_name": "warehouse_cash_entries",
+      "conname": "warehouse_cash_entries_owner_id_users_id_fk",
+      "definition": "FOREIGN KEY (owner_id) REFERENCES users(id)",
+      "covered": true
+    },
+    {
+      "table_name": "warehouse_cash_entries",
+      "conname": "warehouse_cash_entries_settlement_id_warehouse_settlements_id_f",
+      "definition": "FOREIGN KEY (settlement_id) REFERENCES warehouse_settlements(id) ON DELETE RESTRICT",
+      "covered": false
+    },
+    {
+      "table_name": "warehouse_cash_entries",
+      "conname": "warehouse_cash_entries_warehouse_item_id_warehouse_items_id_fk",
+      "definition": "FOREIGN KEY (warehouse_item_id) REFERENCES warehouse_items(id) ON DELETE RESTRICT",
+      "covered": false
+    },
+    {
+      "table_name": "warehouse_items",
+      "conname": "warehouse_items_lead_id_leads_id_fk",
+      "definition": "FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE SET NULL",
+      "covered": true
+    },
+    {
+      "table_name": "warehouse_items",
+      "conname": "warehouse_items_received_by_users_id_fk",
+      "definition": "FOREIGN KEY (received_by) REFERENCES users(id) ON DELETE SET NULL",
+      "covered": true
+    },
+    {
+      "table_name": "warehouse_items",
+      "conname": "warehouse_items_request_id_user_requests_id_fk",
+      "definition": "FOREIGN KEY (request_id) REFERENCES user_requests(id) ON DELETE SET NULL",
+      "covered": true
+    },
+    {
+      "table_name": "warehouse_items",
+      "conname": "warehouse_items_user_id_users_id_fk",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id)",
+      "covered": true
+    },
+    {
+      "table_name": "warehouse_movements",
+      "conname": "warehouse_movements_actor_id_users_id_fk",
+      "definition": "FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL",
+      "covered": true
+    },
+    {
+      "table_name": "warehouse_movements",
+      "conname": "warehouse_movements_warehouse_item_id_warehouse_items_id_fk",
+      "definition": "FOREIGN KEY (warehouse_item_id) REFERENCES warehouse_items(id) ON DELETE RESTRICT",
+      "covered": true
+    },
+    {
+      "table_name": "warehouse_reservations",
+      "conname": "warehouse_reservations_order_item_id_order_items_id_fk",
+      "definition": "FOREIGN KEY (order_item_id) REFERENCES order_items(id) ON DELETE RESTRICT",
+      "covered": false
+    },
+    {
+      "table_name": "warehouse_reservations",
+      "conname": "warehouse_reservations_owner_id_users_id_fk",
+      "definition": "FOREIGN KEY (owner_id) REFERENCES users(id)",
+      "covered": false
+    },
+    {
+      "table_name": "warehouse_reservations",
+      "conname": "warehouse_reservations_warehouse_item_id_warehouse_items_id_fk",
+      "definition": "FOREIGN KEY (warehouse_item_id) REFERENCES warehouse_items(id) ON DELETE RESTRICT",
+      "covered": true
+    },
+    {
+      "table_name": "warehouse_settlements",
+      "conname": "warehouse_settlements_actor_id_users_id_fk",
+      "definition": "FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL",
+      "covered": true
+    },
+    {
+      "table_name": "warehouse_settlements",
+      "conname": "warehouse_settlements_user_id_users_id_fk",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id)",
+      "covered": true
+    },
+    {
+      "table_name": "warehouse_settlements",
+      "conname": "warehouse_settlements_warehouse_item_id_warehouse_items_id_fk",
+      "definition": "FOREIGN KEY (warehouse_item_id) REFERENCES warehouse_items(id) ON DELETE RESTRICT",
+      "covered": true
+    },
+    {
+      "table_name": "warehouse_withdrawals",
+      "conname": "warehouse_withdrawals_owner_id_users_id_fk",
+      "definition": "FOREIGN KEY (owner_id) REFERENCES users(id)",
+      "covered": true
+    },
+    {
+      "table_name": "warehouse_withdrawals",
+      "conname": "warehouse_withdrawals_reservation_id_warehouse_reservations_id_",
+      "definition": "FOREIGN KEY (reservation_id) REFERENCES warehouse_reservations(id)",
+      "covered": false
+    },
+    {
+      "table_name": "warehouse_withdrawals",
+      "conname": "warehouse_withdrawals_warehouse_item_id_warehouse_items_id_fk",
+      "definition": "FOREIGN KEY (warehouse_item_id) REFERENCES warehouse_items(id) ON DELETE RESTRICT",
+      "covered": false
+    }
+  ],
+  "duplicateIndexCandidates": [],
+  "indexes": [
+    {
+      "tablename": "admin_allowlist",
+      "indexname": "admin_allowlist_added_by_idx",
+      "indexdef": "CREATE INDEX admin_allowlist_added_by_idx ON public.admin_allowlist USING btree (added_by)"
+    },
+    {
+      "tablename": "admin_allowlist",
+      "indexname": "admin_allowlist_pkey",
+      "indexdef": "CREATE UNIQUE INDEX admin_allowlist_pkey ON public.admin_allowlist USING btree (mobile)"
+    },
+    {
+      "tablename": "ai_budget_reservations",
+      "indexname": "ai_budget_reservations_day_idx",
+      "indexdef": "CREATE INDEX ai_budget_reservations_day_idx ON public.ai_budget_reservations USING btree (day)"
+    },
+    {
+      "tablename": "ai_budget_reservations",
+      "indexname": "ai_budget_reservations_pkey",
+      "indexdef": "CREATE UNIQUE INDEX ai_budget_reservations_pkey ON public.ai_budget_reservations USING btree (id)"
+    },
+    {
+      "tablename": "ai_conversations",
+      "indexname": "ai_conversations_created_idx",
+      "indexdef": "CREATE INDEX ai_conversations_created_idx ON public.ai_conversations USING btree (created_at)"
+    },
+    {
+      "tablename": "ai_conversations",
+      "indexname": "ai_conversations_pkey",
+      "indexdef": "CREATE UNIQUE INDEX ai_conversations_pkey ON public.ai_conversations USING btree (id)"
+    },
+    {
+      "tablename": "ai_conversations",
+      "indexname": "ai_conversations_user_idx",
+      "indexdef": "CREATE INDEX ai_conversations_user_idx ON public.ai_conversations USING btree (user_id)"
+    },
+    {
+      "tablename": "ai_corrections",
+      "indexname": "ai_corrections_active_idx",
+      "indexdef": "CREATE INDEX ai_corrections_active_idx ON public.ai_corrections USING btree (is_active)"
+    },
+    {
+      "tablename": "ai_corrections",
+      "indexname": "ai_corrections_pkey",
+      "indexdef": "CREATE UNIQUE INDEX ai_corrections_pkey ON public.ai_corrections USING btree (id)"
+    },
+    {
+      "tablename": "ai_corrections",
+      "indexname": "ai_corrections_question_trgm_idx",
+      "indexdef": "CREATE INDEX ai_corrections_question_trgm_idx ON public.ai_corrections USING gin (question gin_trgm_ops)"
+    },
+    {
+      "tablename": "ai_eval_candidates",
+      "indexname": "ai_eval_candidates_pkey",
+      "indexdef": "CREATE UNIQUE INDEX ai_eval_candidates_pkey ON public.ai_eval_candidates USING btree (id)"
+    },
+    {
+      "tablename": "ai_eval_candidates",
+      "indexname": "ai_eval_candidates_status_idx",
+      "indexdef": "CREATE INDEX ai_eval_candidates_status_idx ON public.ai_eval_candidates USING btree (status)"
+    },
+    {
+      "tablename": "ai_feedback",
+      "indexname": "ai_feedback_created_idx",
+      "indexdef": "CREATE INDEX ai_feedback_created_idx ON public.ai_feedback USING btree (created_at)"
+    },
+    {
+      "tablename": "ai_feedback",
+      "indexname": "ai_feedback_message_idx",
+      "indexdef": "CREATE INDEX ai_feedback_message_idx ON public.ai_feedback USING btree (message_id)"
+    },
+    {
+      "tablename": "ai_feedback",
+      "indexname": "ai_feedback_pkey",
+      "indexdef": "CREATE UNIQUE INDEX ai_feedback_pkey ON public.ai_feedback USING btree (id)"
+    },
+    {
+      "tablename": "ai_messages",
+      "indexname": "ai_messages_conversation_idx",
+      "indexdef": "CREATE INDEX ai_messages_conversation_idx ON public.ai_messages USING btree (conversation_id, created_at)"
+    },
+    {
+      "tablename": "ai_messages",
+      "indexname": "ai_messages_pkey",
+      "indexdef": "CREATE UNIQUE INDEX ai_messages_pkey ON public.ai_messages USING btree (id)"
+    },
+    {
+      "tablename": "ai_usage",
+      "indexname": "ai_usage_created_idx",
+      "indexdef": "CREATE INDEX ai_usage_created_idx ON public.ai_usage USING btree (created_at)"
+    },
+    {
+      "tablename": "ai_usage",
+      "indexname": "ai_usage_pkey",
+      "indexdef": "CREATE UNIQUE INDEX ai_usage_pkey ON public.ai_usage USING btree (id)"
+    },
+    {
+      "tablename": "alerts",
+      "indexname": "alerts_active_dedup_market_uq",
+      "indexdef": "CREATE UNIQUE INDEX alerts_active_dedup_market_uq ON public.alerts USING btree (user_id, market_key, op, threshold) WHERE ((status = 'active'::text) AND (target_type = 'market'::text))"
+    },
+    {
+      "tablename": "alerts",
+      "indexname": "alerts_active_dedup_sku_uq",
+      "indexdef": "CREATE UNIQUE INDEX alerts_active_dedup_sku_uq ON public.alerts USING btree (user_id, sku_id, op, threshold) WHERE ((status = 'active'::text) AND (target_type = 'sku'::text))"
+    },
+    {
+      "tablename": "alerts",
+      "indexname": "alerts_pkey",
+      "indexdef": "CREATE UNIQUE INDEX alerts_pkey ON public.alerts USING btree (id)"
+    },
+    {
+      "tablename": "alerts",
+      "indexname": "alerts_sku_idx",
+      "indexdef": "CREATE INDEX alerts_sku_idx ON public.alerts USING btree (sku_id)"
+    },
+    {
+      "tablename": "alerts",
+      "indexname": "alerts_status_idx",
+      "indexdef": "CREATE INDEX alerts_status_idx ON public.alerts USING btree (status)"
+    },
+    {
+      "tablename": "alerts",
+      "indexname": "alerts_user_status_idx",
+      "indexdef": "CREATE INDEX alerts_user_status_idx ON public.alerts USING btree (user_id, status)"
+    },
+    {
+      "tablename": "article_comments",
+      "indexname": "article_comments_article_status_idx",
+      "indexdef": "CREATE INDEX article_comments_article_status_idx ON public.article_comments USING btree (article_id, status)"
+    },
+    {
+      "tablename": "article_comments",
+      "indexname": "article_comments_moderated_by_idx",
+      "indexdef": "CREATE INDEX article_comments_moderated_by_idx ON public.article_comments USING btree (moderated_by)"
+    },
+    {
+      "tablename": "article_comments",
+      "indexname": "article_comments_pkey",
+      "indexdef": "CREATE UNIQUE INDEX article_comments_pkey ON public.article_comments USING btree (id)"
+    },
+    {
+      "tablename": "article_comments",
+      "indexname": "article_comments_user_idx",
+      "indexdef": "CREATE INDEX article_comments_user_idx ON public.article_comments USING btree (user_id)"
+    },
+    {
+      "tablename": "articles",
+      "indexname": "articles_approved_by_idx",
+      "indexdef": "CREATE INDEX articles_approved_by_idx ON public.articles USING btree (approved_by)"
+    },
+    {
+      "tablename": "articles",
+      "indexname": "articles_author_idx",
+      "indexdef": "CREATE INDEX articles_author_idx ON public.articles USING btree (author_id)"
+    },
+    {
+      "tablename": "articles",
+      "indexname": "articles_body_trgm_idx",
+      "indexdef": "CREATE INDEX articles_body_trgm_idx ON public.articles USING gin (body_md gin_trgm_ops)"
+    },
+    {
+      "tablename": "articles",
+      "indexname": "articles_excerpt_trgm_idx",
+      "indexdef": "CREATE INDEX articles_excerpt_trgm_idx ON public.articles USING gin (excerpt gin_trgm_ops)"
+    },
+    {
+      "tablename": "articles",
+      "indexname": "articles_pkey",
+      "indexdef": "CREATE UNIQUE INDEX articles_pkey ON public.articles USING btree (id)"
+    },
+    {
+      "tablename": "articles",
+      "indexname": "articles_slug_unique",
+      "indexdef": "CREATE UNIQUE INDEX articles_slug_unique ON public.articles USING btree (slug)"
+    },
+    {
+      "tablename": "articles",
+      "indexname": "articles_status_publish_idx",
+      "indexdef": "CREATE INDEX articles_status_publish_idx ON public.articles USING btree (status, publish_at)"
+    },
+    {
+      "tablename": "articles",
+      "indexname": "articles_tags_idx",
+      "indexdef": "CREATE INDEX articles_tags_idx ON public.articles USING gin (tags jsonb_path_ops)"
+    },
+    {
+      "tablename": "articles",
+      "indexname": "articles_title_trgm_idx",
+      "indexdef": "CREATE INDEX articles_title_trgm_idx ON public.articles USING gin (title gin_trgm_ops)"
+    },
+    {
+      "tablename": "articles",
+      "indexname": "articles_type_status_idx",
+      "indexdef": "CREATE INDEX articles_type_status_idx ON public.articles USING btree (type, status)"
+    },
+    {
+      "tablename": "articles",
+      "indexname": "articles_updated_idx",
+      "indexdef": "CREATE INDEX articles_updated_idx ON public.articles USING btree (updated_at)"
+    },
+    {
+      "tablename": "audit_entries",
+      "indexname": "audit_entries_actor_at_idx",
+      "indexdef": "CREATE INDEX audit_entries_actor_at_idx ON public.audit_entries USING btree (actor_id, at)"
+    },
+    {
+      "tablename": "audit_entries",
+      "indexname": "audit_entries_at_id_idx",
+      "indexdef": "CREATE INDEX audit_entries_at_id_idx ON public.audit_entries USING btree (at, id)"
+    },
+    {
+      "tablename": "audit_entries",
+      "indexname": "audit_entries_entity_idx",
+      "indexdef": "CREATE INDEX audit_entries_entity_idx ON public.audit_entries USING btree (entity_type, entity_id)"
+    },
+    {
+      "tablename": "audit_entries",
+      "indexname": "audit_entries_pkey",
+      "indexdef": "CREATE UNIQUE INDEX audit_entries_pkey ON public.audit_entries USING btree (id)"
+    },
+    {
+      "tablename": "brand_logos",
+      "indexname": "brand_logos_pkey",
+      "indexdef": "CREATE UNIQUE INDEX brand_logos_pkey ON public.brand_logos USING btree (id)"
+    },
+    {
+      "tablename": "business_operations",
+      "indexname": "business_operations_pkey",
+      "indexdef": "CREATE UNIQUE INDEX business_operations_pkey ON public.business_operations USING btree (id)"
+    },
+    {
+      "tablename": "categories",
+      "indexname": "categories_name_trgm_idx",
+      "indexdef": "CREATE INDEX categories_name_trgm_idx ON public.categories USING gin (name gin_trgm_ops)"
+    },
+    {
+      "tablename": "categories",
+      "indexname": "categories_pkey",
+      "indexdef": "CREATE UNIQUE INDEX categories_pkey ON public.categories USING btree (id)"
+    },
+    {
+      "tablename": "categories",
+      "indexname": "categories_slug_unique",
+      "indexdef": "CREATE UNIQUE INDEX categories_slug_unique ON public.categories USING btree (slug)"
+    },
+    {
+      "tablename": "club_memberships",
+      "indexname": "club_memberships_pkey",
+      "indexdef": "CREATE UNIQUE INDEX club_memberships_pkey ON public.club_memberships USING btree (id)"
+    },
+    {
+      "tablename": "club_memberships",
+      "indexname": "club_memberships_user_id_unique",
+      "indexdef": "CREATE UNIQUE INDEX club_memberships_user_id_unique ON public.club_memberships USING btree (user_id)"
+    },
+    {
+      "tablename": "comment_helpful_votes",
+      "indexname": "comment_helpful_votes_comment_user_idx",
+      "indexdef": "CREATE UNIQUE INDEX comment_helpful_votes_comment_user_idx ON public.comment_helpful_votes USING btree (comment_id, user_id)"
+    },
+    {
+      "tablename": "comment_helpful_votes",
+      "indexname": "comment_helpful_votes_pkey",
+      "indexdef": "CREATE UNIQUE INDEX comment_helpful_votes_pkey ON public.comment_helpful_votes USING btree (id)"
+    },
+    {
+      "tablename": "comment_helpful_votes",
+      "indexname": "comment_helpful_votes_user_idx",
+      "indexdef": "CREATE INDEX comment_helpful_votes_user_idx ON public.comment_helpful_votes USING btree (user_id)"
+    },
+    {
+      "tablename": "contact_messages",
+      "indexname": "contact_messages_created_idx",
+      "indexdef": "CREATE INDEX contact_messages_created_idx ON public.contact_messages USING btree (created_at)"
+    },
+    {
+      "tablename": "contact_messages",
+      "indexname": "contact_messages_pkey",
+      "indexdef": "CREATE UNIQUE INDEX contact_messages_pkey ON public.contact_messages USING btree (id)"
+    },
+    {
+      "tablename": "current_prices",
+      "indexname": "current_prices_pkey",
+      "indexdef": "CREATE UNIQUE INDEX current_prices_pkey ON public.current_prices USING btree (sku_id)"
+    },
+    {
+      "tablename": "current_prices",
+      "indexname": "current_prices_updated_by_idx",
+      "indexdef": "CREATE INDEX current_prices_updated_by_idx ON public.current_prices USING btree (updated_by)"
+    },
+    {
+      "tablename": "factory_order",
+      "indexname": "factory_order_category_factory_uq",
+      "indexdef": "CREATE UNIQUE INDEX factory_order_category_factory_uq ON public.factory_order USING btree (category_id, factory)"
+    },
+    {
+      "tablename": "factory_order",
+      "indexname": "factory_order_category_order_idx",
+      "indexdef": "CREATE INDEX factory_order_category_order_idx ON public.factory_order USING btree (category_id, \"order\")"
+    },
+    {
+      "tablename": "factory_order",
+      "indexname": "factory_order_pkey",
+      "indexdef": "CREATE UNIQUE INDEX factory_order_pkey ON public.factory_order USING btree (id)"
+    },
+    {
+      "tablename": "factory_registry",
+      "indexname": "factory_registry_normalized_name_uq",
+      "indexdef": "CREATE UNIQUE INDEX factory_registry_normalized_name_uq ON public.factory_registry USING btree (normalized_name)"
+    },
+    {
+      "tablename": "factory_registry",
+      "indexname": "factory_registry_pkey",
+      "indexdef": "CREATE UNIQUE INDEX factory_registry_pkey ON public.factory_registry USING btree (id)"
+    },
+    {
+      "tablename": "favorites",
+      "indexname": "favorites_pkey",
+      "indexdef": "CREATE UNIQUE INDEX favorites_pkey ON public.favorites USING btree (id)"
+    },
+    {
+      "tablename": "favorites",
+      "indexname": "favorites_sku_idx",
+      "indexdef": "CREATE INDEX favorites_sku_idx ON public.favorites USING btree (sku_id)"
+    },
+    {
+      "tablename": "favorites",
+      "indexname": "favorites_user_sku_uq",
+      "indexdef": "CREATE UNIQUE INDEX favorites_user_sku_uq ON public.favorites USING btree (user_id, sku_id)"
+    },
+    {
+      "tablename": "idempotency_keys",
+      "indexname": "idempotency_keys_created_idx",
+      "indexdef": "CREATE INDEX idempotency_keys_created_idx ON public.idempotency_keys USING btree (created_at)"
+    },
+    {
+      "tablename": "idempotency_keys",
+      "indexname": "idempotency_keys_pkey",
+      "indexdef": "CREATE UNIQUE INDEX idempotency_keys_pkey ON public.idempotency_keys USING btree (key)"
+    },
+    {
+      "tablename": "lead_items",
+      "indexname": "lead_items_lead_idx",
+      "indexdef": "CREATE INDEX lead_items_lead_idx ON public.lead_items USING btree (lead_id)"
+    },
+    {
+      "tablename": "lead_items",
+      "indexname": "lead_items_pkey",
+      "indexdef": "CREATE UNIQUE INDEX lead_items_pkey ON public.lead_items USING btree (id)"
+    },
+    {
+      "tablename": "lead_items",
+      "indexname": "lead_items_sku_idx",
+      "indexdef": "CREATE INDEX lead_items_sku_idx ON public.lead_items USING btree (sku_id)"
+    },
+    {
+      "tablename": "lead_notes",
+      "indexname": "lead_notes_author_idx",
+      "indexdef": "CREATE INDEX lead_notes_author_idx ON public.lead_notes USING btree (author_id)"
+    },
+    {
+      "tablename": "lead_notes",
+      "indexname": "lead_notes_lead_idx",
+      "indexdef": "CREATE INDEX lead_notes_lead_idx ON public.lead_notes USING btree (lead_id)"
+    },
+    {
+      "tablename": "lead_notes",
+      "indexname": "lead_notes_pkey",
+      "indexdef": "CREATE UNIQUE INDEX lead_notes_pkey ON public.lead_notes USING btree (id)"
+    },
+    {
+      "tablename": "leads",
+      "indexname": "leads_assignee_callback_idx",
+      "indexdef": "CREATE INDEX leads_assignee_callback_idx ON public.leads USING btree (assignee_id, callback_at) WHERE (callback_at IS NOT NULL)"
+    },
+    {
+      "tablename": "leads",
+      "indexname": "leads_assignee_status_created_idx",
+      "indexdef": "CREATE INDEX leads_assignee_status_created_idx ON public.leads USING btree (assignee_id, status, created_at)"
+    },
+    {
+      "tablename": "leads",
+      "indexname": "leads_contact_mobile_idx",
+      "indexdef": "CREATE INDEX leads_contact_mobile_idx ON public.leads USING btree (contact_mobile)"
+    },
+    {
+      "tablename": "leads",
+      "indexname": "leads_created_idx",
+      "indexdef": "CREATE INDEX leads_created_idx ON public.leads USING btree (created_at)"
+    },
+    {
+      "tablename": "leads",
+      "indexname": "leads_pkey",
+      "indexdef": "CREATE UNIQUE INDEX leads_pkey ON public.leads USING btree (id)"
+    },
+    {
+      "tablename": "leads",
+      "indexname": "leads_ref_unique",
+      "indexdef": "CREATE UNIQUE INDEX leads_ref_unique ON public.leads USING btree (ref)"
+    },
+    {
+      "tablename": "leads",
+      "indexname": "leads_status_assignee_created_idx",
+      "indexdef": "CREATE INDEX leads_status_assignee_created_idx ON public.leads USING btree (status, assignee_id, created_at)"
+    },
+    {
+      "tablename": "leads",
+      "indexname": "leads_user_idx",
+      "indexdef": "CREATE INDEX leads_user_idx ON public.leads USING btree (user_id)"
+    },
+    {
+      "tablename": "leads",
+      "indexname": "leads_utm_campaign_created_idx",
+      "indexdef": "CREATE INDEX leads_utm_campaign_created_idx ON public.leads USING btree (utm_campaign, created_at) WHERE (utm_campaign IS NOT NULL)"
+    },
+    {
+      "tablename": "market_points",
+      "indexname": "market_points_key_at_idx",
+      "indexdef": "CREATE INDEX market_points_key_at_idx ON public.market_points USING btree (key, at)"
+    },
+    {
+      "tablename": "market_points",
+      "indexname": "market_points_pkey",
+      "indexdef": "CREATE UNIQUE INDEX market_points_pkey ON public.market_points USING btree (id)"
+    },
+    {
+      "tablename": "market_values",
+      "indexname": "market_values_pkey",
+      "indexdef": "CREATE UNIQUE INDEX market_values_pkey ON public.market_values USING btree (key)"
+    },
+    {
+      "tablename": "operation_outbox",
+      "indexname": "operation_outbox_pending_idx",
+      "indexdef": "CREATE INDEX operation_outbox_pending_idx ON public.operation_outbox USING btree (status, next_attempt_at)"
+    },
+    {
+      "tablename": "operation_outbox",
+      "indexname": "operation_outbox_pkey",
+      "indexdef": "CREATE UNIQUE INDEX operation_outbox_pkey ON public.operation_outbox USING btree (id)"
+    },
+    {
+      "tablename": "order_events",
+      "indexname": "order_events_order_idx",
+      "indexdef": "CREATE INDEX order_events_order_idx ON public.order_events USING btree (order_id, at)"
+    },
+    {
+      "tablename": "order_events",
+      "indexname": "order_events_pkey",
+      "indexdef": "CREATE UNIQUE INDEX order_events_pkey ON public.order_events USING btree (id)"
+    },
+    {
+      "tablename": "order_fulfillments",
+      "indexname": "order_fulfillments_item_idx",
+      "indexdef": "CREATE INDEX order_fulfillments_item_idx ON public.order_fulfillments USING btree (order_item_id)"
+    },
+    {
+      "tablename": "order_fulfillments",
+      "indexname": "order_fulfillments_pkey",
+      "indexdef": "CREATE UNIQUE INDEX order_fulfillments_pkey ON public.order_fulfillments USING btree (id)"
+    },
+    {
+      "tablename": "order_items",
+      "indexname": "order_items_order_idx",
+      "indexdef": "CREATE INDEX order_items_order_idx ON public.order_items USING btree (order_id)"
+    },
+    {
+      "tablename": "order_items",
+      "indexname": "order_items_pkey",
+      "indexdef": "CREATE UNIQUE INDEX order_items_pkey ON public.order_items USING btree (id)"
+    },
+    {
+      "tablename": "order_items",
+      "indexname": "order_items_sku_idx",
+      "indexdef": "CREATE INDEX order_items_sku_idx ON public.order_items USING btree (sku_id)"
+    },
+    {
+      "tablename": "orders",
+      "indexname": "orders_lead_uq",
+      "indexdef": "CREATE UNIQUE INDEX orders_lead_uq ON public.orders USING btree (lead_id) WHERE (deleted_at IS NULL)"
+    },
+    {
+      "tablename": "orders",
+      "indexname": "orders_pkey",
+      "indexdef": "CREATE UNIQUE INDEX orders_pkey ON public.orders USING btree (id)"
+    },
+    {
+      "tablename": "orders",
+      "indexname": "orders_placed_at_idx",
+      "indexdef": "CREATE INDEX orders_placed_at_idx ON public.orders USING btree (placed_at)"
+    },
+    {
+      "tablename": "orders",
+      "indexname": "orders_ref_unique",
+      "indexdef": "CREATE UNIQUE INDEX orders_ref_unique ON public.orders USING btree (ref)"
+    },
+    {
+      "tablename": "orders",
+      "indexname": "orders_user_idx",
+      "indexdef": "CREATE INDEX orders_user_idx ON public.orders USING btree (user_id)"
+    },
+    {
+      "tablename": "otp_codes",
+      "indexname": "otp_codes_expires_idx",
+      "indexdef": "CREATE INDEX otp_codes_expires_idx ON public.otp_codes USING btree (expires_at)"
+    },
+    {
+      "tablename": "otp_codes",
+      "indexname": "otp_codes_pkey",
+      "indexdef": "CREATE UNIQUE INDEX otp_codes_pkey ON public.otp_codes USING btree (mobile)"
+    },
+    {
+      "tablename": "otp_rate_limits",
+      "indexname": "otp_rate_limits_pkey",
+      "indexdef": "CREATE UNIQUE INDEX otp_rate_limits_pkey ON public.otp_rate_limits USING btree (mobile)"
+    },
+    {
+      "tablename": "price_points",
+      "indexname": "price_points_pkey",
+      "indexdef": "CREATE UNIQUE INDEX price_points_pkey ON public.price_points USING btree (id)"
+    },
+    {
+      "tablename": "price_points",
+      "indexname": "price_points_sku_at_idx",
+      "indexdef": "CREATE INDEX price_points_sku_at_idx ON public.price_points USING btree (sku_id, at)"
+    },
+    {
+      "tablename": "price_points",
+      "indexname": "price_points_source_event_key_unique",
+      "indexdef": "CREATE UNIQUE INDEX price_points_source_event_key_unique ON public.price_points USING btree (source_event_key)"
+    },
+    {
+      "tablename": "price_points",
+      "indexname": "price_points_version_idx",
+      "indexdef": "CREATE INDEX price_points_version_idx ON public.price_points USING btree (version)"
+    },
+    {
+      "tablename": "price_sync_entries",
+      "indexname": "price_sync_entries_applied_idx",
+      "indexdef": "CREATE INDEX price_sync_entries_applied_idx ON public.price_sync_entries USING btree (applied_at, id)"
+    },
+    {
+      "tablename": "price_sync_entries",
+      "indexname": "price_sync_entries_pkey",
+      "indexdef": "CREATE UNIQUE INDEX price_sync_entries_pkey ON public.price_sync_entries USING btree (id)"
+    },
+    {
+      "tablename": "price_sync_entries",
+      "indexname": "price_sync_entries_run_idx",
+      "indexdef": "CREATE INDEX price_sync_entries_run_idx ON public.price_sync_entries USING btree (run_id, outcome)"
+    },
+    {
+      "tablename": "price_sync_entries",
+      "indexname": "price_sync_entries_sku_idx",
+      "indexdef": "CREATE INDEX price_sync_entries_sku_idx ON public.price_sync_entries USING btree (sku_id, applied_at)"
+    },
+    {
+      "tablename": "price_sync_runs",
+      "indexname": "price_sync_runs_pkey",
+      "indexdef": "CREATE UNIQUE INDEX price_sync_runs_pkey ON public.price_sync_runs USING btree (id)"
+    },
+    {
+      "tablename": "price_sync_runs",
+      "indexname": "price_sync_runs_started_idx",
+      "indexdef": "CREATE INDEX price_sync_runs_started_idx ON public.price_sync_runs USING btree (started_at)"
+    },
+    {
+      "tablename": "proformas",
+      "indexname": "proformas_created_idx",
+      "indexdef": "CREATE INDEX proformas_created_idx ON public.proformas USING btree (created_at)"
+    },
+    {
+      "tablename": "proformas",
+      "indexname": "proformas_lead_idx",
+      "indexdef": "CREATE INDEX proformas_lead_idx ON public.proformas USING btree (lead_id)"
+    },
+    {
+      "tablename": "proformas",
+      "indexname": "proformas_pkey",
+      "indexdef": "CREATE UNIQUE INDEX proformas_pkey ON public.proformas USING btree (id)"
+    },
+    {
+      "tablename": "proformas",
+      "indexname": "proformas_ref_unique",
+      "indexdef": "CREATE UNIQUE INDEX proformas_ref_unique ON public.proformas USING btree (ref)"
+    },
+    {
+      "tablename": "proformas",
+      "indexname": "proformas_status_valid_idx",
+      "indexdef": "CREATE INDEX proformas_status_valid_idx ON public.proformas USING btree (status, valid_until)"
+    },
+    {
+      "tablename": "rate_limit_windows",
+      "indexname": "rate_limit_windows_expires_idx",
+      "indexdef": "CREATE INDEX rate_limit_windows_expires_idx ON public.rate_limit_windows USING btree (expires_at)"
+    },
+    {
+      "tablename": "rate_limit_windows",
+      "indexname": "rate_limit_windows_pkey",
+      "indexdef": "CREATE UNIQUE INDEX rate_limit_windows_pkey ON public.rate_limit_windows USING btree (key)"
+    },
+    {
+      "tablename": "redirects",
+      "indexname": "redirects_from_path_unique",
+      "indexdef": "CREATE UNIQUE INDEX redirects_from_path_unique ON public.redirects USING btree (from_path)"
+    },
+    {
+      "tablename": "redirects",
+      "indexname": "redirects_pkey",
+      "indexdef": "CREATE UNIQUE INDEX redirects_pkey ON public.redirects USING btree (id)"
+    },
+    {
+      "tablename": "ref_counters",
+      "indexname": "ref_counters_pkey",
+      "indexdef": "CREATE UNIQUE INDEX ref_counters_pkey ON public.ref_counters USING btree (scope)"
+    },
+    {
+      "tablename": "refresh_tokens",
+      "indexname": "refresh_tokens_expires_idx",
+      "indexdef": "CREATE INDEX refresh_tokens_expires_idx ON public.refresh_tokens USING btree (expires_at)"
+    },
+    {
+      "tablename": "refresh_tokens",
+      "indexname": "refresh_tokens_family_idx",
+      "indexdef": "CREATE INDEX refresh_tokens_family_idx ON public.refresh_tokens USING btree (family_id)"
+    },
+    {
+      "tablename": "refresh_tokens",
+      "indexname": "refresh_tokens_pkey",
+      "indexdef": "CREATE UNIQUE INDEX refresh_tokens_pkey ON public.refresh_tokens USING btree (token_hash)"
+    },
+    {
+      "tablename": "refresh_tokens",
+      "indexname": "refresh_tokens_user_idx",
+      "indexdef": "CREATE INDEX refresh_tokens_user_idx ON public.refresh_tokens USING btree (user_id)"
+    },
+    {
+      "tablename": "search_console_auth",
+      "indexname": "search_console_auth_pkey",
+      "indexdef": "CREATE UNIQUE INDEX search_console_auth_pkey ON public.search_console_auth USING btree (id)"
+    },
+    {
+      "tablename": "search_console_metrics",
+      "indexname": "search_console_metrics_path_idx",
+      "indexdef": "CREATE INDEX search_console_metrics_path_idx ON public.search_console_metrics USING btree (path)"
+    },
+    {
+      "tablename": "search_console_metrics",
+      "indexname": "search_console_metrics_path_query_key",
+      "indexdef": "CREATE UNIQUE INDEX search_console_metrics_path_query_key ON public.search_console_metrics USING btree (path, query)"
+    },
+    {
+      "tablename": "search_console_metrics",
+      "indexname": "search_console_metrics_pkey",
+      "indexdef": "CREATE UNIQUE INDEX search_console_metrics_pkey ON public.search_console_metrics USING btree (id)"
+    },
+    {
+      "tablename": "settings",
+      "indexname": "settings_pkey",
+      "indexdef": "CREATE UNIQUE INDEX settings_pkey ON public.settings USING btree (key)"
+    },
+    {
+      "tablename": "skus",
+      "indexname": "skus_cat_idx",
+      "indexdef": "CREATE INDEX skus_cat_idx ON public.skus USING btree (category_id)"
+    },
+    {
+      "tablename": "skus",
+      "indexname": "skus_cross_listed_idx",
+      "indexdef": "CREATE INDEX skus_cross_listed_idx ON public.skus USING gin (cross_listed_category_ids jsonb_path_ops)"
+    },
+    {
+      "tablename": "skus",
+      "indexname": "skus_factory_idx",
+      "indexdef": "CREATE INDEX skus_factory_idx ON public.skus USING btree (factory)"
+    },
+    {
+      "tablename": "skus",
+      "indexname": "skus_factory_trgm_idx",
+      "indexdef": "CREATE INDEX skus_factory_trgm_idx ON public.skus USING gin (factory gin_trgm_ops)"
+    },
+    {
+      "tablename": "skus",
+      "indexname": "skus_name_trgm_idx",
+      "indexdef": "CREATE INDEX skus_name_trgm_idx ON public.skus USING gin (name gin_trgm_ops)"
+    },
+    {
+      "tablename": "skus",
+      "indexname": "skus_pkey",
+      "indexdef": "CREATE UNIQUE INDEX skus_pkey ON public.skus USING btree (id)"
+    },
+    {
+      "tablename": "skus",
+      "indexname": "skus_slug_unique",
+      "indexdef": "CREATE UNIQUE INDEX skus_slug_unique ON public.skus USING btree (slug)"
+    },
+    {
+      "tablename": "skus",
+      "indexname": "skus_sub_idx",
+      "indexdef": "CREATE INDEX skus_sub_idx ON public.skus USING btree (sub_category_id)"
+    },
+    {
+      "tablename": "skus",
+      "indexname": "skus_sub_structural_identity_uq",
+      "indexdef": "CREATE UNIQUE INDEX skus_sub_structural_identity_uq ON public.skus USING btree (sub_category_id, identity_key, COALESCE(branch_length_m, ('-1'::integer)::double precision))"
+    },
+    {
+      "tablename": "sms_log",
+      "indexname": "sms_log_at_idx",
+      "indexdef": "CREATE INDEX sms_log_at_idx ON public.sms_log USING btree (at)"
+    },
+    {
+      "tablename": "sms_log",
+      "indexname": "sms_log_pkey",
+      "indexdef": "CREATE UNIQUE INDEX sms_log_pkey ON public.sms_log USING btree (id)"
+    },
+    {
+      "tablename": "sms_log",
+      "indexname": "sms_log_to_idx",
+      "indexdef": "CREATE INDEX sms_log_to_idx ON public.sms_log USING btree (\"to\")"
+    },
+    {
+      "tablename": "sub_categories",
+      "indexname": "sub_categories_category_slug_uq",
+      "indexdef": "CREATE UNIQUE INDEX sub_categories_category_slug_uq ON public.sub_categories USING btree (category_id, slug)"
+    },
+    {
+      "tablename": "sub_categories",
+      "indexname": "sub_categories_id_category_uq",
+      "indexdef": "CREATE UNIQUE INDEX sub_categories_id_category_uq ON public.sub_categories USING btree (id, category_id)"
+    },
+    {
+      "tablename": "sub_categories",
+      "indexname": "sub_categories_pkey",
+      "indexdef": "CREATE UNIQUE INDEX sub_categories_pkey ON public.sub_categories USING btree (id)"
+    },
+    {
+      "tablename": "user_requests",
+      "indexname": "user_requests_created_idx",
+      "indexdef": "CREATE INDEX user_requests_created_idx ON public.user_requests USING btree (created_at)"
+    },
+    {
+      "tablename": "user_requests",
+      "indexname": "user_requests_lead_idx",
+      "indexdef": "CREATE INDEX user_requests_lead_idx ON public.user_requests USING btree (lead_id)"
+    },
+    {
+      "tablename": "user_requests",
+      "indexname": "user_requests_pkey",
+      "indexdef": "CREATE UNIQUE INDEX user_requests_pkey ON public.user_requests USING btree (id)"
+    },
+    {
+      "tablename": "user_requests",
+      "indexname": "user_requests_user_created_idx",
+      "indexdef": "CREATE INDEX user_requests_user_created_idx ON public.user_requests USING btree (user_id, created_at)"
+    },
+    {
+      "tablename": "user_requests",
+      "indexname": "user_requests_user_ref_uq",
+      "indexdef": "CREATE UNIQUE INDEX user_requests_user_ref_uq ON public.user_requests USING btree (user_id, ref)"
+    },
+    {
+      "tablename": "users",
+      "indexname": "users_biz_verify_idx",
+      "indexdef": "CREATE INDEX users_biz_verify_idx ON public.users USING btree (biz_verify_status)"
+    },
+    {
+      "tablename": "users",
+      "indexname": "users_created_idx",
+      "indexdef": "CREATE INDEX users_created_idx ON public.users USING btree (created_at)"
+    },
+    {
+      "tablename": "users",
+      "indexname": "users_id_verify_idx",
+      "indexdef": "CREATE INDEX users_id_verify_idx ON public.users USING btree (id_verify_status)"
+    },
+    {
+      "tablename": "users",
+      "indexname": "users_invite_code_unique",
+      "indexdef": "CREATE UNIQUE INDEX users_invite_code_unique ON public.users USING btree (invite_code)"
+    },
+    {
+      "tablename": "users",
+      "indexname": "users_mobile_unique",
+      "indexdef": "CREATE UNIQUE INDEX users_mobile_unique ON public.users USING btree (mobile)"
+    },
+    {
+      "tablename": "users",
+      "indexname": "users_pkey",
+      "indexdef": "CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)"
+    },
+    {
+      "tablename": "users",
+      "indexname": "users_referred_by_idx",
+      "indexdef": "CREATE INDEX users_referred_by_idx ON public.users USING btree (referred_by)"
+    },
+    {
+      "tablename": "warehouse_billing_events",
+      "indexname": "warehouse_billing_events_item_idx",
+      "indexdef": "CREATE INDEX warehouse_billing_events_item_idx ON public.warehouse_billing_events USING btree (warehouse_item_id, effective_at)"
+    },
+    {
+      "tablename": "warehouse_billing_events",
+      "indexname": "warehouse_billing_events_pkey",
+      "indexdef": "CREATE UNIQUE INDEX warehouse_billing_events_pkey ON public.warehouse_billing_events USING btree (id)"
+    },
+    {
+      "tablename": "warehouse_cash_entries",
+      "indexname": "warehouse_cash_entries_pkey",
+      "indexdef": "CREATE UNIQUE INDEX warehouse_cash_entries_pkey ON public.warehouse_cash_entries USING btree (id)"
+    },
+    {
+      "tablename": "warehouse_cash_entries",
+      "indexname": "warehouse_cash_entries_reverses_id_unique",
+      "indexdef": "CREATE UNIQUE INDEX warehouse_cash_entries_reverses_id_unique ON public.warehouse_cash_entries USING btree (reverses_id)"
+    },
+    {
+      "tablename": "warehouse_cash_entries",
+      "indexname": "warehouse_cash_owner_idx",
+      "indexdef": "CREATE INDEX warehouse_cash_owner_idx ON public.warehouse_cash_entries USING btree (owner_id, created_at)"
+    },
+    {
+      "tablename": "warehouse_items",
+      "indexname": "warehouse_items_lead_idx",
+      "indexdef": "CREATE INDEX warehouse_items_lead_idx ON public.warehouse_items USING btree (lead_id)"
+    },
+    {
+      "tablename": "warehouse_items",
+      "indexname": "warehouse_items_pkey",
+      "indexdef": "CREATE UNIQUE INDEX warehouse_items_pkey ON public.warehouse_items USING btree (id)"
+    },
+    {
+      "tablename": "warehouse_items",
+      "indexname": "warehouse_items_received_by_idx",
+      "indexdef": "CREATE INDEX warehouse_items_received_by_idx ON public.warehouse_items USING btree (received_by)"
+    },
+    {
+      "tablename": "warehouse_items",
+      "indexname": "warehouse_items_ref_unique",
+      "indexdef": "CREATE UNIQUE INDEX warehouse_items_ref_unique ON public.warehouse_items USING btree (ref)"
+    },
+    {
+      "tablename": "warehouse_items",
+      "indexname": "warehouse_items_request_uq",
+      "indexdef": "CREATE UNIQUE INDEX warehouse_items_request_uq ON public.warehouse_items USING btree (request_id)"
+    },
+    {
+      "tablename": "warehouse_items",
+      "indexname": "warehouse_items_stored_at_idx",
+      "indexdef": "CREATE INDEX warehouse_items_stored_at_idx ON public.warehouse_items USING btree (stored_at)"
+    },
+    {
+      "tablename": "warehouse_items",
+      "indexname": "warehouse_items_user_idx",
+      "indexdef": "CREATE INDEX warehouse_items_user_idx ON public.warehouse_items USING btree (user_id)"
+    },
+    {
+      "tablename": "warehouse_movements",
+      "indexname": "warehouse_movements_actor_idx",
+      "indexdef": "CREATE INDEX warehouse_movements_actor_idx ON public.warehouse_movements USING btree (actor_id)"
+    },
+    {
+      "tablename": "warehouse_movements",
+      "indexname": "warehouse_movements_item_idx",
+      "indexdef": "CREATE INDEX warehouse_movements_item_idx ON public.warehouse_movements USING btree (warehouse_item_id, created_at)"
+    },
+    {
+      "tablename": "warehouse_movements",
+      "indexname": "warehouse_movements_operation_id_unique",
+      "indexdef": "CREATE UNIQUE INDEX warehouse_movements_operation_id_unique ON public.warehouse_movements USING btree (operation_id)"
+    },
+    {
+      "tablename": "warehouse_movements",
+      "indexname": "warehouse_movements_pkey",
+      "indexdef": "CREATE UNIQUE INDEX warehouse_movements_pkey ON public.warehouse_movements USING btree (id)"
+    },
+    {
+      "tablename": "warehouse_reservations",
+      "indexname": "warehouse_reservations_item_idx",
+      "indexdef": "CREATE INDEX warehouse_reservations_item_idx ON public.warehouse_reservations USING btree (warehouse_item_id, status)"
+    },
+    {
+      "tablename": "warehouse_reservations",
+      "indexname": "warehouse_reservations_pkey",
+      "indexdef": "CREATE UNIQUE INDEX warehouse_reservations_pkey ON public.warehouse_reservations USING btree (id)"
+    },
+    {
+      "tablename": "warehouse_settlements",
+      "indexname": "warehouse_settlements_actor_idx",
+      "indexdef": "CREATE INDEX warehouse_settlements_actor_idx ON public.warehouse_settlements USING btree (actor_id)"
+    },
+    {
+      "tablename": "warehouse_settlements",
+      "indexname": "warehouse_settlements_item_idx",
+      "indexdef": "CREATE INDEX warehouse_settlements_item_idx ON public.warehouse_settlements USING btree (warehouse_item_id, period_to)"
+    },
+    {
+      "tablename": "warehouse_settlements",
+      "indexname": "warehouse_settlements_operation_id_unique",
+      "indexdef": "CREATE UNIQUE INDEX warehouse_settlements_operation_id_unique ON public.warehouse_settlements USING btree (operation_id)"
+    },
+    {
+      "tablename": "warehouse_settlements",
+      "indexname": "warehouse_settlements_pkey",
+      "indexdef": "CREATE UNIQUE INDEX warehouse_settlements_pkey ON public.warehouse_settlements USING btree (id)"
+    },
+    {
+      "tablename": "warehouse_settlements",
+      "indexname": "warehouse_settlements_user_idx",
+      "indexdef": "CREATE INDEX warehouse_settlements_user_idx ON public.warehouse_settlements USING btree (user_id)"
+    },
+    {
+      "tablename": "warehouse_settlements",
+      "indexname": "warehouse_settlements_voids_settlement_id_unique",
+      "indexdef": "CREATE UNIQUE INDEX warehouse_settlements_voids_settlement_id_unique ON public.warehouse_settlements USING btree (voids_settlement_id)"
+    },
+    {
+      "tablename": "warehouse_withdrawals",
+      "indexname": "warehouse_withdrawals_owner_idx",
+      "indexdef": "CREATE INDEX warehouse_withdrawals_owner_idx ON public.warehouse_withdrawals USING btree (owner_id, created_at)"
+    },
+    {
+      "tablename": "warehouse_withdrawals",
+      "indexname": "warehouse_withdrawals_pkey",
+      "indexdef": "CREATE UNIQUE INDEX warehouse_withdrawals_pkey ON public.warehouse_withdrawals USING btree (id)"
+    }
+  ],
+  "checks": [
+    {
+      "table_name": "current_prices",
+      "conname": "current_prices_price_toman_range",
+      "definition": "CHECK (((price >= 1) AND (price <= '10000000000000'::bigint)))"
+    },
+    {
+      "table_name": "factory_registry",
+      "conname": "factory_registry_status_ck",
+      "definition": "CHECK ((status = ANY (ARRAY['verified'::text, 'unverified'::text])))"
+    },
+    {
+      "table_name": "lead_items",
+      "conname": "lead_items_line_total_safe",
+      "definition": "CHECK (((line_total IS NULL) OR ((line_total >= 0) AND (line_total <= '9007199254740991'::bigint))))"
+    },
+    {
+      "table_name": "lead_items",
+      "conname": "lead_items_qty_positive_finite",
+      "definition": "CHECK (((qty > (0)::double precision) AND (qty < ('1000000000000'::bigint)::double precision)))"
+    },
+    {
+      "table_name": "lead_items",
+      "conname": "lead_items_unit_price_safe",
+      "definition": "CHECK (((unit_price IS NULL) OR ((unit_price >= 0) AND (unit_price <= '10000000000000'::bigint))))"
+    },
+    {
+      "table_name": "order_fulfillments",
+      "conname": "fulfillment_quantity_ck",
+      "definition": "CHECK (((quantity > (0)::double precision) AND (quantity < ('1000000000000'::bigint)::double precision)))"
+    },
+    {
+      "table_name": "order_items",
+      "conname": "order_items_money_ck",
+      "definition": "CHECK ((((unit_price IS NULL) OR ((unit_price >= 0) AND (unit_price <= '10000000000000'::bigint))) AND ((line_total IS NULL) OR ((line_total >= 0) AND (line_total <= '9007199254740991'::bigint)))))"
+    },
+    {
+      "table_name": "order_items",
+      "conname": "order_items_qty_ck",
+      "definition": "CHECK (((qty > (0)::double precision) AND (qty < ('1000000000000'::bigint)::double precision)))"
+    },
+    {
+      "table_name": "orders",
+      "conname": "orders_status_ck",
+      "definition": "CHECK ((status = ANY (ARRAY['registered'::text, 'confirmed'::text, 'loading'::text, 'in_transit'::text, 'delivered'::text])))"
+    },
+    {
+      "table_name": "price_points",
+      "conname": "price_points_price_toman_range",
+      "definition": "CHECK (((price >= 1) AND (price <= '10000000000000'::bigint)))"
+    },
+    {
+      "table_name": "proformas",
+      "conname": "proformas_discounts_within_subtotal",
+      "definition": "CHECK (((discount_toman + volume_discount_toman) <= subtotal))"
+    },
+    {
+      "table_name": "proformas",
+      "conname": "proformas_money_nonnegative_safe",
+      "definition": "CHECK ((((subtotal >= 0) AND (subtotal <= '9007199254740991'::bigint)) AND (discount_toman >= 0) AND (volume_discount_toman >= 0) AND (vat_amount >= 0) AND ((total >= 0) AND (total <= '9007199254740991'::bigint))))"
+    },
+    {
+      "table_name": "proformas",
+      "conname": "proformas_vat_rate_range",
+      "definition": "CHECK (((vat_rate >= (0)::double precision) AND (vat_rate <= (1)::double precision)))"
+    },
+    {
+      "table_name": "skus",
+      "conname": "skus_branch_length_range_ck",
+      "definition": "CHECK (((branch_length_m IS NULL) OR ((branch_length_m > (0)::double precision) AND (branch_length_m <= (100)::double precision))))"
+    },
+    {
+      "table_name": "skus",
+      "conname": "skus_order_range_ck",
+      "definition": "CHECK (((\"order\" >= 0) AND (\"order\" <= 10000)))"
+    },
+    {
+      "table_name": "skus",
+      "conname": "skus_price_basis_ck",
+      "definition": "CHECK ((price_basis = ANY (ARRAY['kg'::text, 'branch'::text, 'coil'::text, 'sheet'::text, 'piece'::text, 'sqm'::text])))"
+    },
+    {
+      "table_name": "skus",
+      "conname": "skus_unit_ck",
+      "definition": "CHECK ((unit = ANY (ARRAY['kg'::text, 'branch'::text, 'sheet'::text, 'meter'::text, 'piece'::text, 'sqm'::text])))"
+    },
+    {
+      "table_name": "skus",
+      "conname": "skus_weight_range_ck",
+      "definition": "CHECK (((theoretical_weight_kg IS NULL) OR ((theoretical_weight_kg > (0)::double precision) AND (theoretical_weight_kg <= (100000)::double precision))))"
+    },
+    {
+      "table_name": "users",
+      "conname": "users_role_check",
+      "definition": "CHECK ((role = ANY (ARRAY['customer'::text, 'operator'::text, 'sales'::text, 'content'::text, 'catalog'::text, 'admin'::text])))"
+    },
+    {
+      "table_name": "warehouse_billing_events",
+      "conname": "billing_event_numbers_ck",
+      "definition": "CHECK ((((quantity_tons >= (0)::double precision) AND (quantity_tons <= (100000)::double precision)) AND ((monthly_fee_toman >= 0) AND (monthly_fee_toman <= 1000000000))))"
+    },
+    {
+      "table_name": "warehouse_cash_entries",
+      "conname": "warehouse_cash_amount_ck",
+      "definition": "CHECK (((amount_toman <> 0) AND ((amount_toman >= '-9007199254740991'::bigint) AND (amount_toman <= '9007199254740991'::bigint))))"
+    },
+    {
+      "table_name": "warehouse_items",
+      "conname": "warehouse_items_fee_ck",
+      "definition": "CHECK (((monthly_fee_toman >= 0) AND (monthly_fee_toman <= 1000000000)))"
+    },
+    {
+      "table_name": "warehouse_items",
+      "conname": "warehouse_items_quantity_ck",
+      "definition": "CHECK ((((quantity_tons >= (0)::double precision) AND (quantity_tons <= (100000)::double precision)) AND (round((quantity_tons)::numeric, 6) = (quantity_tons)::numeric)))"
+    },
+    {
+      "table_name": "warehouse_items",
+      "conname": "warehouse_items_status_ck",
+      "definition": "CHECK ((status = ANY (ARRAY['pending'::text, 'stored'::text, 'selling'::text, 'released'::text])))"
+    },
+    {
+      "table_name": "warehouse_items",
+      "conname": "warehouse_released_zero_ck",
+      "definition": "CHECK (((status <> 'released'::text) OR ((quantity_tons = (0)::double precision) AND (released_at IS NOT NULL))))"
+    },
+    {
+      "table_name": "warehouse_movements",
+      "conname": "warehouse_movements_kind_ck",
+      "definition": "CHECK ((((kind = 'receipt'::text) AND (delta_tons > (0)::double precision)) OR ((kind = 'release'::text) AND (delta_tons < (0)::double precision)) OR ((kind = 'adjustment'::text) AND (delta_tons <> (0)::double precision))))"
+    },
+    {
+      "table_name": "warehouse_movements",
+      "conname": "warehouse_movements_quantity_ck",
+      "definition": "CHECK ((((quantity_after_tons >= (0)::double precision) AND (quantity_after_tons <= (100000)::double precision)) AND ((delta_tons >= ('-100000'::integer)::double precision) AND (delta_tons <= (100000)::double precision))))"
+    },
+    {
+      "table_name": "warehouse_reservations",
+      "conname": "reservation_quantity_ck",
+      "definition": "CHECK (((quantity_tons > (0)::double precision) AND (quantity_tons <= (100000)::double precision)))"
+    },
+    {
+      "table_name": "warehouse_settlements",
+      "conname": "warehouse_settlements_money_ck",
+      "definition": "CHECK ((((amount_toman >= '-9007199254740991'::bigint) AND (amount_toman <= '9007199254740991'::bigint)) AND ((voids_settlement_id IS NOT NULL) OR (amount_toman >= 0))))"
+    },
+    {
+      "table_name": "warehouse_settlements",
+      "conname": "warehouse_settlements_period_ck",
+      "definition": "CHECK ((period_to > period_from))"
+    },
+    {
+      "table_name": "warehouse_withdrawals",
+      "conname": "withdrawal_quantity_ck",
+      "definition": "CHECK (((quantity_tons > (0)::double precision) AND (quantity_tons <= (100000)::double precision)))"
+    }
+  ],
+  "invalidAlertAccepted": true
+}

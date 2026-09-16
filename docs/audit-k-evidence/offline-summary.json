@@ -1,0 +1,86 @@
+{
+  "before": [
+    {
+      "n": 67
+    }
+  ],
+  "after": [
+    {
+      "n": 67
+    }
+  ],
+  "tables": 58,
+  "columnDrift": [],
+  "extraColumns": [],
+  "foreignKeys": 65,
+  "uncoveredForeignKeys": [
+    {
+      "table_name": "order_fulfillments",
+      "conname": "order_fulfillments_reservation_id_warehouse_reservations_id_fk",
+      "definition": "FOREIGN KEY (reservation_id) REFERENCES warehouse_reservations(id)",
+      "covered": false
+    },
+    {
+      "table_name": "orders",
+      "conname": "orders_lead_id_leads_id_fk",
+      "definition": "FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE SET NULL",
+      "covered": false
+    },
+    {
+      "table_name": "price_points",
+      "conname": "price_points_actor_id_users_id_fk",
+      "definition": "FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL",
+      "covered": false
+    },
+    {
+      "table_name": "skus",
+      "conname": "skus_sub_category_parent_fk",
+      "definition": "FOREIGN KEY (sub_category_id, category_id) REFERENCES sub_categories(id, category_id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "covered": false
+    },
+    {
+      "table_name": "warehouse_cash_entries",
+      "conname": "warehouse_cash_entries_order_id_orders_id_fk",
+      "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE RESTRICT",
+      "covered": false
+    },
+    {
+      "table_name": "warehouse_cash_entries",
+      "conname": "warehouse_cash_entries_settlement_id_warehouse_settlements_id_f",
+      "definition": "FOREIGN KEY (settlement_id) REFERENCES warehouse_settlements(id) ON DELETE RESTRICT",
+      "covered": false
+    },
+    {
+      "table_name": "warehouse_cash_entries",
+      "conname": "warehouse_cash_entries_warehouse_item_id_warehouse_items_id_fk",
+      "definition": "FOREIGN KEY (warehouse_item_id) REFERENCES warehouse_items(id) ON DELETE RESTRICT",
+      "covered": false
+    },
+    {
+      "table_name": "warehouse_reservations",
+      "conname": "warehouse_reservations_order_item_id_order_items_id_fk",
+      "definition": "FOREIGN KEY (order_item_id) REFERENCES order_items(id) ON DELETE RESTRICT",
+      "covered": false
+    },
+    {
+      "table_name": "warehouse_reservations",
+      "conname": "warehouse_reservations_owner_id_users_id_fk",
+      "definition": "FOREIGN KEY (owner_id) REFERENCES users(id)",
+      "covered": false
+    },
+    {
+      "table_name": "warehouse_withdrawals",
+      "conname": "warehouse_withdrawals_reservation_id_warehouse_reservations_id_",
+      "definition": "FOREIGN KEY (reservation_id) REFERENCES warehouse_reservations(id)",
+      "covered": false
+    },
+    {
+      "table_name": "warehouse_withdrawals",
+      "conname": "warehouse_withdrawals_warehouse_item_id_warehouse_items_id_fk",
+      "definition": "FOREIGN KEY (warehouse_item_id) REFERENCES warehouse_items(id) ON DELETE RESTRICT",
+      "covered": false
+    }
+  ],
+  "duplicateIndexCandidates": [],
+  "checkCount": 31
+}

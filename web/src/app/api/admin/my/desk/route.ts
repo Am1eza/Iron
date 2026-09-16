@@ -8,6 +8,7 @@ import { assigneeDesk, type DeskLeadRow, type DeskList } from '@/lib/server/repo
  *  show which is which. */
 function toDesk(r: DeskLeadRow) {
   return {
+    version: r.version,
     id: r.id,
     ref: r.ref,
     contactName: r.contactName ?? undefined,

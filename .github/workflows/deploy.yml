@@ -575,11 +575,16 @@ jobs:
             if docker compose exec -T db pg_dump -U ahantime ahantime | gzip > "$BACKUP_FILE"; then
               echo "Backup written: $BACKUP_FILE"
             else
-              echo "::warning::pre-deploy backup failed — continuing deploy without one"
+              echo "::error::pre-deploy backup failed — deployment stopped"
               rm -f "$BACKUP_FILE"
+              exit 1
             fi
             find backups -name '*.sql.gz' -mtime +14 -delete || true
 
+            # Run migrations while the old application is still serving. Any
+            # failure leaves the old container running; only additive changes
+            # are eligible for this path (see database release gate in CI).
+            docker compose run --rm --no-deps --entrypoint node web scripts/migrate.mjs
             docker compose up -d web
 
             # The image is built without DATABASE_URL (see page.tsx's hasDb()

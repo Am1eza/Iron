@@ -315,7 +315,7 @@ export async function updateLead(
     callbackAt: Date | null;
     contactVerified: boolean;
   }>,
-  opts: { ifAssigneeId?: string | null } = {},
+  opts: { ifAssigneeId?: string | null; expectedVersion?: number } = {},
 ): Promise<LeadRow | null> {
   const guard =
     opts.ifAssigneeId === undefined
@@ -326,7 +326,7 @@ export async function updateLead(
   const rows = await getDb()
     .update(leads)
     .set({ ...patch, updatedAt: new Date() })
-    .where(guard ? and(eq(leads.id, id), guard) : eq(leads.id, id))
+    .where(and(eq(leads.id, id), isNull(leads.deletedAt), guard, opts.expectedVersion === undefined ? undefined : eq(leads.version, opts.expectedVersion)))
     .returning();
   return rows[0] ?? null;
 }
@@ -634,6 +634,7 @@ const DESK_OPEN_STATUSES: Array<LeadRow['status']> = ['new', 'contacted'];
  *  jsonb, kilobytes per lead — for up to 110 rows every 60s per logged-in
  *  rep, purely so the route's toDesk() could drop it. */
 const deskColumns = {
+  version: leads.version,
   id: leads.id,
   ref: leads.ref,
   contactName: leads.contactName,
@@ -646,7 +647,7 @@ const deskColumns = {
 
 export type DeskLeadRow = Pick<
   LeadRow,
-  'id' | 'ref' | 'contactName' | 'contactMobile' | 'status' | 'source' | 'createdAt' | 'callbackAt'
+  'version' | 'id' | 'ref' | 'contactName' | 'contactMobile' | 'status' | 'source' | 'createdAt' | 'callbackAt'
 > & {
   /** True when `callbackAt` is in the past — i.e. the call was missed.
    *  Always false when `callbackAt` is null. Decided server-side so every

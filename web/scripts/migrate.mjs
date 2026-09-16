@@ -1,38 +1,27 @@
-/**
- * Programmatic migration runner — used by the Docker entrypoint and
- * `pnpm db:migrate`. Applies committed SQL files from ./drizzle.
- */
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import pg from 'pg';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { applyMigrations } from './lib/migrations.mjs';
 
 const url = process.env.DATABASE_URL;
 if (!url) {
-  console.error('[migrate] DATABASE_URL is not set — skipping migrations.');
-  process.exit(process.env.MIGRATE_OPTIONAL === 'true' ? 0 : 1);
+  console.error('[migrate] DATABASE_URL is required');
+  process.exit(1);
 }
-
-const migrationsFolder = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'drizzle');
-const pool = new pg.Pool({ connectionString: url, max: 1 });
-
-const MAX_TRIES = 10;
-for (let attempt = 1; attempt <= MAX_TRIES; attempt++) {
+const folder = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'drizzle');
+for (let attempt = 1; attempt <= 10; attempt++) {
+  const client = new pg.Client({ connectionString: url, connectionTimeoutMillis: 5000, application_name: 'ahantime-migrate' });
   try {
-    await migrate(drizzle(pool), { migrationsFolder });
-    console.log('[migrate] migrations applied.');
-    await pool.end();
-    process.exit(0);
-  } catch (err) {
-    const transient = /ECONNREFUSED|ENOTFOUND|EAI_AGAIN|starting up/i.test(String(err));
-    if (transient && attempt < MAX_TRIES) {
-      console.warn(`[migrate] db not ready (attempt ${attempt}/${MAX_TRIES}) — retrying in 2s…`);
-      await new Promise((r) => setTimeout(r, 2000));
-      continue;
+    await client.connect();
+    await applyMigrations(client, folder, { checkOnly: process.env.MIGRATE_CHECK_ONLY === 'true' });
+    console.log('[migrate] verified and applied');
+    break;
+  } catch (error) {
+    if (!['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', '57P03'].includes(error.code) || attempt === 10) {
+      console.error('[migrate] failed', { code: error.code, message: error.message });
+      process.exitCode = 1;
+      break;
     }
-    console.error('[migrate] failed:', err);
-    await pool.end().catch(() => {});
-    process.exit(1);
-  }
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  } finally { await client.end().catch(() => {}); }
 }
