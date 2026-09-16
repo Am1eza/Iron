@@ -15,7 +15,19 @@ for (let i = 0; i < previous.length; i++) {
 for (const migration of current.slice(previous.length)) {
   const sql = migration.statements.join('\n').replace(/--[^\n]*/g, '');
   if (/\b(DROP\s+(TABLE|COLUMN)|TRUNCATE|ALTER\s+COLUMN\s+\S+\s+(TYPE|SET\s+NOT\s+NULL))\b/i.test(sql)) {
-    throw new Error(`Contract-breaking migration requires a separate maintenance release: ${migration.tag}`);
+    // Expand/contract has to be allowed to finish, or a column added by
+    // mistake could never be removed. The contract half ships alone, marked,
+    // and only once no rollback target still reads what it removes -- which
+    // checkBackCompat.mjs is what actually verifies.
+    if (!migration.contract) {
+      throw new Error(`Contract-breaking migration requires a separate maintenance release: ${migration.tag}. `
+        + `If every supported release has stopped using these columns, ship it alone with a leading `
+        + `"-- contract-release: <why this is safe now>" line.`);
+    }
+    if (current.length - previous.length !== 1) {
+      throw new Error(`A contract-release migration must ship on its own: ${migration.tag}`);
+    }
+    console.log(`Contract release ${migration.tag}: ${migration.contract}`);
   }
   if (/CREATE\s+(UNIQUE\s+)?INDEX\b/i.test(sql) && !migration.online) throw new Error(`Index must use online-indexes-only migration: ${migration.tag}`);
 }

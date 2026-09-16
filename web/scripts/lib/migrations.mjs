@@ -11,8 +11,14 @@ export function readMigrations(folder) {
     const filename = `${entry.tag}.sql`;
     if (!files.includes(filename)) throw new Error(`Missing migration ${filename}`);
     const content = readFileSync(path.join(folder, filename), 'utf8');
+    // `-- contract-release: <reason>` is the expand/contract endgame: the
+    // reviewed statement that no supported release reads these columns any
+    // more. It travels in the migration so it shows up in the diff, and both
+    // the policy gate and the N-1 gate honour the same marker.
+    const contract = /^--\s*contract-release:[ \t]*(\S.*)$/m.exec(content);
     return { ...entry, hash: createHash('sha256').update(content).digest('hex'),
       online: content.startsWith('-- online-indexes-only'),
+      contract: contract?.[1]?.trim() ?? null,
       statements: content.split('--> statement-breakpoint').map(s => s.trim()).filter(Boolean) };
   });
 }
