@@ -1,26 +1,29 @@
 (function () {
   try {
-    var SUPPORTED = ['fa', 'en', 'ar', 'zh'];
+    // Non-default locales are URL-prefixed (`/en/...`, `/ar/...`, `/zh/...`);
+    // fa (default) is served bare — see i18n/routing.ts's `localePrefix:
+    // 'as-needed'`. The server already rendered the CORRECT lang/dir/text for
+    // whichever of those this request's URL names (app/[locale]/layout.tsx
+    // resolves it from the path, not a cookie) — the only reason this script
+    // exists is that the outer root layout (app/layout.tsx) can't read that
+    // child route param and must emit a static `lang="fa" dir="rtl"` shell.
+    // So this must mirror the URL, not guess from a cookie/browser language:
+    // a fa-browser visitor on `/en/...` (or vice versa) would otherwise get
+    // `dir` that disagrees with the already-rendered, correctly-translated
+    // page — exactly the "راست‌چین/چپ‌چین به‌هم‌ریخته" symptom this fixes.
+    // (The old cookie this read, `ahantime_locale`, is dead: nothing writes
+    // it anymore — LocaleSwitcher navigates to the other locale's real URL
+    // via next-intl's own router instead of flipping client state.)
     var RTL = { fa: true, ar: true };
-    var m = document.cookie.match(/(?:^|; )ahantime_locale=([^;]+)/);
-    var locale = m ? decodeURIComponent(m[1]) : null;
-    if (locale && SUPPORTED.indexOf(locale) === -1) locale = null;
-    if (!locale) {
-      // No cookie yet — a visitor who has never chosen a language. Try the
-      // browser's own language list before falling back to fa, mirroring
-      // LocaleProvider's client-side detection (see its header comment for
-      // why this can't happen server-side without defeating ISR). Doing it
-      // here too, not just in LocaleProvider, avoids a *second* flash where
-      // `dir` (rtl/ltr) itself flips after first paint.
-      var langs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ''];
-      for (var i = 0; i < langs.length; i++) {
-        var primary = (langs[i] || '').split('-')[0].toLowerCase();
-        if (SUPPORTED.indexOf(primary) !== -1) {
-          locale = primary;
-          break;
-        }
+    var PREFIXED = ['en', 'ar', 'zh'];
+    var path = location.pathname;
+    var locale = 'fa';
+    for (var i = 0; i < PREFIXED.length; i++) {
+      var p = '/' + PREFIXED[i];
+      if (path === p || path.indexOf(p + '/') === 0) {
+        locale = PREFIXED[i];
+        break;
       }
-      locale = locale || 'fa';
     }
     // Write ONLY on a real change. The server already emits lang="fa"
     // dir="rtl" (app/layout.tsx), so for the ~all-Persian traffic these were
