@@ -1,6 +1,6 @@
 import { getRows } from '@/lib/server/catalog';
-import type { SubsMap } from '@/lib/data/catalog';
-import type { Category, PriceRow } from '@/lib/types/domain';
+import { getCategories, getSubsMap } from '@/lib/data/catalog';
+import type { PriceRow } from '@/lib/types/domain';
 import { CategoryStage } from '@/components/home/CategoryStage';
 import { CompareTeaser, type CompareSlide } from '@/components/home/CompareTeaser';
 import { computeBulkSplit, pickBestGroup } from '@/lib/utils/bulkSplit';
@@ -17,14 +17,16 @@ import { clientLogos } from '../../../public/assets/logos/clients';
  * blocks the hero (board/video, the page's LCP element) from streaming
  * first. Business logic here is unchanged from the pre-split `HomePage`;
  * only WHEN it runs relative to the rest of the page moved.
+ *
+ * Fetches `categories`/`subsMap` itself (request-deduped via `cache()`, same
+ * read `HomeJsonLd`/`HeroTrustLine` make) rather than taking them as props —
+ * a prop would have to be awaited in `HomePage` before returning any JSX at
+ * all, which blocked the ENTIRE response (hero included) behind this read
+ * despite this component's own `<Suspense>` boundary; see page.tsx's git
+ * history for the perf investigation this was split out of.
  */
-export async function HomeBelowFold({
-  categories,
-  subsMap,
-}: {
-  categories: Category[];
-  subsMap: SubsMap;
-}) {
+export async function HomeBelowFold() {
+  const [categories, subsMap] = await Promise.all([getCategories(), getSubsMap()]);
   // One data pass: all rows per category (live: DB; mock: generator).
   const rowsBySlug = new Map<string, PriceRow[]>();
   await Promise.all(

@@ -9,6 +9,7 @@
  * - `isHidden`: beyond PRICE_STALE_HIDE_AFTER_DAYS business days — the
  *   price is withheld entirely («تماس بگیرید»), not just flagged.
  */
+import { cache } from 'react';
 import { isSameJalaliDay, businessDaysSince } from '@/lib/server/utils/jalali';
 import { getHolidays, getStaleHideAfterDays } from '@/lib/server/repos/settingsRepo';
 
@@ -17,8 +18,24 @@ export interface PriceFreshness {
   isHidden: (updatedAt: Date) => boolean;
 }
 
-export async function getPriceFreshness(now: Date = new Date()): Promise<PriceFreshness> {
+/**
+ * The two settings reads behind `getPriceFreshness`, request-deduped. Keyed
+ * on the second `now` falls in (not `now` itself, which is a fresh `Date` on
+ * every default-argument call and would never hit as a `cache()` key) — the
+ * settings this reads are day/business-day granularity, so a request that
+ * happens to straddle a second boundary is harmless. Callers on the homepage
+ * alone invoke `getPriceFreshness()` once per category (`tableRows`, in
+ * `catalogRepo.ts`) — 8 categories, 8 otherwise-redundant `getHolidays` +
+ * `getStaleHideAfterDays` round trips per render before this existed.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- cache() key only, see comment above
+const getFreshnessSettings = cache(async (_nowSecond: number) => {
   const [holidays, hideAfter] = await Promise.all([getHolidays(), getStaleHideAfterDays()]);
+  return { holidays, hideAfter };
+});
+
+export async function getPriceFreshness(now: Date = new Date()): Promise<PriceFreshness> {
+  const { holidays, hideAfter } = await getFreshnessSettings(Math.floor(now.getTime() / 1000));
   const invalid = (date: Date) => !Number.isFinite(date.getTime()) || date.getTime() > now.getTime();
   return {
     isStale: (updatedAt: Date) => invalid(updatedAt) || !isSameJalaliDay(updatedAt, now),

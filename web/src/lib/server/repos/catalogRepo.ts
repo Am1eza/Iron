@@ -337,9 +337,19 @@ export async function tableRows(
   opts?: { forAdmin?: boolean },
 ): Promise<PriceRow[]> {
   const db = getDb();
-  const targetCat = (
-    await db.select({ id: categories.id }).from(categories).where(eq(categories.slug, categorySlug)).limit(1)
-  )[0];
+  // Independent of each other — the target-category lookup and the freshness
+  // settings read used to run as two of three fully sequential round trips
+  // (lookup, then the main select, then this), even though neither depends
+  // on the other. Only the main select genuinely has to wait on `targetCat`.
+  const [targetCat, s] = await Promise.all([
+    db
+      .select({ id: categories.id })
+      .from(categories)
+      .where(eq(categories.slug, categorySlug))
+      .limit(1)
+      .then((r) => r[0]),
+    getPriceFreshness(),
+  ]);
   const conds = [
     // A row belongs on this category's page either natively (its own
     // categoryId) or by cross-listing — a SKU tagged into this category
@@ -359,7 +369,6 @@ export async function tableRows(
     .leftJoin(currentPrices, eq(currentPrices.skuId, skus.id))
     .where(and(...conds))
     .orderBy(asc(subCategories.order), asc(subCategories.id), asc(skus.name));
-  const s = await getPriceFreshness();
   return rows.map((r) => toPriceRow(r, s, !opts?.forAdmin));
 }
 
