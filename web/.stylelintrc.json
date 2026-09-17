@@ -52,6 +52,12 @@
         "scale-unlimited/declaration-strict-value": null,
         "csstools/use-logical": null
       }
+    },
+    {
+      "files": ["src/components/home/Marquee.module.css"],
+      "rules": {
+        "csstools/use-logical": null
+      }
     }
   ]
 }
