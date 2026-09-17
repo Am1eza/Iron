@@ -132,5 +132,7 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|fonts|icons|images).*)'],
+  // Kept in sync with `proxy.ts`'s matcher — see that file's comment for why
+  // `.*\..*` replaced the stale `fonts|icons|images` folder allowlist.
+  matcher: ['/((?!_next/static|_next/image|favicon\\.ico|.*\\..*).*)'],
 };

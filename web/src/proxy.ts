@@ -307,6 +307,13 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  // Run on app routes, skip static assets and image optimizer.
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|fonts|icons|images).*)'],
+  // Run on app routes, skip static assets and the image optimizer. `.*\..*`
+  // (next-intl's own documented matcher pattern) excludes any path whose
+  // last segment has a dot — every real file under `public/` (brand,
+  // products, assets, media, fonts, sw.js, llms.txt, *-init.js, ...) plus
+  // the manifest/robots/sitemap special routes, without hand-maintaining a
+  // folder allowlist that silently goes stale as `public/` grows (the
+  // previous `fonts|icons|images` list had drifted: `icons`/`images` don't
+  // exist, `assets`/`brand`/`products`/`media` did and were 404ing here).
+  matcher: ['/((?!_next/static|_next/image|favicon\\.ico|.*\\..*).*)'],
 };
