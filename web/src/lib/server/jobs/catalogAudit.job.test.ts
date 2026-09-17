@@ -46,7 +46,7 @@ describe('catalogAuditJob', () => {
     let call = 0;
     queryMock.mockImplementation(() => {
       call += 1;
-      // Two of the fourteen checks come back with offending rows.
+      // Two of the thirteen checks come back with offending rows.
       if (call === 1 || call === 5) return Promise.resolve({ rowCount: 3, rows: [{ id: 'x' }] });
       return Promise.resolve({ rowCount: 0, rows: [] });
     });
@@ -54,9 +54,13 @@ describe('catalogAuditJob', () => {
     expect(reportErrorMock).toHaveBeenCalledTimes(1);
     const [error, context] = reportErrorMock.mock.calls[0]!;
     expect(error).toBeInstanceOf(Error);
-    expect((error as Error).message).toContain('2/14');
+    expect((error as Error).message).toContain('2/13');
     expect(context.job).toBe('catalogAudit');
     expect(context.failures).toHaveLength(2);
+    // `check`, not `name` — a bare `name` key gets silently blanked by
+    // lib/errors/report.ts's REDACT_KEYS before it reaches the log/GlitchTip.
+    expect(context.failures[0]).toHaveProperty('check');
+    expect(context.failures[0]).not.toHaveProperty('name');
   });
 
   it('runs daily', () => {

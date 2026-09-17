@@ -80,12 +80,20 @@ export const PRICING_INTEGRITY_CHECKS: readonly IntegrityCheck[] = [
  *  to an error tracker. */
 export const ORDER_WAREHOUSE_INTEGRITY_CHECKS: readonly IntegrityCheck[] = [
   {
+    // `orders_lead_uq` (schema/orders.ts) is a PARTIAL unique index — only
+    // one *active* (deleted_at is null) order per lead is required. Legacy
+    // data intentionally has leads with several soft-deleted orders plus one
+    // active one; without the same `deleted_at is null` filter this check
+    // re-flags exactly that expected, allowed shape as a failure.
     name: 'duplicate_orders_per_lead',
-    sql: `select lead_id from orders where lead_id is not null group by lead_id having count(*)>1 limit 25`,
+    sql: `select lead_id from orders where lead_id is not null and deleted_at is null group by lead_id having count(*)>1 limit 25`,
   },
   {
+    // Same gap as above: a soft-deleted order's `user_id` is never updated
+    // if the lead's owner changes afterward, so comparing deleted orders
+    // against their lead's current owner reports stale rows as mismatches.
     name: 'order_lead_owner_mismatch',
-    sql: `select o.id from orders o join leads l on l.id=o.lead_id where o.user_id is distinct from l.user_id limit 25`,
+    sql: `select o.id from orders o join leads l on l.id=o.lead_id where o.deleted_at is null and o.user_id is distinct from l.user_id limit 25`,
   },
   {
     name: 'invalid_stock',

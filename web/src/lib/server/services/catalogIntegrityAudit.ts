@@ -1,5 +1,5 @@
 /**
- * B-25 (audit-catalog-B-FINAL) — the 14-check catalog integrity gate, shared
+ * B-25 (audit-catalog-B-FINAL) — the 13-check catalog integrity gate, shared
  * between two callers:
  *
  *  - `scripts/catalogIntegrityAudit.ts` — the manual/CI `pnpm audit:catalog`
@@ -36,10 +36,19 @@ export const CATALOG_INTEGRITY_CHECKS: readonly CatalogIntegrityCheck[] = [
   { name: 'weight_required_for_kg_priced_counted_item', sql: `select id,name from skus where unit in ('branch','sheet','piece') and price_basis='kg' and theoretical_weight_kg is null limit 25` },
   { name: 'branch_basis_without_length', sql: `select id,name from skus where price_basis='branch' and branch_length_m is null limit 25` },
   { name: 'spec_hidden_only_in_name', sql: `select id,name from skus where size is null and name ~ '[۰-۹0-9]' limit 25` },
-  { name: 'noncanonical_factory', sql: `select id,factory from skus where factory is not null and (factory<>btrim(factory) or factory like '%'||chr(8204)||'%') limit 25` },
-  { name: 'stale_factory_order', sql: `select fo.category_id,fo.factory from factory_order fo where not exists (select 1 from skus s where s.category_id=fo.category_id and s.factory=fo.factory) limit 25` },
+  // ZWNJ (U+200C, نیم‌فاصله) is correct, required Persian orthography for
+  // compound factory names (e.g. «ذوب‌آهن اصفهان») — not a mangled/stray
+  // character. Only real leading/trailing whitespace is a data problem.
+  { name: 'noncanonical_factory', sql: `select id,factory from skus where factory is not null and factory<>btrim(factory) limit 25` },
   { name: 'unsafe_image_path', sql: `select id,image_url from skus where image_url is not null and image_url !~ '^/uploads/[A-Za-z0-9._-]+$' limit 25` },
 ];
+// `stale_factory_order` was removed (was: factory_order rows whose factory no
+// longer matches any SKU in that category). schema/catalog.ts's own
+// `factoryOrder` table comment documents this as expected, harmless drift —
+// "a factory renamed on its SKUs simply stops matching and falls back to the
+// unordered bucket, which is the same 'no worse than before' behaviour as
+// never having been ordered" — so it was never a real integrity problem to
+// alert on; it fired daily, forever, for something the design intends.
 
 export interface CatalogIntegrityCheckResult {
   name: string;

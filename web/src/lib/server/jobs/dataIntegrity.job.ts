@@ -47,7 +47,10 @@ async function runGate(gate: string, checks: readonly IntegrityCheck[]): Promise
   reportError(new Error(`[${gate}] ${failures.length}/${results.length} check(s) failed`), {
     job: 'dataIntegrity',
     gate,
-    failures: failures.map((f) => ({ name: f.name, rowCount: f.rowCount, error: f.error })),
+    // `check`, not `name` — see catalogAudit.job.ts: `lib/errors/report.ts`'s
+    // REDACT_KEYS matches any key containing "name" and blanks it, which
+    // silently destroyed which check failed before it reached the log/GlitchTip.
+    failures: failures.map((f) => ({ check: f.name, rowCount: f.rowCount, error: f.error })),
   });
 }
 
