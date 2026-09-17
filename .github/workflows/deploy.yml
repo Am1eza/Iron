@@ -438,7 +438,35 @@ jobs:
 
             # `db` must already be running for the backup below — bring the
             # rest of the stack up first (harmless no-op if it's already up).
-            docker compose up -d db caddy
+            #
+            # `--no-deps` is load-bearing, not cosmetic. docker-compose.yml's
+            # `caddy` has `depends_on: web: condition: service_healthy` — by
+            # the time this line runs, `.env`'s WEB_IMAGE was JUST rewritten
+            # to the new tag above, so without `--no-deps` this command
+            # implicitly pulls `web` into its graph too, recreates it with
+            # the new (possibly broken) image, and BLOCKS here waiting up to
+            # ~80s (30s start_period + 5×10s retries) for its healthcheck.
+            # If that new image fails health, THIS line exits non-zero under
+            # `set -euo pipefail` and the whole script dies right here —
+            # before the DB backup, before migrate.mjs, and before the real
+            # health-gate/rollback loop at the bottom of this script ever
+            # runs. That is exactly what happened in the 2026-09-16 22:49 UTC
+            # outage: GitHub Actions logs showed the container recreated at
+            # 22:52:41 and declared unhealthy at 22:53:57 (76s later, matching
+            # the math above) with exit 1 — and neither "Backup written:" nor
+            # "[migrate] verified and applied" appear as real output that run,
+            # only as source-code echoes from the pre-run script dump. The
+            # rollback logic near the bottom of this script is correct; it
+            # simply never got a chance to fire. `web` must ONLY ever be
+            # swapped at the explicit `docker compose up -d web` line below
+            # (after backup + migrate), with its health judged ONLY by this
+            # script's own polling loop — never as a side effect of bringing
+            # up `caddy`. Caddy itself needs no Docker-level dependency
+            # ordering to function correctly: with `--no-deps` it just starts
+            # immediately and serves 502/connection-refused against `web`
+            # until `web` actually answers, which self-heals the moment it
+            # does.
+            docker compose up -d --no-deps db caddy
 
             # Get the Caddyfile's current contents into the RUNNING Caddy.
             #
@@ -545,10 +573,17 @@ jobs:
             OLD_CADDYFILE_HASH="$(cat "$CADDYFILE_HASH_FILE" 2>/dev/null || true)"
             if [ "$NEW_CADDYFILE_HASH" != "$OLD_CADDYFILE_HASH" ]; then
               echo "Caddyfile changed (or no prior record) — force-recreating caddy."
-              docker compose up -d --force-recreate caddy
+              # `--no-deps` here for the same reason as the `up -d db caddy`
+              # line above: `caddy`'s `depends_on: web: condition:
+              # service_healthy` in docker-compose.yml would otherwise pull
+              # `web` into this command's graph too and block on its
+              # healthcheck, which is not this line's job — `web` is swapped
+              # and health-gated later in this same script, on its own.
+              docker compose up -d --no-deps --force-recreate caddy
             else
               echo "Caddyfile unchanged since last deploy — normal 'up -d', no recreate."
-              docker compose up -d caddy
+              # Same `--no-deps` reasoning as above.
+              docker compose up -d --no-deps caddy
             fi
             # Record what's now actually running, unconditionally, so the
             # NEXT deploy's comparison is against what THIS deploy applied —
