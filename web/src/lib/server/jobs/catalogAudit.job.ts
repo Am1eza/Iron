@@ -4,7 +4,7 @@
  * already existed as a manual/CI command; the audit's own finding was that
  * nothing proved it ran unattended in production, so drift (a stale factory
  * order row, an orphaned SKU, a factory name that stopped being canonical)
- * could sit unnoticed indefinitely. This registers the SAME 14 checks
+ * could sit unnoticed indefinitely. This registers the SAME 13 checks
  * (`lib/server/services/catalogIntegrityAudit.ts`) as a `Job`, exactly like
  * `cleanupJob`/`stalenessJob`, so it runs once a day against the app's own
  * pool and reports through the same GlitchTip path every other job uses —
@@ -32,12 +32,17 @@ export const catalogAuditJob: Job = {
 
     // One error report per run (not one per failing check): a single
     // GlitchTip issue naming every failing check is what an operator can act
-    // on, where fourteen separate near-identical issues would just be noise.
+    // on, where thirteen separate near-identical issues would just be noise.
     reportError(
       new Error(`[catalog-integrity] ${failures.length}/${results.length} check(s) failed`),
       {
         job: 'catalogAudit',
-        failures: failures.map((f) => ({ name: f.name, rowCount: f.rowCount, error: f.error })),
+        // `check`, not `name`: `lib/errors/report.ts`'s REDACT_KEYS matches
+        // any key containing "name" (to catch `customerName`/`userName`/...)
+        // and blanks it to '[redacted]' before this ever reaches the log or
+        // GlitchTip — a `name` field here silently destroyed the one piece
+        // of information ("which check failed") this report exists to carry.
+        failures: failures.map((f) => ({ check: f.name, rowCount: f.rowCount, error: f.error })),
       },
     );
   },

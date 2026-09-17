@@ -12,8 +12,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { CATALOG_INTEGRITY_CHECKS, runCatalogIntegrityChecks } from './catalogIntegrityAudit';
 
 describe('CATALOG_INTEGRITY_CHECKS', () => {
-  it('has 14 checks, matching the audit-catalog-B-FINAL count', () => {
-    expect(CATALOG_INTEGRITY_CHECKS).toHaveLength(14);
+  it('has 13 checks (stale_factory_order removed — documented as benign drift)', () => {
+    expect(CATALOG_INTEGRITY_CHECKS).toHaveLength(13);
   });
 
   it('every check has a unique name', () => {

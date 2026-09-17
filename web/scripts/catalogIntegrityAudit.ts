@@ -1,7 +1,7 @@
 /** Read-only, fail-closed catalog integrity gate for staging/production.
  * Usage: pnpm exec tsx scripts/catalogIntegrityAudit.ts
  *
- * B-25 (audit-catalog-B-FINAL) — the 14 checks themselves now live in
+ * B-25 (audit-catalog-B-FINAL) — the 13 checks themselves now live in
  * `src/lib/server/services/catalogIntegrityAudit.ts`, shared with the daily
  * scheduled job (`src/lib/server/jobs/catalogAudit.job.ts`) so the manual
  * command a human runs after a migration and the automated run that watches

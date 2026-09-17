@@ -76,6 +76,10 @@ describe('dataIntegrityJob', () => {
     );
     expect(warehouseCtx.gate).toBe('order-warehouse-integrity');
     expect(warehouseCtx.failures).toHaveLength(2);
+    // `check`, not `name` — a bare `name` key gets silently blanked by
+    // lib/errors/report.ts's REDACT_KEYS before it reaches the log/GlitchTip.
+    expect(pricingCtx.failures[0]).toHaveProperty('check');
+    expect(pricingCtx.failures[0]).not.toHaveProperty('name');
   });
 
   it('treats a broken query as that check failing, not as the gate passing', async () => {
