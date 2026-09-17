@@ -1,10 +1,9 @@
 'use client';
 import { useState, type ReactNode } from 'react';
 import { Link, useRouter } from '@/i18n/navigation';
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { routes } from '@/lib/routes';
 import { AiMarkIcon, ArrowEndIcon, ChevronStartIcon } from '@/components/primitives/icons';
-import { toPersianDigits } from '@/lib/utils/format';
 import styles from './HeroSearch.module.css';
 
 /**
@@ -22,19 +21,18 @@ const STARTER_KEYS = ['starter1', 'starter2', 'starter3'] as const;
 
 export function HeroSearch({
   board,
-  stats,
+  trust,
 }: {
   board?: ReactNode;
-  /** REAL numbers computed server-side from the live catalog — trust line. */
-  stats?: { skuCount: number; factoryCount: number };
+  /** The trust line (real catalog counts), server-rendered and passed in as
+   *  a slot so it can stream on its own — see HeroTrustLine. Kept out of
+   *  this component's own props so the hero (board/video, the page's LCP
+   *  element) never waits on the catalog fetch behind it. */
+  trust?: ReactNode;
 }) {
   const t = useTranslations('home.hero');
-  const locale = useLocale();
   const router = useRouter();
   const [q, setQ] = useState('');
-  // Persian digits are for the Persian rendering only — an English or Chinese
-  // reader gets Latin numerals.
-  const num = (n: number) => (locale === 'fa' ? toPersianDigits(n) : String(n));
   const ask = (text: string) => {
     // NB: named `query`, not `t` as it once was — `t` is the translation
     // function in this scope now, and shadowing it here would be a trap.
@@ -69,11 +67,7 @@ export function HeroSearch({
             </Link>
           </div>
 
-          {stats && stats.skuCount > 0 ? (
-            <p className={`${styles.trust} tnum`}>
-              {t('trust', { sku: num(stats.skuCount), factory: num(stats.factoryCount) })}
-            </p>
-          ) : null}
+          {trust}
 
           {/* Advisor's inline shortcut, fenced off from the CTA row above. */}
           <div className={styles.advisor}>

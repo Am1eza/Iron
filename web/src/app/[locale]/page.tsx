@@ -1,20 +1,15 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { getCategories, getSubsMap } from '@/lib/data/catalog';
-import { getRows } from '@/lib/server/catalog';
 
 import { routes } from '@/lib/routes';
-import type { PriceRow } from '@/lib/types/domain';
 import { HeroSearch } from '@/components/home/HeroSearch';
-import { PriceBoard } from '@/components/home/PriceBoard';
-import { CategoryStage } from '@/components/home/CategoryStage';
-import { CompareTeaser, type CompareSlide } from '@/components/home/CompareTeaser';
-import { computeBulkSplit, pickBestGroup } from '@/lib/utils/bulkSplit';
+import { HeroTrustLine } from '@/components/home/HeroTrustLine';
+import { PriceBoardSlot } from '@/components/home/PriceBoardSlot';
+import { HomeBelowFold } from '@/components/home/HomeBelowFold';
 import { ValueProps } from '@/components/home/ValueProps';
-import { WhyAhantime } from '@/components/home/WhyAhantime';
 import { Partners } from '@/components/home/Partners';
-import { TOOLS_NAV, SERVICES_NAV_FULL } from '@/lib/data/nav';
-import { clientLogos } from '../../../public/assets/logos/clients';
 import { JsonLd } from '@/components/seo/JsonLd';
 import {
   buildMetadata,
@@ -71,94 +66,21 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   // The video drops into the exact slot the board occupies — no layout change.
   // hasDb guard: build-time prerender (ISR) runs without DATABASE_URL — an
   // unguarded getSetting broke `next build` on this exact line.
+  //
+  // This one `getSetting` call is the ONLY per-request data `HomePage` itself
+  // still awaits — everything that needs a full catalog read (the hero trust
+  // line, the price-board fallback, the mega-menu/compare/why-us section
+  // below the fold) was split into its own async component behind its own
+  // `<Suspense>` (HeroTrustLine / PriceBoardSlot / HomeBelowFold) so none of
+  // it blocks the hero — the page's LCP element — from streaming first. Perf
+  // investigation: the catalog reads themselves were never the slow part in
+  // isolation, but awaiting all of them here, un-suspended, held up the
+  // entire response (real-user LCP ~5.5s despite a fast TTFB) — see PR that
+  // introduced this split for the measurements.
   const heroVideo = hasDb()
     ? await getSetting<{ url: string }>('SITE_HERO_VIDEO', { url: '' })
     : { url: '' };
 
-  // One data pass: all rows per category (live: DB; mock: generator).
-  const rowsBySlug = new Map<string, PriceRow[]>();
-  await Promise.all(
-    categories.map(async (cat) => {
-      rowsBySlug.set(cat.slug, await getRows(cat.slug));
-    }),
-  );
-
-  // Precompute the 3rd menu level (mills per category+sub) server-side, so the
-  // mock catalog never ships to the client menu bundle.
-  const factories: Record<string, Record<string, string[]>> = {};
-  for (const cat of categories) {
-    const allMills = new Set<string>();
-    const millsBySub = new Map<string | undefined, Set<string>>();
-    for (const row of rowsBySlug.get(cat.slug) ?? []) {
-      if (!row.factory) continue;
-      allMills.add(row.factory);
-      const mills = millsBySub.get(row.subCategoryId) ?? new Set<string>();
-      mills.add(row.factory);
-      millsBySub.set(row.subCategoryId, mills);
-    }
-    const categoryMills = [...allMills];
-    factories[cat.slug] = {};
-    for (const sub of subsMap[cat.slug] ?? []) {
-      const subMills = millsBySub.get(sub.slug);
-      factories[cat.slug]![sub.slug] =
-        subMills && subMills.size >= 2 ? [...subMills] : categoryMills;
-    }
-  }
-
-  // One representative SKU per headline category for the hero price board.
-  const boardRows = ['rebar', 'ibeam', 'sheet', 'profile']
-    .map((slug) => {
-      const rows = rowsBySlug.get(slug) ?? [];
-      return rows[2] ?? rows[0];
-    })
-    .filter((r): r is PriceRow => Boolean(r));
-
-  // Per-category mill comparison (top 4 mills each) for the compare explorer —
-  // slide-by-slide across ALL products, computed server-side. Narrowed to the
-  // single most-quoted sub-category first — blending a mill's price across
-  // entirely different sub-categories in the category would average
-  // non-equivalent products into a misleading "who's cheapest".
-  const compareSlides: CompareSlide[] = categories
-    .map((cat) => {
-      const rows = rowsBySlug.get(cat.slug) ?? [];
-      const group = pickBestGroup(rows);
-      const scoped = group ? rows.filter((r) => r.subCategoryId === group.subCategoryId) : rows;
-      return {
-        slug: cat.slug,
-        name: cat.name,
-        lines: computeBulkSplit(scoped, 1)
-          .lines.slice(0, 4)
-          .map((l) => ({
-            factory: l.factory,
-            pricePerKg: l.pricePerKg,
-            best: l.best,
-          })),
-      };
-    })
-    .filter((s) => s.lines.length >= 2);
-
-  // REAL trust numbers for the hero (never invented): priced SKUs and
-  // distinct supplying mills, straight from the rows already fetched above.
-  //
-  // «محصول قیمت‌خورده» is a claim about PUBLISHED PRICES, so it counts rows
-  // that actually carry one. `getRows()` left-joins `currentPrices` and does
-  // not filter on price visibility, so `allRows.length` also counted SKUs
-  // with no price row at all and SKUs whose price is stale-withheld — both
-  // of which render «تماس بگیرید», not a price. On the live catalogue that
-  // was 595 claimed vs. 260 real (62 rows had no price row; 273 were beyond
-  // PRICE_STALE_HIDE_AFTER_DAYS). `priceHidden` is the same flag every
-  // public surface withholds on (catalogRepo.toPriceRow), so the headline
-  // number and the tables now agree by construction.
-  //
-  // De-duplicated by SKU id first: a cross-listed SKU is returned by BOTH
-  // its native category and the category it is cross-listed into, and a
-  // trust number must not count one product twice.
-  const allRows = [...new Map([...rowsBySlug.values()].flat().map((r) => [r.id, r])).values()];
-  const pricedRows = allRows.filter((r) => !r.current.priceHidden && !r.current.priceIsEstimated);
-  const skuCount = pricedRows.length;
-  // Mills are counted over the same priced rows, for the same reason: the
-  // sentence describes catalog labels, not verified direct-supply relationships.
-  const factoryCount = new Set(pricedRows.map((r) => r.factory).filter(Boolean)).size;
   // Null only when the catalog read failed and the chrome degraded to an empty
   // rail — there is nothing to describe, so nothing is asserted.
   const catalogNav = catalogNavigationJsonLd(categories, subsMap);
@@ -179,25 +101,20 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         ]}
       />
       <HeroSearch
-        stats={{ skuCount, factoryCount }}
-        board={heroVideo.url ? <HeroVideo src={heroVideo.url} /> : <PriceBoard rows={boardRows} />}
+        board={heroVideo.url ? <HeroVideo src={heroVideo.url} /> : (
+          <Suspense fallback={null}>
+            <PriceBoardSlot />
+          </Suspense>
+        )}
+        trust={
+          <Suspense fallback={null}>
+            <HeroTrustLine categories={categories} />
+          </Suspense>
+        }
       />
-      <CategoryStage categories={categories} subs={subsMap} factories={factories} />
-      <CompareTeaser slides={compareSlides} />
-      {/* «چرا آهن‌تایم» — WHAT this marketplace does that a plain price list
-          does not, stated before ValueProps explains HOW a purchase runs.
-          Every number it shows is derived here, server-side, from live data or
-          from the very nav arrays that render the tools/services menus — never
-          a marketing figure typed into the component. */}
-      <WhyAhantime
-        stats={{
-          skuCount,
-          factoryCount,
-          clientCount: clientLogos.length,
-          toolCount: TOOLS_NAV.length,
-          serviceCount: SERVICES_NAV_FULL.length,
-        }}
-      />
+      <Suspense fallback={null}>
+        <HomeBelowFold categories={categories} subsMap={subsMap} />
+      </Suspense>
       <ValueProps />
       <Partners />
     </>
