@@ -90,8 +90,78 @@ describe('parseAhanonlinePage', () => {
   });
 });
 
+/** `میلگرد/قیمت-میلگرد` as served on 1405/06/26: no «تاریخ بروزرسانی»
+ *  column — each priced row is followed by a collapsed accordion row that
+ *  carries the date. Trimmed from the live page, markup otherwise verbatim. */
+const ACCORDION_PAGE = `
+<div class="font-Bold text-[18px] mb-2">میلگرد ذوب آهن اصفهان</div>
+<table>
+  <thead><tr>
+    <th>سایز</th><th>استاندارد</th><th>محل تحویل</th><th>قیمت (تومان)</th>
+  </tr></thead>
+  <tbody class="table_price">
+    <tr class="bg-even text-[13px]">
+      <td class="w-[25.0%] px-[3px]"><div class="flex items-center justify-center"><i onclick="toggleAccordionPrice(this)" aria-controls="p-93593" class="icon-arrow-left"></i>12</div></td>
+      <td class="w-[25.0%] px-[3px]"><div class="flex items-center justify-center">A3</div></td>
+      <td class="w-[25.0%] px-[3px]"><div class="flex items-center justify-center">کارخانه</div></td>
+      <td class="font-[Bold] text-priceCallButton w-[25.0%]"><div class="product-price" data-price="968181">96,820</div></td>
+    </tr>
+    <tr>
+      <td colspan="4" class="detail-info-price">
+        <div class="flex flex-col" id="p-93593">
+          <div class='priceMoreInfo'>
+            <div class='priceMoreInfo_item'>
+              آخرین بروز رسانی :
+              1405/6/26
+            </div>
+            <div class='priceMoreInfo_item'>نمودار نوسانات : <span>-0.5%</span>
+              <span class="table-chart" data-id="93593" data-name="میلگرد 12 ذوب آهن اصفهان آجدار A3 کارخانه" data-code="0725"><i class="icon-CHART"></i></span>
+            </div>
+          </div>
+        </div>
+      </td>
+    </tr>
+    <tr class="bg-odd text-[13px]">
+      <td class="w-[25.0%] px-[3px]"><div class="flex items-center justify-center">14</div></td>
+      <td class="w-[25.0%] px-[3px]"><div class="flex items-center justify-center">A3</div></td>
+      <td class="w-[25.0%] px-[3px]"><div class="flex items-center justify-center">کارخانه</div></td>
+      <td class="font-[Bold] text-priceCallButton w-[25.0%]"><div class="product-price" data-price="886401">88,640</div></td>
+    </tr>
+    <tr>
+      <td colspan="4" class="detail-info-price"><div class='priceMoreInfo_item'>آخرین بروز رسانی : ۱۴۰۵/۶/۲۴</div></td>
+    </tr>
+  </tbody>
+</table>`;
+
+describe('parseAhanonlinePage — accordion «آخرین بروز رسانی»', () => {
+  it('attaches the accordion date to the priced row directly above it', () => {
+    const rows = parseAhanonlinePage(ACCORDION_PAGE, 'میلگرد/قیمت-میلگرد');
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.cells['تاریخ بروزرسانی']).toBe('1405/6/26');
+    // Persian digits normalised, so jalaliDaysAgo() can read it.
+    expect(rows[1]!.cells['تاریخ بروزرسانی']).toBe('1405/6/24');
+  });
+
+  it('never overwrites a real «تاریخ بروزرسانی» column with an accordion date', () => {
+    const withColumn = PAGE.replace(
+      '</tbody>',
+      `<tr><td colspan="9" class="detail-info-price">آخرین بروز رسانی : 1400/1/1</td></tr></tbody>`,
+    );
+    const rows = parseAhanonlinePage(withColumn, 'نبشی-و-ناودانی/نبشی');
+    expect(rows[1]!.cells['تاریخ بروزرسانی']).toBe('1405/5/31');
+  });
+
+  it('does not let a detail row in one table date a row in another', () => {
+    const orphan = `<table><thead><tr><th>سایز</th></tr></thead><tbody>
+      <tr><td colspan="1" class="detail-info-price">آخرین بروز رسانی : 1399/1/1</td></tr>
+    </tbody></table>${ACCORDION_PAGE}`;
+    const rows = parseAhanonlinePage(orphan, 'میلگرد/قیمت-میلگرد');
+    expect(rows.map((r) => r.cells['تاریخ بروزرسانی'])).toEqual(['1405/6/26', '1405/6/24']);
+  });
+});
+
 describe('fetchAhanonlinePrices', () => {
-  const ok = (body: string) => new Response(body, { status: 200 });
+  const ok =(body: string) => new Response(body, { status: 200 });
   const noSleep = () => Promise.resolve();
 
   it('parses every requested page and reports nothing as failed', async () => {
