@@ -11,9 +11,16 @@ function positive(name: string, fallback: number, max: number): number {
 export function databasePoolConfig(connectionString: string, requestScoped = false): PoolConfig {
   const max = requestScoped ? 5 : positive('PG_POOL_MAX', 10, 50);
   const workers = positive('WEB_CONCURRENCY', 3, 32);
-  // Reserve connections for operations and allow two app replicas during rollout.
+  // Reserve connections for operations. Default replicas=1 matches this
+  // repo's actual deploy: docker-compose.yml's `web` is a single service
+  // recreated in place (stop-then-start, see deploy.yml's own "NOT
+  // zero-downtime" note), never two full replicas serving at once — see
+  // .env.example's WEB_CONCURRENCY/PG_POOL_MAX budget comment, which already
+  // sizes this host's real WEB_CONCURRENCY=5 against max_connections=100
+  // with no such multiplier. A genuine blue/green or multi-host setup should
+  // set PG_MAX_REPLICAS explicitly rather than rely on this default.
   const budget = positive('PG_APP_CONNECTION_BUDGET', 80, 10000);
-  const replicas = positive('PG_MAX_REPLICAS', 2, 100);
+  const replicas = positive('PG_MAX_REPLICAS', 1, 100);
   if (!requestScoped && (workers + 1) * max * replicas > budget) {
     throw new Error('Database connection budget exceeded by workers + jobs + replicas');
   }
