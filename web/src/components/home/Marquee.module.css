@@ -38,8 +38,21 @@
   z-index: 1;
   pointer-events: none;
 }
+/* PHYSICAL left/right on purpose, not inset-inline-start/end: the build's RTL
+   polyfill (stylelint-use-logical is happy either way, but the actual flip
+   happens via generated `:lang(fa|ar|...)` selectors) rewrites logical inset
+   properties from the PAGE's `lang` attribute, not from this element's own
+   computed `direction`. On every Persian page that flips fadeStart to
+   `right:0` and fadeEnd to `left:0` — the opposite sides from the ones
+   `.viewport`'s `direction: ltr` above actually needs — so the fade meant to
+   cover the entrance edge instead sits, fully solid, off in the exit half of
+   the track (and vice versa): a disconnected dark block with a bare,
+   unfaded hard clip at the real edge next to it. `.viewport` is a fixed
+   internal LTR coordinate space regardless of page language (see above), so
+   these two need physical, unflippable sides — hence the stylelint-use-logical
+   override for this file. */
 .fadeStart {
-  inset-inline-start: 0;
+  left: 0;
   background: linear-gradient(
     90deg,
     var(--marquee-fade, var(--color-bg)) 0,
@@ -48,7 +61,7 @@
   );
 }
 .fadeEnd {
-  inset-inline-end: 0;
+  right: 0;
   background: linear-gradient(
     270deg,
     var(--marquee-fade, var(--color-bg)) 0,
