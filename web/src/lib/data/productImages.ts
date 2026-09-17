@@ -12,6 +12,8 @@ export const PRODUCT_IMAGES: Record<string, string> = {
   'angle-channel': '/products/angle-channel.webp',
   pipe: '/products/pipe.webp',
   wire: '/products/wire.webp',
+  steel: '/products/stainless-steel.webp',
+  'felezat-rangi': '/products/felezat-rangi.webp',
 };
 
 /** Absolute public path for a category's photo, or undefined if none exists. */
