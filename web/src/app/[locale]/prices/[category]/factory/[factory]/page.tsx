@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
+import { getLocalizedName, getLocalizedSkuName, getLocalizedMeasure } from '@/lib/utils/localizedNames';
+import type { AppLocale } from '@/i18n/config';
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { buildMetadata, itemListJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import {
@@ -20,7 +22,7 @@ import { PriceHeader } from '@/components/catalog/PriceHeader';
 import { BulkQuote } from '@/components/catalog/BulkQuote';
 import { FacetRail } from '@/components/catalog/FacetRail';
 
-type Params = { params: Promise<{ category: string; factory: string }> };
+type Params = { params: Promise<{ category: string; factory: string; locale: string }> };
 
 // Same cadence as the category and sub-category pages one level up — this is
 // the same admin-entered price data, filtered.
@@ -43,30 +45,37 @@ export const revalidate = 300;
  * which of these URLs are real.
  */
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const { category, factory } = await params;
+  const { category, factory, locale } = await params;
   const [categories, facets] = await Promise.all([getCategories(), getCategoryFacets(category)]);
   const cat = categories.find((c) => c.slug === category);
   const facet = facets.factories.find((f) => f.slug === factory);
-  const tMeta = await getTranslations('pricesFacet');
+  const tMeta = await getTranslations({ locale, namespace: 'pricesFacet' });
   if (!cat || !facet) {
-    const t = await getTranslations('meta.notFound');
-    return buildMetadata({ title: t('page'), noindex: true });
+    const t = await getTranslations({ locale, namespace: 'meta.notFound' });
+    return buildMetadata({ locale, title: t('page'), noindex: true });
   }
+  const catName = getLocalizedName(cat, locale as AppLocale);
   return buildMetadata({
-    title: tMeta('factoryPageTitle', { category: cat.name, factory: facet.label }),
+    locale,
+    title: tMeta('factoryPageTitle', { category: catName, factory: facet.label }),
     description: tMeta('factoryPageDescriptionFull', {
-      category: cat.name,
+      category: catName,
       factory: facet.label,
-      measure: sizeLabel(category),
+      measure: getLocalizedMeasure(sizeLabel(category), locale as AppLocale),
     }),
     path: routes.categoryByFactory(category, factory),
   });
 }
 
 export default async function FactoryLandingPage({ params }: Params) {
-  const tNav = await getTranslations();
-  const tFacet = await getTranslations('pricesFacet');
-  const { category, factory } = await params;
+  // Must run before any next-intl server call below: without it this page's
+  // body resolved every translation in Persian on /en, /ar and /zh.
+  const pageLocale = (await params).locale;
+  setRequestLocale(pageLocale);
+  const tNav = await getTranslations({ locale: pageLocale });
+  const tFacet = await getTranslations({ locale: pageLocale, namespace: 'pricesFacet' });
+  const { category, factory, locale: rawLocale } = await params;
+  const locale = rawLocale as AppLocale;
 
   const categories = await getCategories();
   const cat = categories.find((c) => c.slug === category);
@@ -87,10 +96,11 @@ export default async function FactoryLandingPage({ params }: Params) {
   // render a table it has no rows for even if that ever stops being true.
   if (!facet || rows.length === 0) notFound();
 
+  const catName = getLocalizedName(cat, locale);
   const crumbs = [
     { label: tNav('nav.home'), href: routes.home() },
     { label: tNav('nav.prices'), href: routes.prices() },
-    { label: cat.name, href: routes.category(category) },
+    { label: catName, href: routes.category(category) },
     { label: facet.label, href: routes.categoryByFactory(category, factory) },
   ];
 
@@ -100,7 +110,7 @@ export default async function FactoryLandingPage({ params }: Params) {
       <JsonLd
         data={itemListJsonLd(
           rows.map((r) => ({
-            name: r.name,
+            name: getLocalizedSkuName(r, cat, subs.find((x) => x.slug === r.subCategoryId), locale),
             url: routes.sku(r.categoryId, r.subCategoryId, r.slug),
           })),
         )}
@@ -114,11 +124,11 @@ export default async function FactoryLandingPage({ params }: Params) {
               categorySlug={category}
               categoryName={cat.name}
               id="factory-title"
-              title={tFacet('factoryPageTitle', { category: cat.name, factory: facet.label })}
+              title={tFacet('factoryPageTitle', { category: catName, factory: facet.label })}
               description={tFacet('factorySectionDescription', {
-                category: cat.name,
+                category: catName,
                 factory: facet.label,
-                measure: sizeLabel(category),
+                measure: getLocalizedMeasure(sizeLabel(category), locale),
               })}
             />
           </div>

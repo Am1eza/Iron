@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import {
@@ -15,7 +15,7 @@ import { ArticleCard } from '@/components/content/ArticleCard';
 import { CategoryRail } from '@/components/content/CategoryRail';
 import styles from './page.module.css';
 
-type Params = { params: Promise<{ slug: string }> };
+type Params = { params: Promise<{ slug: string; locale: string }> };
 
 const PER_PAGE = 24;
 
@@ -32,14 +32,15 @@ export const revalidate = 600;
 // above no longer applies HTML caching, only request-level dedup.
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const { slug } = await params;
+  const { slug, locale } = await params;
   const cat = (await getCategories()).find((c) => c.slug === slug);
-  const tMeta = await getTranslations('blogCategory');
+  const tMeta = await getTranslations({ locale, namespace: 'blogCategory' });
   if (!cat) {
-    const t = await getTranslations('meta.notFound');
-    return buildMetadata({ title: t('blogCategory'), noindex: true });
+    const t = await getTranslations({ locale, namespace: 'meta.notFound' });
+    return buildMetadata({ locale, title: t('blogCategory'), noindex: true });
   }
   return buildMetadata({
+    locale,
     title: tMeta('heading', { category: cat.name }),
     description: tMeta('metaDescription', { category: cat.name }),
     path: routes.blogCategory(slug),
@@ -47,8 +48,12 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 export default async function BlogCategoryPage({ params }: Params) {
-  const tNav = await getTranslations();
-  const t = await getTranslations('blogCategory');
+  // Must run before any next-intl server call below: without it this page's
+  // body resolved every translation in Persian on /en, /ar and /zh.
+  const pageLocale = (await params).locale;
+  setRequestLocale(pageLocale);
+  const tNav = await getTranslations({ locale: pageLocale });
+  const t = await getTranslations({ locale: pageLocale, namespace: 'blogCategory' });
   const { slug } = await params;
   const cat = (await getCategories()).find((c) => c.slug === slug);
   if (!cat) notFound();

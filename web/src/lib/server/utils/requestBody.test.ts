@@ -107,7 +107,9 @@ describe('I-202 — the three documented upload size layers stay ordered (Caddy 
     const fs = await import('node:fs');
     const path = await import('node:path');
     const caddyfile = fs.readFileSync(path.join(process.cwd(), '..', 'Caddyfile'), 'utf8');
-    const hostBlocks = [/ahantime\.com, www\.ahantime\.com \{[\s\S]*?\n\}/, /panel\.ahantime\.com \{[\s\S]*?\n\}/];
+    // `www.ahantime.com` is now a bare redirect block with no body to cap; the
+    // site itself is served only by the apex block.
+    const hostBlocks = [/^ahantime\.com \{[\s\S]*?\n\}/m, /panel\.ahantime\.com \{[\s\S]*?\n\}/];
     for (const blockRe of hostBlocks) {
       const block = blockRe.exec(caddyfile)?.[0];
       expect(block, `could not find the expected host block in Caddyfile with pattern ${blockRe}`).toBeTruthy();

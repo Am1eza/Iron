@@ -2,7 +2,14 @@
 # hostnames and reverse-proxies to the Next.js container. HTTP is auto-redirected
 # to HTTPS. Requires ports 80 + 443 reachable from the internet and the domain's
 # DNS A record pointing at this server.
-ahantime.com, www.ahantime.com {
+# www is a duplicate host, not a site: it answered 200 with the full page
+# (canonical pointing at the apex), so crawlers fetched every URL twice.
+# One permanent hop to the apex keeps any existing www link's equity.
+www.ahantime.com {
+	redir https://ahantime.com{uri} permanent
+}
+
+ahantime.com {
 	encode zstd gzip
 
 	# Cap request bodies at the edge so oversized uploads are rejected before

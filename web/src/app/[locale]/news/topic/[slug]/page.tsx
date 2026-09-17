@@ -30,12 +30,13 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { locale, slug } = await params;
   setRequestLocale(locale);
   const topic = findNewsTopic(slug);
-  const tMeta = await getTranslations('newsTopic');
+  const tMeta = await getTranslations({ locale, namespace: 'newsTopic' });
   if (!topic) {
-    const t = await getTranslations('meta.notFound');
-    return buildMetadata({ title: t('newsTopic'), noindex: true });
+    const t = await getTranslations({ locale, namespace: 'meta.notFound' });
+    return buildMetadata({ locale, title: t('newsTopic'), noindex: true });
   }
   return buildMetadata({
+    locale,
     title: tMeta('heading', { topic: topic.name }),
     description: topic.description,
     path: routes.newsTopic(slug),

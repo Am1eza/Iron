@@ -1,4 +1,5 @@
-import { breadcrumbJsonLd } from '@/lib/seo';
+import { useLocale } from 'next-intl';
+import { breadcrumbJsonLd, localizeJsonLdUrls } from '@/lib/seo';
 import type { Crumb } from '@/components/ui';
 
 /**
@@ -6,14 +7,28 @@ import type { Crumb } from '@/components/ui';
  * Server-rendered into the document so crawlers see it without executing JS.
  * Accepts one object or an array (multiple graphs).
  */
-export function JsonLd({ data }: { data: object | object[] }) {
+export function JsonLd({
+  data,
+  localize = true,
+}: {
+  data: object | object[];
+  /**
+   * Rewrite this site's page URLs inside `data` into the current locale
+   * (`/prices/rebar` → `/en/prices/rebar` on an /en page), so the structured
+   * data agrees with the page's own canonical. `false` only where the page
+   * itself canonicalises to Persian — article detail pages.
+   */
+  localize?: boolean;
+}) {
+  const locale = useLocale();
+  const payload = localize ? localizeJsonLdUrls(data, locale) : data;
   // Fields inside `data` (article titles, SKU/category names, breadcrumb
   // labels, ...) are admin- or catalog-authored strings validated only for
   // length, not markup — an unescaped `</script>` in one of them would break
   // out of this tag and execute as a second, attacker-controlled <script>.
   // Escaping `<` (as its JS unicode form) neutralizes any tag-close sequence
   // while staying valid JSON — `<` is not a JSON control character.
-  const json = JSON.stringify(data).replace(/</g, '\\u003c');
+  const json = JSON.stringify(payload).replace(/</g, '\\u003c');
   return (
     <script
       type="application/ld+json"
@@ -33,11 +48,11 @@ export function JsonLd({ data }: { data: object | object[] }) {
  * `ListItem` needs an `item` to be a resolvable node. Do not "clean up" those
  * hrefs as unused — see `breadcrumbJsonLd`.
  */
-export function BreadcrumbJsonLd({ items }: { items: Crumb[] }) {
+export function BreadcrumbJsonLd({ items, localize = true }: { items: Crumb[]; localize?: boolean }) {
   if (items.length === 0) return null;
   const entries = items.map((c) => ({ name: c.label, url: c.href }));
   const data = breadcrumbJsonLd(entries);
   // A single-node trail (or none) says nothing a crawler cannot already see.
   if (data.itemListElement.length < 2) return null;
-  return <JsonLd data={data} />;
+  return <JsonLd data={data} localize={localize} />;
 }

@@ -2574,6 +2574,10 @@
     "byFactorySuffix": " به تفکیک کارخانه",
     "statsWithFactories": "{products} کالا از {factories} کارخانه",
     "statsOnly": "{products} کالا",
-    "allMillsSuffix": " در همهٔ کارخانه‌ها"
+    "allMillsSuffix": " در همهٔ کارخانه‌ها",
+    "subLiveDescription": "قیمت لحظه‌ای {subject} {breakdown}، همراه با نوسان، وزن شاخه و زمان تحویل اعلام‌شده. پیش از خرید، با کارشناس ما مشورت کنید.",
+    "breakdownBySizeAndMill": "به تفکیک سایز و کارخانه",
+    "breakdownBySize": "به تفکیک سایز",
+    "subEmptyBody": "هنوز کالایی در {subject} ثبت نشده است. برای استعلام قیمت، موجودی و زمان تحویل با کارشناسان ما تماس بگیرید."
   }
 }

@@ -28,7 +28,7 @@ vi.mock('@/lib/analytics/track', () => ({ trackGoal: vi.fn() }));
 if (!Element.prototype.scrollTo) Element.prototype.scrollTo = () => {};
 
 async function renderPage() {
-  const ui = await AiPage({ searchParams: Promise.resolve({}) });
+  const ui = await AiPage({ params: Promise.resolve({ locale: 'fa' }), searchParams: Promise.resolve({}) });
   return renderWithIntl(ui);
 }
 

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { Container } from '@/components/ui';
@@ -10,19 +10,28 @@ import styles from './page.module.css';
 import { PURPOSE_CHIPS } from '@/lib/data/aiTaxonomy';
 import { getContact } from '@/lib/server/contact';
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('meta.ai');
-  return buildMetadata({ title: t('title'), description: t('description'), path: routes.ai() });
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'meta.ai' });
+  return buildMetadata({ locale, title: t('title'), description: t('description'), path: routes.ai() });
 }
 
 type Search = { searchParams: Promise<{ q?: string }> };
 
-export default async function AiPage({ searchParams }: Search) {
+export default async function AiPage({ params, searchParams }: Search & { params: Promise<{ locale: string }> }) {
+  // Must run before any next-intl server call below: without it this page's
+  // body resolved every translation in Persian on /en, /ar and /zh.
+  const pageLocale = (await params).locale;
+  setRequestLocale(pageLocale);
   const { q } = await searchParams;
   const initialQuestion = typeof q === 'string' ? q : undefined;
   // The real, admin-editable numbers — read here (server) and passed down, so
   // the advisor's «گفتگو با کارشناس» row can never drift from the footer's.
-  const [contact, t] = await Promise.all([getContact(), getTranslations()]);
+  const [contact, t] = await Promise.all([getContact(), getTranslations({ locale: pageLocale })]);
   const crumbs = [
     { label: t('nav.home'), href: routes.home() },
     { label: t('meta.ai.title'), href: routes.ai() },

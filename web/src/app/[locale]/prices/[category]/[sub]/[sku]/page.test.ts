@@ -54,7 +54,7 @@ async function metadataFor(row: unknown) {
   vi.resetModules();
   const { generateMetadata } = await import('./page');
   return generateMetadata({
-    params: Promise.resolve({ category: 'ibeam', sub: 'hash-sangin', sku: 'ibeam-heb-20' }),
+    params: Promise.resolve({ category: 'ibeam', sub: 'hash-sangin', sku: 'ibeam-heb-20', locale: 'fa' }),
   });
 }
 

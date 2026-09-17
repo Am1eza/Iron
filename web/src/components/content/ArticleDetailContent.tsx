@@ -69,8 +69,12 @@ export function ArticleDetailContent({
 
   return (
     <Container>
-      <BreadcrumbJsonLd items={crumbs} />
+      {/* Article bodies are Persian-only, so every locale's version of this
+          page canonicalises to the Persian URL (buildMetadata
+          `translatedContent: false`) — the structured data must agree. */}
+      <BreadcrumbJsonLd items={crumbs} localize={false} />
       <JsonLd
+        localize={false}
         data={articleJsonLd({
           title,
           url: type === 'blog' ? routes.blog(article.slug) : routes.news(article.slug),

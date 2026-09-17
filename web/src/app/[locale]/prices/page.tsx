@@ -16,8 +16,8 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   setRequestLocale(locale);
-  const t = await getTranslations('meta.prices');
-  return buildMetadata({ title: t('title'), description: t('description'), path: routes.prices() });
+  const t = await getTranslations({ locale, namespace: 'meta.prices' });
+  return buildMetadata({ locale, title: t('title'), description: t('description'), path: routes.prices() });
 }
 
 // Category list is admin-curated and rarely changes, but without a revalidate

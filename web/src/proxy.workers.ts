@@ -133,6 +133,8 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   // Kept in sync with `proxy.ts`'s matcher — see that file's comment for why
-  // `.*\..*` replaced the stale `fonts|icons|images` folder allowlist.
-  matcher: ['/((?!_next/static|_next/image|favicon\\.ico|.*\\..*).*)'],
+  // files are excluded by extension (a dotted SKU slug is a page, not a file).
+  matcher: [
+    '/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:js|mjs|css|map|json|txt|xml|webmanifest|png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf|otf|mp4|webm|mp3|pdf|zip)$).*)',
+  ],
 };

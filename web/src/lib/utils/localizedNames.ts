@@ -130,3 +130,34 @@ export function getLocalizedArticleExcerpt(article: TranslatedArticle, locale: A
     locale === 'en' ? article.excerptEn : locale === 'ar' ? article.excerptAr : article.excerptZh;
   return translated || article.excerpt;
 }
+
+/**
+ * The catalog's size-column word (`sizeLabel()` — «سایز», «ضخامت», «ارتفاع»,
+ * «ابعاد») in a non-fa locale, for page titles and headings. An unknown label
+ * is returned unchanged: still Persian, never blank.
+ */
+const MEASURE_WORDS: Record<string, Record<Exclude<AppLocale, 'fa'>, string>> = {
+  سایز: { en: 'size', ar: 'المقاس', zh: '规格' },
+  ضخامت: { en: 'thickness', ar: 'السماكة', zh: '厚度' },
+  ارتفاع: { en: 'height', ar: 'الارتفاع', zh: '高度' },
+  ابعاد: { en: 'dimensions', ar: 'الأبعاد', zh: '尺寸' },
+};
+
+export function getLocalizedMeasure(label: string, locale: AppLocale): string {
+  if (locale === 'fa') return label;
+  return MEASURE_WORDS[label]?.[locale] ?? label;
+}
+
+/** «کیلوگرم»/«شاخه»/… — what one price is quoted per, for non-fa snippets. */
+const BASIS_WORDS: Record<string, Record<Exclude<AppLocale, 'fa'>, string>> = {
+  kg: { en: 'kilogram', ar: 'كيلوغرام', zh: '公斤' },
+  branch: { en: 'bar', ar: 'قضيب', zh: '根' },
+  sheet: { en: 'sheet', ar: 'لوح', zh: '张' },
+  coil: { en: 'coil', ar: 'لفة', zh: '卷' },
+  piece: { en: 'piece', ar: 'قطعة', zh: '件' },
+  sqm: { en: 'square metre', ar: 'متر مربع', zh: '平方米' },
+};
+
+export function getLocalizedBasisNoun(basis: string, locale: Exclude<AppLocale, 'fa'>): string {
+  return BASIS_WORDS[basis]?.[locale] ?? basis;
+}

@@ -21,16 +21,17 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { locale, track } = await params;
   setRequestLocale(locale);
-  const tMeta = await getTranslations('meta.cooperation');
+  const tMeta = await getTranslations({ locale, namespace: 'meta.cooperation' });
   if (!isTrackKey(track)) {
-    return buildMetadata({ title: tMeta('title'), path: routes.cooperation() });
+    return buildMetadata({ locale, title: tMeta('title'), path: routes.cooperation() });
   }
   // `cooperation.tracks.${track}.*` is the SAME translated namespace
   // `CooperationTrackContent`/`CooperationPageContent` already read for the
   // page's visible copy — title/metaDescription here are just that data
   // used for the <title> tag instead of JSX.
-  const tTrack = await getTranslations(`cooperation.tracks.${track}`);
+  const tTrack = await getTranslations({ locale, namespace: `cooperation.tracks.${track}` });
   return buildMetadata({
+    locale,
     title: `${tMeta('title')} · ${tTrack('title')}`,
     description: tTrack('metaDescription'),
     path: routes.cooperation(TRACKS[track].key),

@@ -5,7 +5,7 @@ import type { Metadata } from 'next';
 import { VERIFIED_CHANNELS } from '@/lib/data/nav';
 import { SITE_ORIGIN } from '@/lib/utils/url';
 import type { PriceBasis } from '@/lib/types/domain';
-import { LOCALES, DEFAULT_LOCALE } from '@/i18n/config';
+import { LOCALES, DEFAULT_LOCALE, isAppLocale, type AppLocale } from '@/i18n/config';
 import { withLocalePrefix } from '@/lib/server/utils/localePath';
 
 /**
@@ -37,7 +37,11 @@ import { withLocalePrefix } from '@/lib/server/utils/localePath';
  * Returns `undefined` — no claim at all — when the window has already
  * closed, which is the honest representation of a price that is stale now.
  */
-function offerValidUntil(updatedAt?: string, validityDays?: number, now = Date.now()): string | undefined {
+function offerValidUntil(
+  updatedAt?: string,
+  validityDays?: number,
+  now = Date.now(),
+): string | undefined {
   if (!updatedAt || !validityDays || validityDays <= 0) return undefined;
   const set = Date.parse(updatedAt);
   if (!Number.isFinite(set)) return undefined;
@@ -71,12 +75,91 @@ const LOGO_URL = new URL('/brand/icon-512.png', SITE_URL).toString();
 
 export const ORG_NAME = BRAND;
 export const CONTACT = {
-  address: 'تهران، اقدسیه، خیابان موحد دانش، نبش بن‌بست نسیم، ساختمان نسیم، پلاک ۱، طبقه چهارم، واحد ۷',
+  address:
+    'تهران، اقدسیه، خیابان موحد دانش، نبش بن‌بست نسیم، ساختمان نسیم، پلاک ۱، طبقه چهارم، واحد ۷',
   phoneLandline: '02126297512',
   phoneMobile: '09121395954',
 };
 
+/** Brand as it is written in each locale's own copy (messages/*.json). */
+export const BRAND_BY_LOCALE: Record<AppLocale, string> = {
+  fa: 'آهن‌تایم',
+  en: 'Ahantime',
+  ar: 'آهن‌تايم',
+  zh: 'Ahantime',
+};
+
+/** Open Graph `og:locale` per app locale (language_TERRITORY, as OG requires). */
+export const OG_LOCALE: Record<AppLocale, string> = {
+  fa: 'fa_IR',
+  en: 'en_US',
+  ar: 'ar_AR',
+  zh: 'zh_CN',
+};
+
+function toAppLocale(locale: string | undefined): AppLocale {
+  return locale && isAppLocale(locale) ? locale : DEFAULT_LOCALE;
+}
+
+/** Paths on this origin that are files or non-page endpoints — never localized. */
+const NON_PAGE_PREFIXES = ['/api/', '/uploads/', '/brand/', '/products/', '/media/', '/assets/', '/_next/'];
+
+/**
+ * Deep-copies a JSON-LD graph, moving every URL that names one of THIS site's
+ * pages into `locale` (`https://ahantime.com/prices/rebar` →
+ * `https://ahantime.com/en/prices/rebar`). Builders here take locale-neutral
+ * `routes.*` paths, so without this an /en page's BreadcrumbList, ItemList
+ * and Product `url`s all pointed at the Persian pages — contradicting the
+ * page's own canonical. Images, uploads, API routes and other origins are
+ * left untouched; the default locale is a no-op.
+ */
+export function localizeJsonLdUrls<T>(data: T, locale: string): T {
+  const target = toAppLocale(locale);
+  if (target === DEFAULT_LOCALE) return data;
+  const walk = (v: unknown): unknown => {
+    if (typeof v === 'string') return localizePageUrl(v, target);
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === 'object') {
+      return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, walk(x)]));
+    }
+    return v;
+  };
+  return walk(data) as T;
+}
+
+function localizePageUrl(value: string, locale: AppLocale): string {
+  if (value !== SITE_ORIGIN && !value.startsWith(`${SITE_ORIGIN}/`)) return value;
+  const url = safeResolve(value);
+  if (!url) return value;
+  const path = url.pathname;
+  if (NON_PAGE_PREFIXES.some((p) => path.startsWith(p)) || /\.[a-z0-9]{2,5}$/i.test(path)) return value;
+  // Already localized (a caller that built a prefixed URL itself).
+  if (LOCALES.some((l) => l !== DEFAULT_LOCALE && (path === `/${l}` || path.startsWith(`/${l}/`)))) return value;
+  // `{search_term_string}` placeholders must survive URL re-serialisation verbatim.
+  const suffix = value.slice(SITE_ORIGIN.length + path.length);
+  return `${SITE_ORIGIN}${withLocalePrefix(path, locale)}${suffix}`;
+}
+
 export function buildMetadata(opts: {
+  /**
+   * The locale of the page being described. Drives the canonical (each
+   * language version canonicalises to ITSELF — hreflang alternates are only
+   * honoured between pages that are each their own canonical), `og:locale`
+   * and the brand suffix. It used to be implicit, and every /en, /ar, /zh
+   * page published `canonical → the Persian URL` plus a Persian og:locale:
+   * Search Console listed them as «Alternate page with proper canonical tag»
+   * and not one was indexed. Omitted ⇒ the default (fa) locale.
+   */
+  locale?: string;
+  /**
+   * `false` for a page whose BODY exists only in Persian even when its chrome
+   * is translated — article detail pages (articles.translations covers title
+   * and excerpt, not body, I-10). Its /en, /ar, /zh versions then point their
+   * canonical at the Persian original and declare no hreflang set: a mostly
+   * Persian page presented to Google as «the English version» is the
+   * thin/mismatched-language signal that costs the whole locale. Default true.
+   */
+  translatedContent?: boolean;
   title: string;
   description?: string;
   path?: string;
@@ -98,11 +181,22 @@ export function buildMetadata(opts: {
   // is then published as this article's canonical AND its `og:url`. Dropping
   // the canonical entirely is the right failure: a missing canonical costs a
   // little SEO, a wrong one hands the ranking to someone else.
+  const locale = toAppLocale(opts.locale);
+  const brand = BRAND_BY_LOCALE[locale];
   const resolved = opts.path ? safeResolve(opts.path) : undefined;
+  // `opts.path` is always the locale-NEUTRAL path (routes.* never carry a
+  // prefix); the canonical is that path in THIS page's locale.
+  const translated = opts.translatedContent !== false;
   const canonical =
-    resolved && resolved.origin === SITE_ORIGIN ? resolved.toString() : undefined;
+    resolved && resolved.origin === SITE_ORIGIN
+      ? new URL(
+          withLocalePrefix(resolved.pathname, translated ? locale : DEFAULT_LOCALE) +
+            resolved.search,
+          SITE_URL,
+        ).toString()
+      : undefined;
   const ogImage = opts.ogImage ? new URL(opts.ogImage, SITE_URL).toString() : DEFAULT_OG_IMAGE;
-  const socialTitle = opts.absoluteTitle ? opts.title : `${opts.title} | ${BRAND}`;
+  const socialTitle = opts.absoluteTitle ? opts.title : `${opts.title} | ${brand}`;
   return {
     title: opts.absoluteTitle ? { absolute: opts.title } : opts.title,
     description: opts.description,
@@ -117,28 +211,37 @@ export function buildMetadata(opts: {
     // alternates that did not exist as real URLs — an hreflang error Google
     // would have reported and no return-tag could ever have confirmed.
     alternates:
-      canonical && resolved
-        ? {
-            canonical,
-            languages: {
-              ...Object.fromEntries(
-                LOCALES.map((locale) => [
-                  locale,
-                  new URL(withLocalePrefix(resolved.pathname, locale) + resolved.search, SITE_URL).toString(),
-                ]),
-              ),
-              'x-default': new URL(withLocalePrefix(resolved.pathname, DEFAULT_LOCALE) + resolved.search, SITE_URL).toString(),
-            },
-          }
-        : undefined,
+      canonical && resolved && !translated
+        ? { canonical }
+        : canonical && resolved
+          ? {
+              canonical,
+              languages: {
+                ...Object.fromEntries(
+                  LOCALES.map((locale) => [
+                    locale,
+                    new URL(
+                      withLocalePrefix(resolved.pathname, locale) + resolved.search,
+                      SITE_URL,
+                    ).toString(),
+                  ]),
+                ),
+                'x-default': new URL(
+                  withLocalePrefix(resolved.pathname, DEFAULT_LOCALE) + resolved.search,
+                  SITE_URL,
+                ).toString(),
+              },
+            }
+          : undefined,
     robots: opts.noindex ? { index: false, follow: false } : undefined,
     openGraph: {
       title: socialTitle,
       description: opts.description,
       url: canonical,
       images: [ogImage],
-      siteName: BRAND,
-      locale: 'fa_IR',
+      siteName: brand,
+      locale: OG_LOCALE[locale],
+      alternateLocale: LOCALES.filter((l) => l !== locale).map((l) => OG_LOCALE[l]),
       // Telegram/WhatsApp/LinkedIn card parsers read OG, not JSON-LD — an
       // article shared into a steel-trading group rendered as a generic
       // website card with no date. The JSON-LD was already correct.
@@ -183,9 +286,7 @@ export function orgJsonLd(contact: ContactLike = CONTACT) {
     // business's real accounts. Omitted entirely while none are verified;
     // a missing sameAs costs nothing, a wrong one can attach the knowledge
     // panel to someone else's profile. See nav.ts's VERIFIED_CHANNELS.
-    ...(VERIFIED_CHANNELS.length > 0
-      ? { sameAs: VERIFIED_CHANNELS.map((c) => c.href) }
-      : {}),
+    ...(VERIFIED_CHANNELS.length > 0 ? { sameAs: VERIFIED_CHANNELS.map((c) => c.href) } : {}),
   };
 }
 
@@ -376,7 +477,11 @@ export function articleJsonLd(a: {
     url: new URL(a.url, SITE_URL).toString(),
     mainEntityOfPage: new URL(a.url, SITE_URL).toString(),
     author: { '@type': 'Organization', name: BRAND },
-    publisher: { '@type': 'Organization', name: BRAND, logo: { '@type': 'ImageObject', url: LOGO_URL } },
+    publisher: {
+      '@type': 'Organization',
+      name: BRAND,
+      logo: { '@type': 'ImageObject', url: LOGO_URL },
+    },
   };
 }
 

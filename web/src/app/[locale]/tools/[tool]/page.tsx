@@ -35,11 +35,12 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { locale, tool } = await params;
   setRequestLocale(locale);
   if (!isToolSlug(tool)) {
-    const t = await getTranslations('meta.notFound');
-    return buildMetadata({ title: t('tools'), path: routes.tool('weight') });
+    const t = await getTranslations({ locale, namespace: 'meta.notFound' });
+    return buildMetadata({ locale, title: t('tools'), path: routes.tool('weight') });
   }
-  const t = await getTranslations('toolsPage');
+  const t = await getTranslations({ locale, namespace: 'toolsPage' });
   return buildMetadata({
+    locale,
     title: t(`${tool}.title`),
     description: t(`${tool}.intro`),
     path: routes.tool(tool),

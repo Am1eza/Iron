@@ -21,7 +21,7 @@ const catalog = vi.hoisted(() => ({
 
 vi.mock('@/lib/server/catalog', () => catalog);
 
-const params = (category: string, sub: string) => ({ params: Promise.resolve({ category, sub }) });
+const params = (category: string, sub: string) => ({ params: Promise.resolve({ category, sub, locale: 'fa' }) });
 
 const row = (factory?: string) => ({
   slug: 'steel-mesh-3mm',

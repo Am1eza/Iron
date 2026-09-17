@@ -2574,6 +2574,10 @@
     "byFactorySuffix": "（按钢厂）",
     "statsWithFactories": "来自 {factories} 家钢厂的 {products} 件商品",
     "statsOnly": "{products} 件商品",
-    "allMillsSuffix": "（全部钢厂）"
+    "allMillsSuffix": "（全部钢厂）",
+    "subLiveDescription": "{subject}实时价格{breakdown}，含涨跌、单根重量及公布的交货时间。购买前请咨询我们的专家。",
+    "breakdownBySizeAndMill": "（按规格与钢厂）",
+    "breakdownBySize": "（按规格）",
+    "subEmptyBody": "{subject}下暂无商品。请联系我们的专家咨询价格、库存和交货时间。"
   }
 }

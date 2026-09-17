@@ -9,7 +9,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   setRequestLocale(locale);
-  return indexMetadata('news', 1);
+  return indexMetadata('news', 1, locale);
 }
 
 /** Same no-build-time-content rule as /blog. */
