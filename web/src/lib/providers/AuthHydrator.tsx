@@ -9,6 +9,7 @@ import { authApi } from '@/lib/api/resources/auth';
 import { setUnauthorizedHook } from '@/lib/api/http';
 import { recoverSession } from '@/lib/auth/clientRefresh';
 import { useRequestsSync } from '@/lib/hooks/useRequestsSync';
+import { identifyUser } from '@/lib/analytics/track';
 
 /**
  * Access-token lifetime is 4h (CONSTANTS.ACCESS_TTL_SECONDS) → rotate at 3h,
@@ -44,6 +45,9 @@ export function AuthHydrator() {
       .then(({ user }) => {
         if (cancelled) return;
         setUser(user ?? null);
+        // Opaque internal id only (see identifyUser) — this is the one place
+        // that knows whether this browser belongs to a signed-in customer.
+        identifyUser(user?.id ?? null);
         // Only an actual session starts the rotation timer — `user: null` is
         // the ordinary anonymous answer now (200, not 401), so it must not be
         // mistaken for "signed in".

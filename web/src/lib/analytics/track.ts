@@ -52,6 +52,12 @@ export type GoalCategory =
   | 'alert'
   | 'funnel';
 
+/** Category+action pairs that deserve their own GA4 event name. */
+const GA4_EVENT_OVERRIDE: Record<string, string> = {
+  'contact:phone-click': 'phone_click',
+  'contact:whatsapp-click': 'whatsapp_click',
+};
+
 const GA4_EVENT_NAME: Record<GoalCategory, string> = {
   lead: 'generate_lead',
   'ai-chat': 'chat_start',
@@ -68,6 +74,10 @@ declare global {
   interface Window {
     _paq?: unknown[][];
     dataLayer?: unknown[];
+    /** Defined by the loader in components/analytics/Analytics.tsx before GTM
+     *  itself loads, so a call made during the first seconds of a visit is
+     *  queued rather than dropped. */
+    gtag?: (...args: unknown[]) => void;
   }
 }
 
@@ -77,6 +87,26 @@ declare global {
  * enquiry was about) — both show up in Matomo's Events report and as GA4
  * event parameters.
  */
+/**
+ * Identify the signed-in visitor to GA4 (and nothing else) by their opaque
+ * internal id — never a mobile number, name or email. Without it GA4 counted
+ * the same buyer as a new user on every device, and no funnel could be
+ * followed from an anonymous price view through to the proforma request the
+ * panel eventually sees. Pushed as its own event so the Google tag can pick
+ * it up as a user property/user_id in Tag Manager.
+ */
+export function identifyUser(userId: string | null): void {
+  if (typeof window === 'undefined') return;
+  try {
+    // `set` (not an event): applies to every subsequent hit in the session,
+    // which is what GA4's reporting identity needs to stitch a signed-in
+    // buyer's visits together.
+    window.gtag?.('set', { user_id: userId ?? undefined });
+  } catch {
+    // Analytics must never break a real user flow.
+  }
+}
+
 export function trackGoal(category: GoalCategory, action: string, name?: string): void {
   if (typeof window === 'undefined') return;
   // A club invitation is earned by intent, never by elapsed time. Keep the
@@ -97,15 +127,29 @@ export function trackGoal(category: GoalCategory, action: string, name?: string)
       // Analytics must never break a real user flow — a failed push is nothing.
     }
   }
-  if (Array.isArray(window.dataLayer)) {
-    try {
-      window.dataLayer.push({
-        event: GA4_EVENT_NAME[category],
-        lead_type: action,
-        ...(name ? { lead_detail: name } : {}),
-      });
-    } catch {
-      // Same rule as above — never break the real user flow over analytics.
-    }
+  // GA4 via `gtag('event', …)`, NOT a bare `dataLayer.push({event})`.
+  //
+  // The published GTM container has exactly three custom-event triggers
+  // (generate_lead, chat_start, contact_form_submit), so six of the nine
+  // events this function can raise — view_item, add_to_cart, alert_set,
+  // club_join, funnel_step, navigation_select — were pushed into the
+  // dataLayer and matched nothing: the whole middle of the funnel was
+  // invisible in GA4 while looking instrumented in the code. Those three
+  // tags also forwarded no parameters, so `lead_type`/`lead_detail` never
+  // arrived either.
+  //
+  // A `gtag('event')` call is delivered by the Google tag itself, with its
+  // parameters, without a per-event tag in the container — so the funnel is
+  // complete from the code alone and cannot silently lose an event again the
+  // next time one is added here. (It also cannot double-count: GTM's custom
+  // event triggers match a pushed `event` STRING, and the gtag queue pushes
+  // an arguments object instead.)
+  try {
+    window.gtag?.('event', GA4_EVENT_OVERRIDE[`${category}:${action}`] ?? GA4_EVENT_NAME[category], {
+      lead_type: action,
+      ...(name ? { lead_detail: name } : {}),
+    });
+  } catch {
+    // Same rule as above — never break the real user flow over analytics.
   }
 }
