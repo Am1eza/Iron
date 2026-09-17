@@ -1,10 +1,11 @@
+import { setRequestLocale } from 'next-intl/server';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { ArticleIndex, indexMetadata } from '@/components/content/ArticleIndex';
 import { parsePageParam } from '@/lib/content/archivePaging';
 import { routes } from '@/lib/routes';
 
-type Params = { params: Promise<{ n: string }> };
+type Params = { params: Promise<{ n: string; locale: string }> };
 
 /**
  * `/blog/page/N` — archive page N as a real, cacheable route.
@@ -30,11 +31,15 @@ export const revalidate = 600;
 // applies without a static shell to attach it to.
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const { n } = await params;
-  return await indexMetadata('blog', parsePageParam(n) ?? 1);
+  const { n, locale } = await params;
+  return await indexMetadata('blog', parsePageParam(n) ?? 1, locale);
 }
 
 export default async function BlogArchivePage({ params }: Params) {
+  // Must run before any next-intl server call below: without it this page's
+  // body resolved every translation in Persian on /en, /ar and /zh.
+  const pageLocale = (await params).locale;
+  setRequestLocale(pageLocale);
   const { n } = await params;
   const page = parsePageParam(n);
   // Junk, `1`, or an absurd number never reaches the database and never mints

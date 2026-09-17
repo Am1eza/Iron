@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import dynamic from 'next/dynamic';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { requireUser } from '@/lib/auth/guards';
@@ -49,9 +49,14 @@ const AlertsList = dynamic(() =>
   import('@/components/account/AlertsList').then((m) => m.AlertsList),
 );
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('meta.account');
-  return buildMetadata({ title: t('title'), noindex: true });
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'meta.account' });
+  return buildMetadata({ locale, title: t('title'), noindex: true });
 }
 
 /**
@@ -63,9 +68,13 @@ export async function generateMetadata(): Promise<Metadata> {
  * Components (AccountNav/AccountHeader/TabHeading) so they can localize — this
  * Server Component's own job is just data-fetching per tab.
  */
-type Params = { params: Promise<{ tab?: string[] }> };
+type Params = { params: Promise<{ tab?: string[]; locale: string }> };
 
 export default async function AccountPage({ params }: Params) {
+  // Must run before any next-intl server call below: without it this page's
+  // body resolved every translation in Persian on /en, /ar and /zh.
+  const pageLocale = (await params).locale;
+  setRequestLocale(pageLocale);
   const { tab } = await params;
   const slug = tab?.[0] ? decodeURIComponent(tab[0]) : '';
   // Return to the SAME tab after login (a signed-out visit to /account/club

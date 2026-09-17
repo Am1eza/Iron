@@ -29,9 +29,20 @@ export default function robots(): MetadataRoute.Robots {
       // page"). Those pages instead rely solely on `noindex` (page metadata +
       // the X-Robots-Tag header in next.config.mjs) — the same pattern
       // already used correctly for /track and /proforma.
-      disallow: ['/api'],
+      //
+      // `/*_rsc=` and `/cdn-cgi/` are not pages at all. `?_rsc=` is the React
+      // Server Components payload the Next router fetches for client-side
+      // navigation and link prefetch, and `/cdn-cgi/speculation` is
+      // Cloudflare's speculation-rules endpoint. Search Console's crawl stats
+      // (90 days to 1405/06/24) put «Other file type» — these two — at 39 % of
+      // every Googlebot request against 22 % for HTML: most of the crawl
+      // budget was spent re-downloading page fragments no one can land on.
+      // Neither carries a `noindex` Google would need to see, so the warning
+      // above about pairing `Disallow` with `noindex` does not apply.
+      disallow: ['/api', '/*_rsc=', '/cdn-cgi/'],
     },
     sitemap: new URL('/sitemap.xml', SITE_URL).toString(),
-    host: SITE_URL,
+    // No `host`: it is a Yandex-only directive that Google does not recognise.
+    // Search Console reported this file with a warning for exactly that line.
   };
 }

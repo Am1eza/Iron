@@ -13,8 +13,8 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   setRequestLocale(locale);
-  const t = await getTranslations('meta.track');
-  return buildMetadata({ title: t('title'), description: t('description'), path: routes.track(), noindex: true });
+  const t = await getTranslations({ locale, namespace: 'meta.track' });
+  return buildMetadata({ locale, title: t('title'), description: t('description'), path: routes.track(), noindex: true });
 }
 
 

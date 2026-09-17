@@ -10,6 +10,8 @@ import {
 } from '@/lib/server/catalog';
 import { getSubsMap } from '@/lib/server/catalog';
 import { listRedirectFromPaths, normalizePath } from '@/lib/server/repos/redirectsRepo';
+import { LOCALES, DEFAULT_LOCALE } from '@/i18n/config';
+import { withLocalePrefix } from '@/lib/server/utils/localePath';
 import { factoryFacets, sizeFacets } from '@/lib/utils/catalogFacets';
 import { TRACK_ORDER } from '@/components/cooperation/tracks';
 import { NEWS_TOPICS } from '@/lib/data/newsTopics';
@@ -140,13 +142,17 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
   // Real freshness for category/sub-category pages: the newest price update
   // among their SKUs, not build time (which misrepresented hourly-changing
   // pages as all edited at deploy).
-  const latestUpdate = (rows: Array<{ current: { updatedAt?: string | Date | null } }>): Date => {
+  const latestUpdate = (
+    rows: Array<{ current: { updatedAt?: string | Date | null } }>,
+  ): Date | undefined => {
     let max = 0;
     for (const r of rows) {
-      const t = r.current.updatedAt ? new Date(r.current.updatedAt).getTime() : 0;
+      const t = realUpdateTime(r.current.updatedAt);
       if (t > max) max = t;
     }
-    return max > 0 ? new Date(max) : now;
+    // No real price date among them ⇒ no `<lastmod>`, not «now» — the same
+    // honesty rule the static entries above follow.
+    return max > 0 ? new Date(max) : undefined;
   };
 
   // Only categories that hold at least one row — the same predicate the
@@ -227,18 +233,20 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
       // pages that DO change intraday need.
       skuEntries.push({
         url: new URL(routes.sku(row.categoryId, row.subCategoryId, row.slug), SITE_URL).toString(),
-        lastModified: row.current.updatedAt ? new Date(row.current.updatedAt) : now,
+        lastModified:
+          realUpdateTime(row.current.updatedAt) > 0 ? new Date(row.current.updatedAt!) : undefined,
         ...skuSitemapHints(skuHasPublishedPrice(row)),
       });
     }
   });
 
-  const [blogArticles, newsArticles, categoryArticleCounts, newsTopicArticleCounts] = await Promise.all([
-    getAllPublishedArticles('blog'),
-    getAllPublishedArticles('news'),
-    getCategoryArticleCounts(),
-    getNewsTopicArticleCounts(),
-  ]);
+  const [blogArticles, newsArticles, categoryArticleCounts, newsTopicArticleCounts] =
+    await Promise.all([
+      getAllPublishedArticles('blog'),
+      getAllPublishedArticles('news'),
+      getCategoryArticleCounts(),
+      getNewsTopicArticleCounts(),
+    ]);
 
   // Only categories that currently have at least one article (US-14.5) — an
   // empty /blog/category/[slug] is a real, non-404 page (see knownPaths.ts),
@@ -340,7 +348,62 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
   // still the thing to remove — this only stops us pointing Google at it in
   // the meantime. Every other filter here works from the catalog's own state,
   // which cannot see the redirect table at all.
-  return dropRedirectedEntries(entries, await listRedirectFromPaths());
+  return localizeEntries(dropRedirectedEntries(entries, await listRedirectFromPaths()));
+}
+
+/**
+ * Epoch-safe timestamp of a price/article update, or 0 when there is no real
+ * one. A withheld price reaches this file as `updatedAt: 1970-01-01…` (the
+ * sentinel `current_prices.confirmed_at` carries for an undated source row),
+ * and `new Date(that)` is a perfectly valid Date — 193 `<lastmod>1970-01-01`
+ * entries were being published, telling Google those pages had not changed
+ * in 56 years. Anything before 2020 is not a date this catalog ever had.
+ */
+const EARLIEST_REAL_UPDATE = Date.UTC(2020, 0, 1);
+function realUpdateTime(value: string | Date | null | undefined): number {
+  if (!value) return 0;
+  const t = new Date(value).getTime();
+  return Number.isFinite(t) && t >= EARLIEST_REAL_UPDATE ? t : 0;
+}
+
+/**
+ * Article DETAIL pages (`/blog/<slug>`, `/news/<slug>`) have a translated
+ * title and excerpt but a Persian-only body (articles.translations, I-10), so
+ * their /en, /ar, /zh versions canonicalise to the Persian original — see
+ * `buildMetadata`'s `translatedContent`. Every other public page is fully
+ * rendered in each locale and is advertised in all four.
+ */
+function isUntranslatedArticlePath(pathname: string): boolean {
+  const m = /^\/(blog|news)\/([^/]+)$/.exec(pathname);
+  return m !== null && m[2] !== 'category' && m[2] !== 'page' && m[2] !== 'topic';
+}
+
+/**
+ * Adds every locale version of each translated page, each carrying the full
+ * hreflang set (itself included) plus `x-default` — the reciprocal
+ * annotation Google requires. The sitemap used to list the Persian URLs
+ * only, with no alternates, so the /en, /ar, /zh pages were never submitted.
+ *
+ * Exported (pure) for the test.
+ */
+export function localizeEntries(entries: MetadataRoute.Sitemap): MetadataRoute.Sitemap {
+  const out: MetadataRoute.Sitemap = [];
+  for (const entry of entries) {
+    const url = new URL(entry.url);
+    if (isUntranslatedArticlePath(url.pathname)) {
+      out.push(entry);
+      continue;
+    }
+    const languages: Record<string, string> = {};
+    for (const locale of LOCALES) {
+      languages[locale] = new URL(withLocalePrefix(url.pathname, locale), url.origin).toString();
+    }
+    languages['x-default'] = languages[DEFAULT_LOCALE]!;
+    for (const locale of LOCALES) {
+      out.push({ ...entry, url: languages[locale]!, alternates: { languages } });
+    }
+  }
+  return out;
 }
 
 /** Exported for the test — pure, so it needs no database. */

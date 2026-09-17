@@ -114,6 +114,15 @@ vi.mock('next-intl/server', async (importOriginal) => {
         return 'fa';
       }
     },
+    // Same stub-throws problem; the request-locale cache it writes to has no
+    // consumer in a unit test, so a no-op is exactly equivalent.
+    setRequestLocale: (...args: Parameters<typeof actual.setRequestLocale>) => {
+      try {
+        actual.setRequestLocale(...args);
+      } catch {
+        /* no RSC request scope under vitest */
+      }
+    },
   };
 });
 

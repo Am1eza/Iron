@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { API_MODE } from '@/lib/api/config';
 import { hasDb } from '@/lib/server/db/client';
@@ -14,12 +14,17 @@ import { formatJalali } from '@/lib/utils/jalali';
 import { formatTehranJalaliDateTime } from '@/lib/server/utils/jalali';
 import { ProformaSheet, type CustomLetterhead } from './ProformaSheet';
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('meta.proforma');
-  return buildMetadata({ title: t('title'), noindex: true });
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'meta.proforma' });
+  return buildMetadata({ locale, title: t('title'), noindex: true });
 }
 
-type Params = { params: Promise<{ ref: string }> };
+type Params = { params: Promise<{ ref: string; locale: string }> };
 
 /**
  * Public پیش‌فاکتور view — reachable from the SMS link; the ref is the
@@ -27,6 +32,10 @@ type Params = { params: Promise<{ ref: string }> };
  * print-to-PDF button so the buyer can download a branded PDF.
  */
 export default async function ProformaPage({ params }: Params) {
+  // Must run before any next-intl server call below: without it this page's
+  // body resolved every translation in Persian on /en, /ar and /zh.
+  const pageLocale = (await params).locale;
+  setRequestLocale(pageLocale);
   const { ref } = await params;
   if (API_MODE !== 'live' || !hasDb()) notFound();
 

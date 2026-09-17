@@ -13,6 +13,7 @@ import {
   withLocalePrefix,
   withInternalLocaleSegment,
   needsDefaultLocaleRewrite,
+  isLocaleExempt,
 } from '@/lib/server/utils/localePath';
 import { DEFAULT_LOCALE } from '@/i18n/config';
 
@@ -300,20 +301,67 @@ export async function proxy(req: NextRequest) {
   if (!onPanelHost && needsDefaultLocaleRewrite(req.nextUrl.pathname)) {
     const url = req.nextUrl.clone();
     url.pathname = withInternalLocaleSegment(req.nextUrl.pathname, DEFAULT_LOCALE);
-    return NextResponse.rewrite(url);
+    return NextResponse.rewrite(url, {
+      request: { headers: withIntlLocale(req, DEFAULT_LOCALE) },
+      headers: contentLanguage(DEFAULT_LOCALE),
+    });
+  }
+
+  // `/en/...`, `/ar/...`, `/zh/...` reach their `[locale]` route with no
+  // rewrite; they still get their language declared (see contentLanguage).
+  if (!onPanelHost && explicitLocale && !isLocaleExempt(pathWithoutLocale)) {
+    return NextResponse.next({
+      request: { headers: withIntlLocale(req, explicitLocale) },
+      headers: contentLanguage(explicitLocale),
+    });
   }
 
   return NextResponse.next();
 }
 
+/**
+ * `Content-Language` for a public page. The root layout is shared with the
+ * Persian-only panel and renders a static `<html lang="fa">` that
+ * `locale-init.js` corrects only once JavaScript runs — so a crawler that
+ * does not execute JS (Bing, most answer-engine fetchers) saw every /en page
+ * declared Persian. The response header is the language signal those
+ * crawlers read, and unlike the attribute it is correct on the first byte.
+ */
+function contentLanguage(locale: string): Record<string, string> {
+  return { 'Content-Language': locale };
+}
+
+/**
+ * The request headers plus next-intl's `X-NEXT-INTL-LOCALE`.
+ *
+ * next-intl resolves a Server Component's locale from `setRequestLocale`'s
+ * per-request cache first and from this header second. Its own middleware
+ * always sets the header; this custom proxy never did — so wherever the cache
+ * was not populated for a render (every `generateMetadata`, and any segment
+ * rendered outside the page that called `setRequestLocale`), next-intl fell
+ * through to `i18n/request.ts`'s default and answered in Persian. That is how
+ * /en pages shipped Persian titles, canonicals, H1s and JSON-LD URLs.
+ */
+function withIntlLocale(req: NextRequest, locale: string): Headers {
+  const headers = new Headers(req.headers);
+  headers.set('X-NEXT-INTL-LOCALE', locale);
+  return headers;
+}
+
 export const config = {
-  // Run on app routes, skip static assets and the image optimizer. `.*\..*`
-  // (next-intl's own documented matcher pattern) excludes any path whose
-  // last segment has a dot — every real file under `public/` (brand,
-  // products, assets, media, fonts, sw.js, llms.txt, *-init.js, ...) plus
-  // the manifest/robots/sitemap special routes, without hand-maintaining a
-  // folder allowlist that silently goes stale as `public/` grows (the
-  // previous `fonts|icons|images` list had drifted: `icons`/`images` don't
-  // exist, `assets`/`brand`/`products`/`media` did and were 404ing here).
-  matcher: ['/((?!_next/static|_next/image|favicon\\.ico|.*\\..*).*)'],
+  // Run on app routes, skip static assets and the image optimizer.
+  //
+  // Files are excluded by their EXTENSION, not by «the last segment contains
+  // a dot». next-intl's documented `.*\\..*` pattern was used for a day and
+  // silently 404'd real catalog pages: SKU slugs carry decimal dimensions
+  // (`felezat-rangi-aluminum-pipe-60.3-3`, `…-angle-1.5x30x20`), so those
+  // requests skipped the default-locale rewrite below and matched no route —
+  // 13 URLs in the live sitemap. A folder allowlist is not the answer either
+  // (it drifted once already: `icons`/`images` did not exist while
+  // `assets`/`brand`/`products`/`media` 404'd). Every file this app serves —
+  // public/, the manifest/robots/sitemap special routes, uploads — ends in
+  // one of these extensions; no page slug does.
+  matcher: [
+    '/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:js|mjs|css|map|json|txt|xml|webmanifest|png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf|otf|mp4|webm|mp3|pdf|zip)$).*)',
+  ],
 };

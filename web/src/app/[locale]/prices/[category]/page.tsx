@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { buildMetadata, itemListJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { getCategories, getRows, getFactoryOrder } from '@/lib/server/catalog';
@@ -17,8 +17,10 @@ import { PriceHeader } from '@/components/catalog/PriceHeader';
 import { FacetRail } from '@/components/catalog/FacetRail';
 import { factoryFacets, sizeFacets } from '@/lib/utils/catalogFacets';
 import { sizeLabel } from '@/lib/utils/catalogLabels';
+import { getLocalizedName, getLocalizedSkuName, getLocalizedMeasure } from '@/lib/utils/localizedNames';
+import type { AppLocale } from '@/i18n/config';
 
-type Params = { params: Promise<{ category: string }> };
+type Params = { params: Promise<{ category: string; locale: string }> };
 
 // Prices change intraday (admin-entered) → revalidate often (ROUTING.md §6),
 // matching the [sub] and [sku] pages one level down.
@@ -33,15 +35,15 @@ export const revalidate = 300;
 // above no longer applies HTML caching, only request-level dedup.
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const { category } = await params;
+  const { category, locale } = await params;
   const categories = await getCategories();
   const cat = categories.find((c) => c.slug === category);
   if (!cat) {
-    const t = await getTranslations('meta.notFound');
-    return buildMetadata({ title: t('category'), noindex: true });
+    const t = await getTranslations({ locale, namespace: 'meta.notFound' });
+    return buildMetadata({ locale, title: t('category'), noindex: true });
   }
-  const name = cat.name;
-  const tMeta = await getTranslations('pricesFacet');
+  const name = getLocalizedName(cat, locale as AppLocale);
+  const tMeta = await getTranslations({ locale, namespace: 'pricesFacet' });
   // Same rule as the sub-category one level down (`_seo/indexability.ts`): a
   // category with no rows renders an EmptyState, so it must not be indexed
   // promising a price list. No category is in that state today — the audit
@@ -55,6 +57,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const rows = await getRows(category);
   if (!taxonomyIsIndexable(rows.length)) {
     return buildMetadata({
+    locale,
       title: name,
       description: tMeta('emptyCategoryDescription', { subject: name }),
       path: routes.category(category),
@@ -62,6 +65,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     });
   }
   return buildMetadata({
+    locale,
     title: tMeta('todayPrice', { subject: name }),
     description: tMeta('todayPriceDescription', { subject: name }),
     path: routes.category(category),
@@ -69,12 +73,21 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 export default async function CategoryPage({ params }: Params) {
-  const tNav = await getTranslations();
-  const tFacet = await getTranslations('pricesFacet');
-  const { category } = await params;
+  // Must run before any next-intl server call below: without it this page's
+  // body resolved every translation in Persian on /en, /ar and /zh.
+  const pageLocale = (await params).locale;
+  setRequestLocale(pageLocale);
+  const tNav = await getTranslations({ locale: pageLocale });
+  const tFacet = await getTranslations({ locale: pageLocale, namespace: 'pricesFacet' });
+  const { category, locale: rawLocale } = await params;
+  const locale = rawLocale as AppLocale;
   const categories = await getCategories();
   const cat = categories.find((c) => c.slug === category);
   if (!cat) notFound();
+  // Every visible and structured-data NAME on this page in the page's locale
+  // (falls back to fa where no translation is on file). `cat.name` itself is
+  // still what goes into component props that match on it.
+  const catName = getLocalizedName(cat, locale);
 
   const rows = await getRows(category);
   const subs = (await getSubsMap())[category] ?? [];
@@ -94,7 +107,7 @@ export default async function CategoryPage({ params }: Params) {
   const crumbs = [
     { label: tNav('nav.home'), href: routes.home() },
     { label: tNav('nav.prices'), href: routes.prices() },
-    { label: cat.name, href: routes.category(category) },
+    { label: catName, href: routes.category(category) },
   ];
 
   return (
@@ -104,7 +117,7 @@ export default async function CategoryPage({ params }: Params) {
         <JsonLd
           data={itemListJsonLd(
             rows.map((r) => ({
-              name: r.name,
+              name: getLocalizedSkuName(r, cat, subs.find((x) => x.slug === r.subCategoryId), locale),
               url: routes.sku(r.categoryId, r.subCategoryId, r.slug),
             })),
           )}
@@ -121,15 +134,15 @@ export default async function CategoryPage({ params }: Params) {
               id="cat-title"
               {...(rows.length > 0
                 ? {
-                    title: tFacet('todayPrice', { subject: cat.name }),
-                    description: tFacet('liveDescription', { subject: cat.name }),
+                    title: tFacet('todayPrice', { subject: catName }),
+                    description: tFacet('liveDescription', { subject: catName }),
                   }
                 : {
                     // Nothing to list — the heading and the intro say so, so
                     // the visible page and the (noindex) metadata tell one
                     // story. See `_seo/indexability.ts`.
-                    title: cat.name,
-                    description: tFacet('emptyCategoryBody', { subject: cat.name }),
+                    title: catName,
+                    description: tFacet('emptyCategoryBody', { subject: catName }),
                   })}
             />
           </div>
@@ -158,13 +171,13 @@ export default async function CategoryPage({ params }: Params) {
                   sitemap.xml, which is a discovery hint, not a crawl path. */}
               <FacetRail
                 id="rail-factories"
-                title={tFacet('byFactoryTitle', { category: cat.name })}
+                title={tFacet('byFactoryTitle', { category: catName })}
                 facets={facets.factories}
                 href={(slug) => routes.categoryByFactory(category, slug)}
               />
               <FacetRail
                 id="rail-sizes"
-                title={tFacet('bySizeTitle', { category: cat.name, measure: sizeLabel(category) })}
+                title={tFacet('bySizeTitle', { category: catName, measure: getLocalizedMeasure(sizeLabel(category), locale) })}
                 facets={facets.sizes}
                 href={(slug) => routes.categoryBySize(category, slug)}
               />

@@ -16,8 +16,8 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   setRequestLocale(locale);
-  const t = await getTranslations('meta.tender');
-  return buildMetadata({ title: t('title'), description: t('description'), path: routes.tender() });
+  const t = await getTranslations({ locale, namespace: 'meta.tender' });
+  return buildMetadata({ locale, title: t('title'), description: t('description'), path: routes.tender() });
 }
 
 

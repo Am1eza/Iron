@@ -9,7 +9,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   setRequestLocale(locale);
-  return indexMetadata('blog', 1);
+  return indexMetadata('blog', 1, locale);
 }
 
 /** Page one is request-rendered because CI has no content DB. This prevents

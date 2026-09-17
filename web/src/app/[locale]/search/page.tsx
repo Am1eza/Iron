@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { getCategories, getSkuCounts, searchAll } from '@/lib/server/catalog';
@@ -17,9 +17,14 @@ import {
 
 // noindex'd (thin/duplicate search-results content) — no canonical `path` is
 // set since canonical is meaningless on a page that's never indexed.
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('meta.search');
-  return buildMetadata({ title: t('title'), description: t('description'), noindex: true });
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'meta.search' });
+  return buildMetadata({ locale, title: t('title'), description: t('description'), noindex: true });
 }
 
 type Props = { searchParams: Promise<{ q?: string; type?: string; sort?: string }> };
@@ -73,7 +78,11 @@ async function withCounts(cats: Category[]): Promise<CatWithCount[]> {
   return cats.map((cat) => ({ cat, count: counts.get(cat.slug) ?? 0 }));
 }
 
-export default async function SearchPage({ searchParams }: Props) {
+export default async function SearchPage({ params, searchParams }: Props & { params: Promise<{ locale: string }> }) {
+  // Must run before any next-intl server call below: without it this page's
+  // body resolved every translation in Persian on /en, /ar and /zh.
+  const pageLocale = (await params).locale;
+  setRequestLocale(pageLocale);
   const { q: rawQ, type: rawType, sort: rawSort } = await searchParams;
   const q = (rawQ ?? '').trim();
   const needle = norm(q);
@@ -87,7 +96,7 @@ export default async function SearchPage({ searchParams }: Props) {
   const [categories, subsMap, t] = await Promise.all([
     getCategories(),
     getSubsMap(),
-    getTranslations(),
+    getTranslations({ locale: pageLocale }),
   ]);
   const crumbs = [
     { label: t('nav.home'), href: routes.home() },

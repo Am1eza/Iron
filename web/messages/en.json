@@ -2574,6 +2574,10 @@
     "byFactorySuffix": " by mill",
     "statsWithFactories": "{products} products from {factories} mills",
     "statsOnly": "{products} products",
-    "allMillsSuffix": " across all mills"
+    "allMillsSuffix": " across all mills",
+    "subLiveDescription": "Live {subject} prices {breakdown}, with movement, branch weight and the stated delivery time. Talk to our specialist before you buy.",
+    "breakdownBySizeAndMill": "by size and mill",
+    "breakdownBySize": "by size",
+    "subEmptyBody": "No products are listed under {subject} yet. Call our specialists for price, availability and delivery time."
   }
 }

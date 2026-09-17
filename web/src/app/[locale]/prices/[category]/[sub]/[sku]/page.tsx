@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
+import { getLocalizedName, getLocalizedSkuName, getLocalizedBasisNoun } from '@/lib/utils/localizedNames';
+import type { AppLocale } from '@/i18n/config';
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { buildMetadata, productJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import {
@@ -22,26 +24,36 @@ import { JsonLd, BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { Container, Section } from '@/components/ui';
 import { SkuDetail } from '@/components/catalog/SkuDetail';
 
-type Params = { params: Promise<{ category: string; sub: string; sku: string }> };
+type Params = { params: Promise<{ category: string; sub: string; sku: string; locale: string }> };
 
 // Prices change intraday (admin-entered) → revalidate often (ROUTING.md §6).
 export const revalidate = 300;
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const { category, sub, sku } = await params;
+  const { category, sub, sku, locale } = await params;
   const row = await findSku(sku);
   if (!row || row.categoryId !== category || row.subCategoryId !== sub) {
-    const t = await getTranslations('meta.notFound');
-    return buildMetadata({ title: t('product'), noindex: true });
+    const t = await getTranslations({ locale, namespace: 'meta.notFound' });
+    return buildMetadata({ locale, title: t('product'), noindex: true });
   }
   // W25 audit fix: this said «برای هر کیلوگرم» for every SKU. 47 active SKUs
   // are priced per قطعه / کلاف / شاخه / برگ / متر مربع, so the snippet Google
   // shows for those pages stated the wrong denomination — the same class of
   // error `PriceBasis` was added to end. `priceBasisNoun` is the wording the
   // price tables already use, so the snippet and the page now agree.
-  const basisNoun = priceBasisNoun(row.current.priceBasis ?? row.priceBasis, row.branchLengthM);
-  const tMeta = await getTranslations('pricesFacet');
-  const mill = row.factory ? ` کارخانه ${row.factory}` : '';
+  const appLocale = locale as AppLocale;
+  const basis = row.current.priceBasis ?? row.priceBasis;
+  const basisNoun =
+    appLocale === 'fa' ? priceBasisNoun(basis, row.branchLengthM) : getLocalizedBasisNoun(basis, appLocale);
+  const tMeta = await getTranslations({ locale, namespace: 'pricesFacet' });
+  const mill = row.factory ? (appLocale === 'fa' ? ` کارخانه ${row.factory}` : ` (${row.factory})`) : '';
+  const [metaCategories, metaSubs] = await Promise.all([getCategories(), getSubsMap()]);
+  const subject = getLocalizedSkuName(
+    row,
+    metaCategories.find((c) => c.slug === category),
+    (metaSubs[category] ?? []).find((x) => x.slug === sub),
+    appLocale,
+  );
   // 195 of 748 product pages (26 %, measured on production 1405/06/09)
   // publish no price. They shipped a title announcing «قیمت روز تیرآهن هاش
   // سنگین (HEB) ۲۴» over a description that then read «… : تماس بگیرید برای
@@ -58,17 +70,22 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   // Center policy violation.
   if (!skuHasPublishedPrice(row)) {
     return buildMetadata({
-      title: tMeta('skuQuoteTitle', { subject: row.name }),
-      description: tMeta('skuQuoteDescription', { subject: row.name, mill, unit: basisNoun }),
+    locale,
+      title: tMeta('skuQuoteTitle', { subject }),
+      description: tMeta('skuQuoteDescription', { subject, mill, unit: basisNoun }),
       path: routes.sku(row.categoryId, row.subCategoryId, row.slug),
     });
   }
   return buildMetadata({
-    title: tMeta('todayPrice', { subject: row.name }),
+    locale,
+    title: tMeta('todayPrice', { subject }),
     description: tMeta('skuPriceDescription', {
-      subject: row.name,
+      subject,
       mill,
-      price: formatToman(row.current.price),
+      price:
+        appLocale === 'fa'
+          ? formatToman(row.current.price)
+          : `${formatToman(row.current.price, true, locale)} ${(await getTranslations({ locale, namespace: 'common.unit' }))('currency')}`,
       unit: basisNoun,
     }),
     path: routes.sku(row.categoryId, row.subCategoryId, row.slug),
@@ -76,8 +93,13 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 export default async function SkuPage({ params }: Params) {
-  const tNav = await getTranslations();
-  const { category, sub, sku } = await params;
+  // Must run before any next-intl server call below: without it this page's
+  // body resolved every translation in Persian on /en, /ar and /zh.
+  const pageLocale = (await params).locale;
+  setRequestLocale(pageLocale);
+  const tNav = await getTranslations({ locale: pageLocale });
+  const { category, sub, sku, locale: rawLocale } = await params;
+  const locale = rawLocale as AppLocale;
 
   // The URL must reflect the SKU's canonical category/sub — otherwise a SKU
   // would resolve under any path and create duplicate, crawlable 200s.
@@ -115,15 +137,17 @@ export default async function SkuPage({ params }: Params) {
   const subCategoryRows = categoryRows.filter((r) => r.subCategoryId === sub);
 
   const cat = categories.find((c) => c.slug === category);
-  const catName = cat?.name ?? category;
+  const catName = cat ? getLocalizedName(cat, locale) : category;
   const categorySubs = (await getSubsMap())[category] ?? [];
-  const subLabel = categorySubs.find((x) => x.slug === sub)?.name ?? sub;
+  const subEntity = categorySubs.find((x) => x.slug === sub);
+  const subLabel = subEntity ? getLocalizedName(subEntity, locale) : sub;
+  const skuName = getLocalizedSkuName(row, cat, subEntity, locale);
   const crumbs = [
     { label: tNav('nav.home'), href: routes.home() },
     { label: tNav('nav.prices'), href: routes.prices() },
     { label: catName, href: routes.category(category) },
     { label: subLabel, href: routes.subCategory(category, sub) },
-    { label: row.name, href: routes.sku(category, sub, row.slug) },
+    { label: skuName, href: routes.sku(category, sub, row.slug) },
   ];
 
   return (
@@ -131,7 +155,7 @@ export default async function SkuPage({ params }: Params) {
       <BreadcrumbJsonLd items={crumbs} />
       <JsonLd
         data={productJsonLd({
-          name: row.name,
+          name: skuName,
           price: row.current.price,
           // W23 audit fix: a stale-hidden price is a `0` sentinel — must
           // never reach a `price: 0, InStock` structured-data claim (a

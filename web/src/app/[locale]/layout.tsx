@@ -1,6 +1,8 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { hasLocale, NextIntlClientProvider } from 'next-intl';
-import { setRequestLocale } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { BRAND_BY_LOCALE, OG_LOCALE } from '@/lib/seo';
 import { routing } from '@/i18n/routing';
 import { SiteChromeTop, SiteChromeBottom } from '@/components/layout/SiteChrome';
 import { getCategories, getSubsMap, type SubsMap } from '@/lib/data/catalog';
@@ -24,6 +26,29 @@ import type { Category, MarketValue } from '@/lib/types/domain';
  */
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
+}
+
+/**
+ * The per-locale defaults every public page inherits: the brand suffix
+ * template, the fallback title/description and `og:locale`. The root layout
+ * (`app/layout.tsx`) is shared with the Persian-only panel, so its template is
+ * Persian; without this override an /en page's title read «… | آهن‌تایم».
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  if (!hasLocale(routing.locales, locale)) return {};
+  const t = await getTranslations({ locale, namespace: 'meta.home' });
+  const brand = BRAND_BY_LOCALE[locale];
+  return {
+    title: { default: t('title'), template: `%s | ${brand}` },
+    description: t('description'),
+    applicationName: brand,
+    openGraph: { type: 'website', siteName: brand, locale: OG_LOCALE[locale] },
+  };
 }
 
 export default async function LocaleLayout({
@@ -54,14 +79,20 @@ export default async function LocaleLayout({
     Awaited<ReturnType<typeof getContact>>,
     MarketValue[] | undefined,
   ] = await Promise.all([
-    dbReady ? Promise.all([getCategories(), getSubsMap()]) : Promise.resolve([[], {}] as [Category[], SubsMap]),
+    dbReady
+      ? Promise.all([getCategories(), getSubsMap()])
+      : Promise.resolve([[], {}] as [Category[], SubsMap]),
     getContact(),
     dbReady ? listMarketValues().catch(() => undefined) : Promise.resolve(undefined),
   ]);
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages} timeZone="Asia/Tehran">
-      <SiteChromeTop categories={categories} subs={subs} initialMarketValues={initialMarketValues} />
+      <SiteChromeTop
+        categories={categories}
+        subs={subs}
+        initialMarketValues={initialMarketValues}
+      />
       <main id="main" tabIndex={-1}>
         {children}
       </main>

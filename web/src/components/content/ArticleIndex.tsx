@@ -44,13 +44,14 @@ const FEED: Record<'blog' | 'news', string> = {
  * reason spelled out in the original blog/page.tsx comment — a site-wide
  * alternate would advertise the blog feed on /prices/rebar, which is false.)
  */
-export async function indexMetadata(type: 'blog' | 'news', page: number): Promise<Metadata> {
+export async function indexMetadata(type: 'blog' | 'news', page: number, locale: string): Promise<Metadata> {
   const [t, tMeta] = await Promise.all([
-    getTranslations(type === 'blog' ? 'meta.blogIndex' : 'meta.newsIndex'),
-    getTranslations('meta'),
+    getTranslations({ locale, namespace: type === 'blog' ? 'meta.blogIndex' : 'meta.newsIndex' }),
+    getTranslations({ locale, namespace: 'meta' }),
   ]);
   const title = t('title');
   const base = buildMetadata({
+    locale,
     title: page > 1 ? `${title}${tMeta('pageSuffix', { page })}` : title,
     description: t('description'),
     path: archiveHref(type, page),

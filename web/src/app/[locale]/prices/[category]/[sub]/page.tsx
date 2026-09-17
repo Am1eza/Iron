@@ -1,13 +1,15 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { buildMetadata, itemListJsonLd } from '@/lib/seo';
 import { routes } from '@/lib/routes';
 import { getCategories, getRows, getSubRows, getFactoryOrder } from '@/lib/server/catalog';
 import { getSubsMap } from '@/lib/data/catalog';
 import { getSetting, getVatRate } from '@/lib/server/repos/settingsRepo';
 import { factoryIsMeaningful, subCategorySubject } from '@/lib/utils/catalogLabels';
-import { toPersianDigits } from '@/lib/utils/format';
+import { getLocalizedName, getLocalizedSkuName } from '@/lib/utils/localizedNames';
+import type { AppLocale } from '@/i18n/config';
+import { localizeDigits } from '@/lib/utils/format';
 import { DEFAULT_LOGISTICS_CONFIG, type LogisticsConfig } from '@/lib/data/logistics';
 import { taxonomyIsIndexable } from '../../_seo/indexability';
 import { Container, Section, Stack, Breadcrumbs } from '@/components/ui';
@@ -18,7 +20,7 @@ import { PriceHeader } from '@/components/catalog/PriceHeader';
 import { BulkQuote } from '@/components/catalog/BulkQuote';
 
 type Params = {
-  params: Promise<{ category: string; sub: string }>;
+  params: Promise<{ category: string; sub: string; locale: string }>;
 };
 
 // Prices change intraday (admin-entered) → revalidate often (ROUTING.md §6).
@@ -33,17 +35,18 @@ export const revalidate = 300;
 // above no longer applies HTML caching, only request-level dedup.
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const { category, sub } = await params;
+  const { category, sub, locale } = await params;
   const categories = await getCategories();
   const cat = categories.find((c) => c.slug === category);
-  const name = ((await getSubsMap())[category] ?? []).find((x) => x.slug === sub)?.name;
+  const subEntity = ((await getSubsMap())[category] ?? []).find((x) => x.slug === sub);
+  const name = subEntity ? getLocalizedName(subEntity, locale as AppLocale) : undefined;
   if (!cat || !name) {
-    const t = await getTranslations('meta.notFound');
-    return buildMetadata({ title: t('page'), noindex: true });
+    const t = await getTranslations({ locale, namespace: 'meta.notFound' });
+    return buildMetadata({ locale, title: t('page'), noindex: true });
   }
   // «میلگرد آجدار», not «میلگرد آجدار میلگرد» — see subCategorySubject.
-  const subject = subCategorySubject(name, cat.name);
-  const tMeta = await getTranslations('pricesFacet');
+  const subject = subCategorySubject(name, getLocalizedName(cat, locale as AppLocale));
+  const tMeta = await getTranslations({ locale, namespace: 'pricesFacet' });
   // SEO audit: every sub-category page previously shared one identical meta
   // description template with only `subject` swapped in, giving a searcher no
   // page-specific signal to judge relevance from. `getSubRows` is the same
@@ -62,6 +65,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   // two contradictory instructions about the same URL.
   if (!taxonomyIsIndexable(rows.length)) {
     return buildMetadata({
+    locale,
       title: subject,
       description: tMeta('emptySubjectDescription', { subject }),
       path: routes.subCategory(category, sub),
@@ -73,11 +77,12 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const stats =
     factoryCount > 0
       ? tMeta('statsWithFactories', {
-          products: toPersianDigits(rows.length),
-          factories: toPersianDigits(factoryCount),
+          products: localizeDigits(rows.length, locale),
+          factories: localizeDigits(factoryCount, locale),
         })
-      : tMeta('statsOnly', { products: toPersianDigits(rows.length) });
+      : tMeta('statsOnly', { products: localizeDigits(rows.length, locale) });
   return buildMetadata({
+    locale,
     title: tMeta('todayPrice', { subject }),
     description: tMeta('tableDescription', { subject, stats }),
     path: routes.subCategory(category, sub),
@@ -85,16 +90,24 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 export default async function SubCategoryPage({ params }: Params) {
-  const tNav = await getTranslations();
-  const { category, sub } = await params;
+  // Must run before any next-intl server call below: without it this page's
+  // body resolved every translation in Persian on /en, /ar and /zh.
+  const pageLocale = (await params).locale;
+  setRequestLocale(pageLocale);
+  const tNav = await getTranslations({ locale: pageLocale });
+  const tFacet = await getTranslations({ locale: pageLocale, namespace: 'pricesFacet' });
+  const { category, sub, locale: rawLocale } = await params;
+  const locale = rawLocale as AppLocale;
 
   const categories = await getCategories();
   const cat = categories.find((c) => c.slug === category);
   if (!cat) notFound();
 
   const subs = (await getSubsMap())[category] ?? [];
-  const name = subs.find((x) => x.slug === sub)?.name;
-  if (!name) notFound();
+  const subEntity = subs.find((x) => x.slug === sub);
+  if (!subEntity) notFound();
+  const name = getLocalizedName(subEntity, locale);
+  const catName = getLocalizedName(cat, locale);
 
   const [rows, allRows, logisticsConfig, vatRate, factoryOrder] = await Promise.all([
     getSubRows(category, sub),
@@ -109,12 +122,12 @@ export default async function SubCategoryPage({ params }: Params) {
 
   // The one subject line the title, the H1 and the intro all spell — kept
   // identical on purpose, so a page can never advertise itself two ways.
-  const subject = subCategorySubject(name, cat.name);
+  const subject = subCategorySubject(name, catName);
 
   const crumbs = [
     { label: tNav('nav.home'), href: routes.home() },
     { label: tNav('nav.prices'), href: routes.prices() },
-    { label: cat.name, href: routes.category(category) },
+    { label: catName, href: routes.category(category) },
     { label: name, href: routes.subCategory(category, sub) },
   ];
 
@@ -125,7 +138,7 @@ export default async function SubCategoryPage({ params }: Params) {
         <JsonLd
           data={itemListJsonLd(
             rows.map((r) => ({
-              name: r.name,
+              name: getLocalizedSkuName(r, cat, subEntity, locale),
               url: routes.sku(r.categoryId, r.subCategoryId, r.slug),
             })),
           )}
@@ -145,15 +158,16 @@ export default async function SubCategoryPage({ params }: Params) {
               categorySlug={category}
               categoryName={cat.name}
               id="sub-title"
-              title={rows.length > 0 ? `قیمت روز ${subject}` : subject}
+              title={rows.length > 0 ? tFacet('todayPrice', { subject }) : subject}
               description={
                 rows.length > 0
-                  ? `قیمت لحظه‌ای ${subject} ${
-                      factoryIsMeaningful(category, sub)
-                        ? 'به تفکیک سایز و کارخانه'
-                        : 'به تفکیک سایز'
-                    }، همراه با نوسان، وزن شاخه و زمان تحویل اعلام‌شده. پیش از خرید، با کارشناس ما مشورت کنید.`
-                  : `هنوز کالایی در ${subject} ثبت نشده است. برای استعلام قیمت، موجودی و زمان تحویل با کارشناسان ما تماس بگیرید.`
+                  ? tFacet('subLiveDescription', {
+                      subject,
+                      breakdown: factoryIsMeaningful(category, sub)
+                        ? tFacet('breakdownBySizeAndMill')
+                        : tFacet('breakdownBySize'),
+                    })
+                  : tFacet('subEmptyBody', { subject })
               }
             />
           </div>

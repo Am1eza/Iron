@@ -2574,6 +2574,10 @@
     "byFactorySuffix": " حسب المصنع",
     "statsWithFactories": "{products} صنفاً من {factories} مصنعاً",
     "statsOnly": "{products} صنفاً",
-    "allMillsSuffix": " في جميع المصانع"
+    "allMillsSuffix": " في جميع المصانع",
+    "subLiveDescription": "أسعار {subject} اللحظية {breakdown}، مع التذبذب ووزن القضيب وموعد التسليم المعلن. استشر خبيرنا قبل الشراء.",
+    "breakdownBySizeAndMill": "حسب المقاس والمصنع",
+    "breakdownBySize": "حسب المقاس",
+    "subEmptyBody": "لم تُسجَّل أي منتجات ضمن {subject} بعد. تواصل مع خبرائنا للاستفسار عن السعر والتوفر وموعد التسليم."
   }
 }
