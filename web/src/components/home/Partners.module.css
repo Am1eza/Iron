@@ -32,27 +32,13 @@
   max-inline-size: 52ch;
 }
 
-/* Mill name chip (supplier strip) — raised gunmetal cells */
-.mill {
+/* Mill logo link (supplier strip) — wraps a .cell; the cell itself carries
+   the light surface and hover treatment, this just strips link styling. */
+.millLink {
   display: inline-flex;
   text-decoration: none;
-  align-items: center;
-  justify-content: center;
-  min-inline-size: 200px;
-  block-size: 76px;
-  padding-inline: var(--space-6);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-panel-hairline);
-  background: var(--color-panel-raised);
-  color: var(--color-on-panel);
-  font: var(--t-h4);
-  font-weight: 700;
-  white-space: nowrap;
-  transition: border-color var(--dur-fast), transform var(--dur-fast);
 }
-.mill:hover {
-  border-color: var(--emerald-400);
-  box-shadow: 0 4px 16px rgb(0, 0, 0, 0.3);
+.millLink:hover {
   text-decoration: none;
 }
 
@@ -119,11 +105,6 @@
 }
 
 @media (max-width: 640px) {
-  .mill {
-    min-inline-size: 150px;
-    block-size: 64px;
-    font-size: 0.95rem;
-  }
   .cell {
     inline-size: 168px;
     block-size: 84px;

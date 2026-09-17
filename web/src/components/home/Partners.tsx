@@ -3,27 +3,18 @@ import { useState } from 'react';
 import { Link } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { clientLogos, type ClientLogo } from '../../../public/assets/logos/clients';
+import { millLogos, type MillLogo } from '../../../public/assets/logos/mills';
 import { useIntersectionObserver } from '@/lib/hooks/useIntersectionObserver';
 import { Marquee } from './Marquee';
 import styles from './Partners.module.css';
 
 /**
  * Trust — the mills we source from + the clients who trust us. BOTH are smooth,
- * seamless marquees (shared Marquee component): a quiet mill name-strip and the
+ * seamless marquees (shared Marquee component): a quiet mill logo strip and the
  * client logo strip. Consistent motion, no jump on «next».
  */
-const FACTORIES = [
-  'فولاد مبارکه',
-  'ذوب‌آهن اصفهان',
-  'فولاد خوزستان',
-  'فولاد کاوه',
-  'فولاد نیشابور',
-  'فولاد ارفع',
-  'نورد یزد',
-  'فولاد کویر',
-];
 
-function LogoCell({ c, shouldLoad }: { c: ClientLogo; shouldLoad: boolean }) {
+function LogoCell({ c, shouldLoad }: { c: ClientLogo | MillLogo; shouldLoad: boolean }) {
   const [errored, setErrored] = useState(false);
   const showImg = c.hasLogo && !errored && shouldLoad;
   return (
@@ -59,12 +50,12 @@ export function Partners() {
   // peers are proper nouns and, more to the point, the site search these link
   // into matches SKUs on that exact Persian string.
   const t = useTranslations('home.partners');
-  const { ref, isIntersecting } = useIntersectionObserver<HTMLDivElement>({
+  const { ref, isIntersecting } = useIntersectionObserver<HTMLElement>({
     rootMargin: '600px',
     freezeOnceVisible: true,
   });
   return (
-    <section className={`${styles.section} blueprint`} aria-labelledby="partners-title">
+    <section className={`${styles.section} blueprint`} aria-labelledby="partners-title" ref={ref}>
       <div className={styles.block}>
         <div className="container">
           <p className={styles.eyebrow}>{t('millsEyebrow')}</p>
@@ -75,17 +66,21 @@ export function Partners() {
         <Marquee
           ariaLabel={t('millsAria')}
           speed={36}
-          items={FACTORIES.map((name) => (
+          items={millLogos.map((m) => (
             // A real destination behind the hover affordance: site search
             // matches SKUs by factory name, so each mill opens its products.
-            <Link key={name} href={`/search?q=${encodeURIComponent(name)}`} className={styles.mill}>
-              {name}
+            <Link
+              key={m.slug}
+              href={`/search?q=${encodeURIComponent(m.nameFa)}`}
+              className={styles.millLink}
+            >
+              <LogoCell c={m} shouldLoad={isIntersecting} />
             </Link>
           ))}
         />
       </div>
 
-      <div className={styles.block} ref={ref}>
+      <div className={styles.block}>
         <div className="container">
           <p className={styles.eyebrow}>{t('clientsEyebrow')}</p>
           <h2 className={styles.title}>{t('clientsTitle')}</h2>
