@@ -222,6 +222,32 @@ function cellToman(s: string): number | null {
  *  so an accordion date is indistinguishable downstream from a column date. */
 const ACCORDION_DATE_KEY = 'تاریخ بروزرسانی';
 
+/** `۱۴۰۵/۶/۲۶` or `1405/6/26`, in either digit set. */
+const JALALI_DATE = /([0-9۰-۹]{4}\/[0-9۰-۹]{1,2}\/[0-9۰-۹]{1,2})/;
+
+function asciiDigits(value: string): string {
+  return value.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
+}
+
+/**
+ * The «آخرین بروزرسانی : امروز ( 1405/6/26 )» line ahanonline renders
+ * immediately above each price table.
+ *
+ * This is the ONLY date the page carries when it is fetched from Iran: the
+ * production host gets a variant with no per-row accordion at all (verified
+ * by fetching the same URL from the server — `detail-info-price` appears 0
+ * times there and 27 of these headers do). Without it, every rebar row
+ * reached the sync undated, was stored with `confirmed_at = epoch`, and the
+ * price was withheld from the site as stale — the 182-row outage this
+ * function and its accordion sibling exist to end.
+ */
+function tableHeaderDate(pre: string): string | null {
+  const marker = pre.lastIndexOf('آخرین بروزرسانی');
+  if (marker < 0) return null;
+  const m = JALALI_DATE.exec(pre.slice(marker, marker + 200));
+  return m ? asciiDigits(m[1]!) : null;
+}
+
 function rowHasDate(row: AhanonlineRow): boolean {
   return Object.entries(row.cells).some(([k, v]) => k.includes('تاریخ') && v.trim() !== '');
 }
@@ -252,6 +278,11 @@ export function parseAhanonlinePage(html: string, sourcePath: string): Ahanonlin
       group = heads.length > 0 ? txt(heads[heads.length - 1]![1]!) : '';
     }
     group = group.replace(/آخرین بروزرسانی[\s\S]*$/, '').trim();
+    // Fallback date for every row in THIS table (see tableHeaderDate), and
+    // whether the table publishes a date COLUMN of its own — which always
+    // wins over both fallbacks.
+    const headerDate = tableHeaderDate(pre);
+    const hasDateColumn = headers.some((h) => h.includes('تاریخ'));
 
     // The row most recently pushed from THIS table — the only one an
     // accordion detail row (below) may attach its date to.
@@ -271,10 +302,11 @@ export function parseAhanonlinePage(html: string, sourcePath: string): Ahanonlin
         // all refreshed that same morning. A column value, when present,
         // always wins; the accordion only fills a gap.
         const detailDate = /آخرین\s*بروز\s*‌?\s*رسانی\s*:\s*([0-9۰-۹]{4}\/[0-9۰-۹]{1,2}\/[0-9۰-۹]{1,2})/.exec(txt(row));
-        if (detailDate && lastRowOfTable && !rowHasDate(lastRowOfTable)) {
-          lastRowOfTable.cells[ACCORDION_DATE_KEY] = detailDate[1]!.replace(/[۰-۹]/g, (d) =>
-            String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)),
-          );
+        // A per-row accordion date is more specific than this table's header
+        // date, so it overwrites one that came from there — but never a real
+        // «تاریخ بروزرسانی» COLUMN value.
+        if (detailDate && lastRowOfTable && !hasDateColumn) {
+          lastRowOfTable.cells[ACCORDION_DATE_KEY] = asciiDigits(detailDate[1]!);
         }
         continue;
       }
@@ -306,6 +338,9 @@ export function parseAhanonlinePage(html: string, sourcePath: string): Ahanonlin
         priceRial,
         cells,
       };
+      // Priority: the row's own «تاریخ بروزرسانی» column (already in `cells`),
+      // then the accordion row that follows it, then this table's header.
+      if (headerDate && !rowHasDate(parsed)) parsed.cells[ACCORDION_DATE_KEY] = headerDate;
       out.push(parsed);
       lastRowOfTable = parsed;
     }

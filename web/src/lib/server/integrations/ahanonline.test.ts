@@ -160,6 +160,71 @@ describe('parseAhanonlinePage — accordion «آخرین بروز رسانی»',
   });
 });
 
+/**
+ * The variant ahanonline serves to the PRODUCTION host (fetched from the
+ * server itself on 1405/06/26): no per-row accordion anywhere on the page —
+ * the only date is this header above each table. Markup trimmed, verbatim.
+ */
+const HEADER_DATE_PAGE = `
+<div class="font-Bold text-[18px] mb-2">میلگرد ذوب آهن اصفهان</div>
+<div class="flex">
+  <span class="w-[1px] bg-[#00AF9C] py-[10px] h-full mx-[10px]"></span>
+  <div class="text-[16px] flex items-center justify-center text-[#AF0748]">
+    <i class="icon-WATCH text-[16px] ml-[5px] "></i>
+    آخرین بروزرسانی :
+    <span class="text-[#00AF9C] pr-1 font-Bold">
+      امروز
+      ( 1405/6/26 )
+    </span>
+  </div>
+</div>
+<table class="w-full">
+  <thead><tr><th>سایز</th><th>استاندارد</th><th>محل تحویل</th><th>قیمت (تومان)</th></tr></thead>
+  <tbody class="table_price">
+    <tr>
+      <td><div>12</div></td><td><div>A3</div></td><td><div>کارخانه</div></td>
+      <td><div class="product-price" data-price="968181">96,820</div></td>
+    </tr>
+    <tr>
+      <td><div>14</div></td><td><div>A3</div></td><td><div>کارخانه</div></td>
+      <td><div class="product-price" data-price="886401">88,640</div></td>
+    </tr>
+  </tbody>
+</table>`;
+
+describe('parseAhanonlinePage — per-table «آخرین بروزرسانی» header', () => {
+  it('dates every row of the table from the header above it', () => {
+    const rows = parseAhanonlinePage(HEADER_DATE_PAGE, 'میلگرد/قیمت-میلگرد');
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.cells['تاریخ بروزرسانی'])).toEqual(['1405/6/26', '1405/6/26']);
+  });
+
+  it('prefers a per-row accordion date over the table header (more specific)', () => {
+    const mixed = HEADER_DATE_PAGE.replace(
+      '  </tbody>',
+      `    <tr><td colspan="4" class="detail-info-price">آخرین بروز رسانی : 1405/6/24</td></tr>
+  </tbody>`,
+    );
+    const rows = parseAhanonlinePage(mixed, 'میلگرد/قیمت-میلگرد');
+    expect(rows[1]!.cells['تاریخ بروزرسانی']).toBe('1405/6/24');
+    expect(rows[0]!.cells['تاریخ بروزرسانی']).toBe('1405/6/26');
+  });
+
+  it('a real date COLUMN still wins over the header', () => {
+    const rows = parseAhanonlinePage(
+      `<div>آخرین بروزرسانی : ( 1400/1/1 )</div>${PAGE}`,
+      'نبشی-و-ناودانی/نبشی',
+    );
+    expect(rows[0]!.cells['تاریخ بروزرسانی']).toBe('1405/5/31');
+  });
+
+  it('leaves rows undated when the page publishes no date at all', () => {
+    const noDate = HEADER_DATE_PAGE.replace(/آخرین بروزرسانی[\s\S]*?<\/div>\s*<\/div>/, '');
+    const rows = parseAhanonlinePage(noDate, 'میلگرد/قیمت-میلگرد');
+    expect(rows.every((r) => !r.cells['تاریخ بروزرسانی'])).toBe(true);
+  });
+});
+
 describe('fetchAhanonlinePrices', () => {
   const ok =(body: string) => new Response(body, { status: 200 });
   const noSleep = () => Promise.resolve();
