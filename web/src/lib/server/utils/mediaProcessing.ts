@@ -13,6 +13,25 @@
  * removes EXIF/ICC/XMP, because those are byte segments of the ORIGINAL
  * file's container; the only way to guarantee they are gone is to never copy
  * them into the output.
+ *
+ * This app also builds for Cloudflare Workers (`web/DEPLOY-CLOUDFLARE.md` —
+ * the "foreign" origin in GEO-ROUTING.md, served in mock mode with no
+ * login/uploads, so this module is never actually reachable there), and that
+ * build's OpenNext/esbuild bundling step tries to statically inline this
+ * `import sharp from 'sharp'` — including sharp's own platform-specific
+ * native `.node` binary requires, which esbuild cannot bundle for a
+ * V8-isolate target at all, hard-failing the ENTIRE Cloudflare Workers build
+ * for every route, not just the two upload ones. `next.config.mjs`'s
+ * `turbopack.resolveAlias` (only active when `BUILD_CLOUDFLARE=1`, set by
+ * the `cf:build`/`cf:preview`/`cf:deploy` scripts) redirects the `sharp`
+ * specifier to `sharp.workers-stub.ts` for that build only, so sharp's native
+ * files never enter Next's own output-file-tracing in the first place — see
+ * that stub file for why `serverExternalPackages` (used for `pg`/`ioredis`
+ * right below this comment's sibling in next.config.mjs) and a
+ * bundler-opaque `eval('require')` were both tried first and neither worked.
+ * Unchanged behavior on the real (Docker/Node.js) deployment this module
+ * actually runs on — confirmed against real `pnpm build` and `pnpm cf:build`
+ * runs locally.
  */
 import sharp from 'sharp';
 import type { UploadImageExt } from './uploadStorage';
