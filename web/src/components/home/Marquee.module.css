@@ -18,17 +18,23 @@
 }
 /* Edge fade as OVERLAYS (not a mask on the transformed layer — mask+transform
    can render a blank composited layer on some GPUs).
-   Wide enough to fully cover a client-logo cell (220px) as it enters/exits,
-   with a solid inner band before the taper starts: a plain edge-to-edge
-   linear fade left the cell only partly covered for most of its transit, so
-   its white card showed through a dark gradient mid-crossing — read as the
-   logo being sliced off rather than fading away (audit: لوگوها... بریده
-   دیده می‌شوند). The solid band hides that transit outright; only the last
-   stretch actually tapers. */
+   A cell straddling the viewport edge is only PARTIALLY clipped by
+   `.viewport`'s overflow:hidden — the visible sliver renders as a
+   half-a-logo cutout, no matter how the overlay looks. The overlay's job is
+   to keep that sliver fully hidden until the cell has translated clear of
+   the edge, THEN taper — so the solid portion must be at least as wide as
+   one cell (220px), not a percentage of the whole fade box. The prior 128px
+   box with a 45% stop (~58px solid) left most of a cell's transit exposed
+   through a grey/tinted gradient, which read as a rendering glitch, not a
+   fade (audit: لوگوها با گرادیان خاکستری بریده/محو دیده می‌شوند). --fade-solid
+   is set on `.fade` itself so fadeStart/fadeEnd share one source of truth. */
 .fade {
   position: absolute;
   inset-block: 0;
-  inline-size: 128px;
+  inline-size: 256px;
+
+  --fade-solid: 224px; /* >= .cell inline-size (220px) */
+
   z-index: 1;
   pointer-events: none;
 }
@@ -36,8 +42,8 @@
   inset-inline-start: 0;
   background: linear-gradient(
     90deg,
-    var(--marquee-fade, var(--color-bg)) 0%,
-    var(--marquee-fade, var(--color-bg)) 45%,
+    var(--marquee-fade, var(--color-bg)) 0,
+    var(--marquee-fade, var(--color-bg)) var(--fade-solid),
     transparent 100%
   );
 }
@@ -45,15 +51,22 @@
   inset-inline-end: 0;
   background: linear-gradient(
     270deg,
-    var(--marquee-fade, var(--color-bg)) 0%,
-    var(--marquee-fade, var(--color-bg)) 45%,
+    var(--marquee-fade, var(--color-bg)) 0,
+    var(--marquee-fade, var(--color-bg)) var(--fade-solid),
     transparent 100%
   );
 }
 
 @media (max-width: 640px) {
+  /* The mobile viewport (~240px between the nav buttons on a 375px phone)
+     is too narrow to also fit a 168px-cell's worth of solid cover on both
+     edges — that would blank the strip permanently. Trade full coverage for
+     a much steeper taper instead: the smear window shrinks from ~125px to
+     ~40px without shrinking the visible middle any further than today. */
   .fade {
-    inline-size: 96px;
+    inline-size: 104px;
+
+    --fade-solid: 88px;
   }
 }
 
