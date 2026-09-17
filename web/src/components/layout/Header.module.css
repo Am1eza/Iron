@@ -341,7 +341,16 @@
 }
 
 /* ===== Responsive ===== */
-@media (max-width: 1023px) {
+/* Logo + full .primary nav + .utility (login/locale) need ~1154px of row
+   space. Below --container-max (1280px) .container stops clamping and
+   shrinks 1:1 with the viewport, so from 1024px (where this used to switch
+   to the desktop nav) up to ~1218px that row no longer fits and .utility —
+   last in DOM/flex order, so first pushed out in this RTL row — overflowed
+   off the left edge of the viewport entirely (login button and language
+   switcher invisible). 1280px is the first width with headroom again: past
+   it .container is pinned to 1280px forever, so this fits at every wider
+   viewport too, not just barely past the old cutoff. */
+@media (max-width: 1279px) {
   .primary {
     display: none;
   }

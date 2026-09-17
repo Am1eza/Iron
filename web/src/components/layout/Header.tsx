@@ -23,8 +23,10 @@ import styles from './Header.module.css';
 /**
  * Global header. Logo · full product/tools/services/company nav (parity with the
  * footer & mobile drawer) · search · cart · account. The desktop nav uses a
- * «محصولات» mega-menu + «ابزارها/خدمات/شرکت» dropdowns; below 1024px it collapses
- * to the hamburger drawer (which mirrors the same destinations).
+ * «محصولات» mega-menu + «ابزارها/خدمات/شرکت» dropdowns; below 1280px (the
+ * design system's own --container-max, where the header's row of logo + full
+ * nav + login/locale utility stops fitting the page) it collapses to the
+ * hamburger drawer (which mirrors the same destinations).
  */
 export function Header({ categories, subs }: { categories: Category[]; subs: SubsMap }) {
   const pathname = usePathname();
