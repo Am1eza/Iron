@@ -5,6 +5,10 @@ const isExport = process.env.EXPORT === '1';
 // Self-contained server bundle for the optional Docker/VPS path (see web/Dockerfile).
 // Off by default, so the Cloudflare (OpenNext) and normal builds are unaffected.
 const isStandalone = process.env.BUILD_STANDALONE === '1';
+// Set by the cf:build/cf:preview/cf:deploy scripts, ahead of the `next build`
+// OpenNext's `opennextjs-cloudflare build` runs internally. See the
+// `turbopack.resolveAlias` block below for why this exists.
+const isCloudflareBuild = process.env.BUILD_CLOUDFLARE === '1';
 const basePath = process.env.PAGES_BASE_PATH || '';
 // `next dev` needs 'unsafe-eval' in its CSP — React/Next use eval() in
 // development for HMR and richer error stacks. It is NOT needed (and not
@@ -38,6 +42,15 @@ const nextConfig = {
   // `dist/index.js`, breaking the Cloudflare Workers build with "Could not
   // resolve pg-cloudflare" (reproduced in CI; see @opennextjs/cloudflare's
   // dist/cli/build/utils/workerd.js).
+  //
+  // `sharp` is NOT listed here — this mechanism only helps a package that
+  // ships a "workerd" build condition (like pg-cloudflare) to fall back on.
+  // sharp is a native (libvips) addon with no Workers-compatible variant at
+  // all, and `serverExternalPackages` alone does not stop Next's own
+  // output-file-tracing from pulling its platform `.node` binaries into the
+  // build graph regardless (confirmed locally: still hard-fails OpenNext's
+  // esbuild step the same way). See the `turbopack.resolveAlias` block below
+  // for how sharp is actually kept out of the Cloudflare build.
   serverExternalPackages: ['pg', 'pg-cloudflare', 'ioredis'],
   // `next dev` now blocks cross-origin static-asset/HMR requests by default
   // (a security hardening, not present the same way before Next 16) — every
@@ -80,6 +93,16 @@ const nextConfig = {
      * the same as faster. Do not re-enable without re-running that A/B.
      */
   },
+  // Only active for the Cloudflare Workers build — redirects the `sharp`
+  // specifier itself to a throwing stub BEFORE Next's build ever resolves
+  // it, so its native `.node` binaries never enter output-file-tracing or
+  // OpenNext's esbuild bundling at all. See sharp.workers-stub.ts and
+  // mediaProcessing.ts's module doc comment for the full why —
+  // `serverExternalPackages` and a bundler-opaque `eval('require')` were
+  // both tried first and neither kept sharp out of the build graph.
+  ...(isCloudflareBuild
+    ? { turbopack: { resolveAlias: { sharp: './src/lib/server/utils/sharp.workers-stub.ts' } } }
+    : {}),
   // Static export for GitHub Pages (preview). `next start`/dev keep full SSR.
   ...(isExport
     ? { output: 'export', trailingSlash: true, basePath, assetPrefix: basePath || undefined }
