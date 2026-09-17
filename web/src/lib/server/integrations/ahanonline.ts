@@ -218,6 +218,14 @@ function cellToman(s: string): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+/** The header name `rowUpdatedAt()` (priceSync.match.ts) already reads first,
+ *  so an accordion date is indistinguishable downstream from a column date. */
+const ACCORDION_DATE_KEY = 'تاریخ بروزرسانی';
+
+function rowHasDate(row: AhanonlineRow): boolean {
+  return Object.entries(row.cells).some(([k, v]) => k.includes('تاریخ') && v.trim() !== '');
+}
+
 /**
  * Parse one category page into priced rows.
  *
@@ -245,11 +253,31 @@ export function parseAhanonlinePage(html: string, sourcePath: string): Ahanonlin
     }
     group = group.replace(/آخرین بروزرسانی[\s\S]*$/, '').trim();
 
+    // The row most recently pushed from THIS table — the only one an
+    // accordion detail row (below) may attach its date to.
+    let lastRowOfTable: AhanonlineRow | null = null;
     for (const rm of table.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)) {
       const row = rm[1]!;
       if (row.includes('<th')) continue;
       const priceAttr = /data-price="(\d+)"/.exec(row);
-      if (!priceAttr) continue;
+      if (!priceAttr) {
+        // Some pages (every table on `میلگرد/قیمت-میلگرد` among them) have no
+        // «تاریخ بروزرسانی» COLUMN: the date lives in a collapsed accordion
+        // `<tr><td colspan class="detail-info-price">` directly under each
+        // priced row, as «آخرین بروز رسانی : 1405/6/26». Missing it was not
+        // harmless — an undated row is stored with `confirmed_at = epoch`
+        // (priceSync.service.ts), so the price is withheld from the site as
+        // stale. On 1405/06/26 that was 193 live prices, 182 of them rebar,
+        // all refreshed that same morning. A column value, when present,
+        // always wins; the accordion only fills a gap.
+        const detailDate = /آخرین\s*بروز\s*‌?\s*رسانی\s*:\s*([0-9۰-۹]{4}\/[0-9۰-۹]{1,2}\/[0-9۰-۹]{1,2})/.exec(txt(row));
+        if (detailDate && lastRowOfTable && !rowHasDate(lastRowOfTable)) {
+          lastRowOfTable.cells[ACCORDION_DATE_KEY] = detailDate[1]!.replace(/[۰-۹]/g, (d) =>
+            String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)),
+          );
+        }
+        continue;
+      }
       const priceRial = Number(priceAttr[1]);
       if (!Number.isFinite(priceRial) || priceRial <= 0) continue;
 
@@ -269,7 +297,7 @@ export function parseAhanonlinePage(html: string, sourcePath: string): Ahanonlin
 
       const nameAttr = /data-name="([^"]*)"/.exec(row);
       const codeAttr = /data-code="([^"]*)"/.exec(row);
-      out.push({
+      const parsed: AhanonlineRow = {
         sourcePath,
         group,
         name: nameAttr ? unescapeHtml(nameAttr[1]!).replace(/\s+/g, ' ').trim() : '',
@@ -277,7 +305,9 @@ export function parseAhanonlinePage(html: string, sourcePath: string): Ahanonlin
         priceToman: derivedToman,
         priceRial,
         cells,
-      });
+      };
+      out.push(parsed);
+      lastRowOfTable = parsed;
     }
   }
   return out;
