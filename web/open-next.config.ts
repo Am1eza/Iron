@@ -26,7 +26,20 @@ const openNextConfig = {
   // does not depend on which command Cloudflare was configured with — only
   // on it ultimately using this adapter's build pipeline at all, which the
   // very existence of a "Workers Builds: ahantime" check confirms it does.
-  buildCommand: "BUILD_CLOUDFLARE=1 pnpm build",
+  // (Confirmed live: the dashboard's actual configured "Build command" is
+  // `npx opennextjs-cloudflare build`, NOT `pnpm run cf:build` — so this is
+  // the ONLY place a Cloudflare-build-only step reliably runs.)
+  //
+  // The `cf-proxy-swap` wrapper swaps `src/proxy.ts` (Node-runtime,
+  // Postgres-backed — the Docker/self-hosted target) for
+  // `src/proxy.workers.ts` (Edge-runtime, DB-free) for the duration of this
+  // `next build` only, then restores the original tree. Next.js 16's
+  // `proxy` convention is hardcoded to the Node.js runtime, which OpenNext's
+  // Cloudflare adapter does not support ("Node Middleware... not yet
+  // supported" — https://opennext.js.org/cloudflare#supported-nextjs-features);
+  // every request to this Worker 500'd until this swap existed. See
+  // proxy.workers.ts's own doc comment for the full why.
+  buildCommand: "node scripts/cf-proxy-swap.mjs -- env BUILD_CLOUDFLARE=1 pnpm build",
 };
 
 export default openNextConfig;
