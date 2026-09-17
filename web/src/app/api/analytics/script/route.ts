@@ -22,8 +22,17 @@ import { NextResponse } from 'next/server';
  */
 export const dynamic = 'force-dynamic';
 
-export function GET() {
+export function GET(req: Request) {
   const siteId = process.env.MATOMO_SITE_ID;
+  // Staff browsing panel.ahantime.com are not visitors: their sessions were
+  // landing in the same Matomo site as customers (the GA4 side of this is
+  // handled in components/analytics/Analytics.tsx).
+  const host = req.headers.get('host') ?? '';
+  if (/^panel\./.test(host)) {
+    return new NextResponse('/* analytics disabled on the panel host */', {
+      headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'public, max-age=300' },
+    });
+  }
   const body = siteId
     ? `(function(){
   var _paq = window._paq = window._paq || [];
