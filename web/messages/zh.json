@@ -2578,6 +2578,18 @@
     "subLiveDescription": "{subject}实时价格{breakdown}，含涨跌、单根重量及公布的交货时间。购买前请咨询我们的专家。",
     "breakdownBySizeAndMill": "（按规格与钢厂）",
     "breakdownBySize": "（按规格）",
-    "subEmptyBody": "{subject}下暂无商品。请联系我们的专家咨询价格、库存和交货时间。"
+    "subEmptyBody": "{subject}下暂无商品。请联系我们的专家咨询价格、库存和交货时间。",
+    "pricesUpdatedAt": "价格最后更新：<time>{date}</time>（德黑兰时间）",
+    "faqPriceQ": "{subject}今天多少钱？",
+    "faqPriceRange": "在 Ahantime，{subject}今日价格为每{unit} {min} 至 {max} 托曼（不含增值税）。该区间来自 {count, number} 个产品的已确认价格。",
+    "faqPriceSingle": "在 Ahantime，{subject}今日价格为每{unit} {price} 托曼（不含增值税）。",
+    "faqPriceUpdated": "价格最后更新：{date}（德黑兰时间）。",
+    "faqMillsQ": "Ahantime 发布哪些钢厂的{subject}价格？",
+    "faqMillsA": "Ahantime 发布 {count, number} 家钢厂的{subject}价格：{list}。",
+    "faqMillsMore": "{list}，以及另外 {rest, number} 家",
+    "faqVatQ": "{subject}价格含增值税吗？",
+    "faqVatA": "不含。价格表中的价格均不含增值税。打开价格表上的“{toggle}”开关，即可查看含 {pct}% 增值税的价格。",
+    "faqBuyQ": "如何购买{subject}？",
+    "faqBuyA": "Ahantime 不支持在线支付。请在价格表中选择产品并提交形式发票申请，或向 Ahantime 的 AI 顾问咨询。随后销售专员会致电与您确认最终价格、交货时间和订单。"
   }
 }

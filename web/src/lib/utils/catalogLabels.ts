@@ -1831,6 +1831,67 @@ export function subCategorySubject(subName: string, categoryName: string): strin
 }
 
 /**
+ * The words that already name a category's product, per translated locale.
+ *
+ * `subCategorySubject`'s whole-token rule works for Persian, where a sub and
+ * its category share the same word («لوله گالوانیزه» / «لوله»). It fails in
+ * the other three locales, which is how the live site came to title its
+ * pages «أنبوب مجلفن الأنابيب», «带肋钢筋 螺纹钢», «标准工字钢 工字钢» and
+ * «Light H-Beam (HEA) I-Beam» (2026-09-18 audit):
+ *  - Arabic inflects: the sub says أنبوب and the category says الأنابيب.
+ *  - Chinese has no spaces, so no token boundary ever matches, and a sub
+ *    names its head noun differently from the category (钢筋 / 螺纹钢).
+ *  - English category names are rarely a substring of the sub name.
+ * The translated names were written as complete product names, so a sub
+ * that already contains its category's head noun needs nothing appended.
+ * The list is explicit and per category because a general stemmer would be
+ * guessing.
+ *
+ * Deliberately absent:
+ *  - `felezat-rangi`: «Copper Pipe» does not say "non-ferrous metals", and
+ *    appending it adds a qualifier, not a repetition.
+ *  - `angle-channel`: the two-word category the Persian rule above also
+ *    leaves alone as an owner decision. Its translations follow the same
+ *    decision, so the four locales do not disagree about it.
+ */
+const CATEGORY_HEAD_TERMS: Readonly<
+  Record<string, Readonly<Record<'en' | 'ar' | 'zh', readonly string[]>>>
+> = {
+  rebar: { en: ['rebar'], ar: ['حديد تسليح', 'حديد التسليح'], zh: ['钢筋'] },
+  ibeam: { en: ['beam'], ar: ['كمرة', 'عارضة'], zh: ['工字钢', '型钢', '梁'] },
+  pipe: { en: ['pipe', 'tube'], ar: ['أنبوب', 'أنابيب'], zh: ['管'] },
+  sheet: { en: ['sheet', 'plate', 'coil', 'deck'], ar: ['صفيحة', 'صفائح', 'صاج', 'لوح'], zh: ['板'] },
+  profile: { en: ['profile', 'section'], ar: ['بروفيل', 'قطاع'], zh: ['型材', '型钢'] },
+  steel: { en: ['stainless', 'steel'], ar: ['ستانلس', 'ستيل', 'فولاذ'], zh: ['不锈钢'] },
+};
+
+/**
+ * `subCategorySubject` for the page's locale. Persian goes through the
+ * original rule unchanged. For en/ar/zh the category is left off when the
+ * sub name already contains one of `CATEGORY_HEAD_TERMS[categorySlug]`, and
+ * otherwise the original rule applies (which still appends it), so a sub
+ * name that is only a qualifier («H خفيف (HEA)») keeps its category word.
+ */
+export function localizedSubCategorySubject(
+  subName: string,
+  categoryName: string,
+  categorySlug: string,
+  locale: string,
+): string {
+  if (locale === 'en' || locale === 'ar' || locale === 'zh') {
+    const terms = CATEGORY_HEAD_TERMS[categorySlug]?.[locale] ?? [];
+    const hay = locale === 'en' ? subName.toLowerCase() : normalizeForMatch(subName);
+    const covered = terms.some((term) =>
+      locale === 'en'
+        ? new RegExp(`\\b${term}\\b`).test(hay)
+        : hay.includes(normalizeForMatch(term)),
+    );
+    if (covered) return subName;
+  }
+  return subCategorySubject(subName, categoryName);
+}
+
+/**
  * What one factory-grouped price section is a section OF — the subject in
  * «قیمت {موضوع} {کارخانه}».
  *

@@ -2578,6 +2578,18 @@
     "subLiveDescription": "Live {subject} prices {breakdown}, with movement, branch weight and the stated delivery time. Talk to our specialist before you buy.",
     "breakdownBySizeAndMill": "by size and mill",
     "breakdownBySize": "by size",
-    "subEmptyBody": "No products are listed under {subject} yet. Call our specialists for price, availability and delivery time."
+    "subEmptyBody": "No products are listed under {subject} yet. Call our specialists for price, availability and delivery time.",
+    "pricesUpdatedAt": "Prices last updated: <time>{date}</time> (Tehran time)",
+    "faqPriceQ": "What is the price of {subject} today?",
+    "faqPriceRange": "On Ahantime, {subject} costs from {min} to {max} Toman per {unit} today, excluding VAT. The range covers the confirmed prices of {count, number} products.",
+    "faqPriceSingle": "On Ahantime, {subject} costs {price} Toman per {unit} today, excluding VAT.",
+    "faqPriceUpdated": " Prices last updated: {date} (Tehran time).",
+    "faqMillsQ": "Which mills does Ahantime publish {subject} prices for?",
+    "faqMillsA": "Ahantime publishes {subject} prices from {count, number} mills: {list}.",
+    "faqMillsMore": "{list} and {rest, number} more",
+    "faqVatQ": "Do {subject} prices include VAT?",
+    "faqVatA": "No. Prices in the table exclude VAT. Turning on the “{toggle}” switch on the price table shows the same prices with {pct}% VAT.",
+    "faqBuyQ": "How do I buy {subject}?",
+    "faqBuyA": "Ahantime has no online payment. Choose the product in the price table and submit a proforma request, or ask the Ahantime AI advisor for guidance. A sales expert then calls you to confirm the final price, the delivery time and the order."
   }
 }

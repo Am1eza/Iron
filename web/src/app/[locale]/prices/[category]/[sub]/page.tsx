@@ -6,7 +6,7 @@ import { routes } from '@/lib/routes';
 import { getCategories, getRows, getSubRows, getFactoryOrder } from '@/lib/server/catalog';
 import { getSubsMap } from '@/lib/data/catalog';
 import { getSetting, getVatRate } from '@/lib/server/repos/settingsRepo';
-import { factoryIsMeaningful, subCategorySubject } from '@/lib/utils/catalogLabels';
+import { factoryIsMeaningful, localizedSubCategorySubject } from '@/lib/utils/catalogLabels';
 import { getLocalizedName, getLocalizedSkuName } from '@/lib/utils/localizedNames';
 import type { AppLocale } from '@/i18n/config';
 import { localizeDigits } from '@/lib/utils/format';
@@ -18,6 +18,8 @@ import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { PriceTable } from '@/components/catalog/PriceTable';
 import { PriceHeader } from '@/components/catalog/PriceHeader';
 import { BulkQuote } from '@/components/catalog/BulkQuote';
+import { PriceFaq, PriceUpdatedAt } from '@/components/catalog/PriceFaq';
+import { priceFacts } from '@/lib/seo/priceFacts';
 
 type Params = {
   params: Promise<{ category: string; sub: string; locale: string }>;
@@ -44,8 +46,14 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     const t = await getTranslations({ locale, namespace: 'meta.notFound' });
     return buildMetadata({ locale, title: t('page'), noindex: true });
   }
-  // «میلگرد آجدار», not «میلگرد آجدار میلگرد» — see subCategorySubject.
-  const subject = subCategorySubject(name, getLocalizedName(cat, locale as AppLocale));
+  // «میلگرد آجدار», not «میلگرد آجدار میلگرد» — and «带肋钢筋», not
+  // «带肋钢筋 螺纹钢» — see localizedSubCategorySubject.
+  const subject = localizedSubCategorySubject(
+    name,
+    getLocalizedName(cat, locale as AppLocale),
+    category,
+    locale,
+  );
   const tMeta = await getTranslations({ locale, namespace: 'pricesFacet' });
   // SEO audit: every sub-category page previously shared one identical meta
   // description template with only `subject` swapped in, giving a searcher no
@@ -122,7 +130,10 @@ export default async function SubCategoryPage({ params }: Params) {
 
   // The one subject line the title, the H1 and the intro all spell — kept
   // identical on purpose, so a page can never advertise itself two ways.
-  const subject = subCategorySubject(name, catName);
+  const subject = localizedSubCategorySubject(name, catName, category, locale);
+  // This sub's own rows (`rows`), not the category-wide `allRows` the table
+  // is handed for its client-side filter — the answers are about this page.
+  const facts = priceFacts(rows);
 
   const crumbs = [
     { label: tNav('nav.home'), href: routes.home() },
@@ -170,6 +181,7 @@ export default async function SubCategoryPage({ params }: Params) {
                   : tFacet('subEmptyBody', { subject })
               }
             />
+            {facts?.latestAt && <PriceUpdatedAt iso={facts.latestAt} locale={locale} />}
           </div>
 
           {rows.length > 0 ? (
@@ -192,6 +204,7 @@ export default async function SubCategoryPage({ params }: Params) {
                 logisticsConfig={logisticsConfig}
                 vatRate={vatRate}
               />
+              {facts && <PriceFaq facts={facts} subject={subject} locale={locale} vatRate={vatRate} />}
             </>
           ) : (
             <EmptyCategoryState />

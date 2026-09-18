@@ -17,4 +17,19 @@
 
 ## نحوه کار
 
-مشتری محصول را جستجو یا از فهرست قیمت انتخاب می‌کند، مشاور هوش مصنوعی یا کارشناس فروش سفارش را تأیید می‌کند، پیش‌فاکتور رسمی صادر می‌شود و کالا با زمان تحویل مشخص از انبار یا مستقیم از کارخانه ارسال می‌شود.
+مشتری محصول را جستجو یا از فهرست قیمت انتخاب می‌کند، مشاور هوش مصنوعی یا کارشناس فروش سفارش را تأیید می‌کند، پیش‌فاکتور رسمی صادر می‌شود و کالا با زمان تحویل مشخص از انبار یا مستقیم از کارخانه ارسال می‌شود. پرداخت آنلاین وجود ندارد. قیمت‌ها به تومان و بدون ارزش‌افزوده اعلام می‌شوند.
+
+## In English
+
+Ahantime is an Iranian online marketplace for iron and steel: rebar, I-beams, profiles, sheet, angle and channel, pipe, stainless steel and non-ferrous metals from Iran's main mills. It publishes daily prices in Toman, excluding VAT, and has an AI buying advisor grounded in those prices. There is no online payment: the buyer requests a proforma, and a sales expert confirms the final price and delivery time by phone.
+
+- [Full reference with today's prices per category](https://ahantime.com/llms-full.txt): generated live from the catalog.
+- [Prices (English)](https://ahantime.com/en/prices)
+- [AI buying advisor (English)](https://ahantime.com/en/ai)
+
+## Languages
+
+- [فارسی](https://ahantime.com/)
+- [English](https://ahantime.com/en)
+- [العربية](https://ahantime.com/ar)
+- [中文](https://ahantime.com/zh)

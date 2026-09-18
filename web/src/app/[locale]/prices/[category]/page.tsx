@@ -14,6 +14,8 @@ import { BreadcrumbJsonLd, JsonLd } from '@/components/seo/JsonLd';
 import { PriceTable } from '@/components/catalog/PriceTable';
 import { BulkQuote } from '@/components/catalog/BulkQuote';
 import { PriceHeader } from '@/components/catalog/PriceHeader';
+import { PriceFaq, PriceUpdatedAt } from '@/components/catalog/PriceFaq';
+import { priceFacts } from '@/lib/seo/priceFacts';
 import { FacetRail } from '@/components/catalog/FacetRail';
 import { factoryFacets, sizeFacets } from '@/lib/utils/catalogFacets';
 import { sizeLabel } from '@/lib/utils/catalogLabels';
@@ -109,6 +111,8 @@ export default async function CategoryPage({ params }: Params) {
     { label: tNav('nav.prices'), href: routes.prices() },
     { label: catName, href: routes.category(category) },
   ];
+  // Computed from the same `rows` the table renders — see priceFacts.
+  const facts = priceFacts(rows);
 
   return (
     <Container>
@@ -145,6 +149,7 @@ export default async function CategoryPage({ params }: Params) {
                     description: tFacet('emptyCategoryBody', { subject: catName }),
                   })}
             />
+            {facts?.latestAt && <PriceUpdatedAt iso={facts.latestAt} locale={locale} />}
           </div>
 
           {rows.length > 0 ? (
@@ -181,6 +186,7 @@ export default async function CategoryPage({ params }: Params) {
                 facets={facets.sizes}
                 href={(slug) => routes.categoryBySize(category, slug)}
               />
+              {facts && <PriceFaq facts={facts} subject={catName} locale={locale} vatRate={vatRate} />}
             </>
           ) : (
             <EmptyCategoryState />
