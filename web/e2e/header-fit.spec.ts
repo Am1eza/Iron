@@ -43,6 +43,14 @@ for (const { prefix, name } of LOCALES) {
     console.log(`[header-fit] ${name}: vazirmatn before=${fontBefore} after=${fontAfter}`);
     expect(fontAfter, 'vazirmatn must be loaded before measuring').toContain('loaded');
 
+    // TEMP diagnostic: per-item widths at 1280.
+    console.log(`[header-fit] ${name} items: ` + (await page.evaluate(() => {
+      const inner = document.querySelector('header[data-site-chrome] [class*="inner"]') as HTMLElement;
+      return [...inner.querySelectorAll(':scope > * , :scope > * > *, [class*="primary"] li > *')]
+        .filter((e) => getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0)
+        .map((e) => `${(e.className.toString().split(' ')[0] || e.tagName).replace(/-module__\w+__/, '.')}"${(e as HTMLElement).innerText.replace(/\s+/g, ' ').slice(0, 24)}"=${e.getBoundingClientRect().width.toFixed(1)}`)
+        .join(' | ');
+    })));
     for (const width of WIDTHS) {
       await page.setViewportSize({ width, height: 900 });
       const fit = await page.evaluate(() => {
