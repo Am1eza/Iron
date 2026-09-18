@@ -9,7 +9,7 @@
 # Re-run after any edit — editing the copy in git alone does not reach cron.
 # Checks disk %, docker build-cache size, deploy pipeline health (stuck/
 # failed for 2h+), how many commits production is behind main, free memory,
-# and any failed systemd unit. State (so each condition alerts once, not
+# any failed systemd unit, and stale OS package mirrors. State (so each condition alerts once, not
 # every 15 min) lives in /opt/ahantime/.claude/monitor-state/.
 #
 # Alerting goes through ops/telegram-forwarder.worker.js, NOT api.telegram.org
@@ -121,6 +121,32 @@ if [ -n "$FAILED_UNITS" ]; then
   alert "failedunits" "این سرویس‌ها روی سرور failed هستن: ${FAILED_UNITS}. systemctl status <name> رو چک کن."
 else
   clear_alert "failedunits"
+fi
+
+# --- OS package mirrors gone stale ---
+# The failed-unit check above only sees a mirror that ERRORS (that is how
+# dnf-makecache.service surfaced repo.abrha.net dropping its /almalinux/9/
+# path on 2026-09-17). A mirror that silently stops SYNCING never fails
+# anything: EPEL sat on mirror.aminidc.com at a 2025-10-12 snapshot for 11
+# months — no security updates, no alert. This reads the metadata dnf
+# already cached (-C: no network, so it cannot hang on a mirror) and flags
+# any AlmaLinux/EPEL repo older than 14 days; both publish several times a
+# week. Docker CE is left out on purpose: it can legitimately go weeks
+# between releases. The repo files themselves live in /etc/yum.repos.d/ —
+# see ops/os-repos/README.md.
+STALE_REPOS=$(LC_ALL=C timeout 60 dnf -q -v -C repolist enabled 2>/dev/null \
+  | awk -F' *: ' '/^Repo-id/{id=$2} /^Repo-updated/{print id "\t" $2}' \
+  | while IFS=$'\t' read -r id updated; do
+      case "$id" in (almalinux-*|epel) ;; (*) continue ;; esac
+      ts=$(date -d "$updated" +%s 2>/dev/null || echo 0)
+      if [ "$ts" -gt 0 ] && [ $(( NOW_S - ts )) -gt $(( 14 * 86400 )) ]; then
+        printf '%s(%s) ' "$id" "$(date -u -d "@$ts" +%F)"
+      fi
+    done || true)
+if [ -n "$STALE_REPOS" ]; then
+  alert "stalerepos" "mirror این مخزن‌ها بیش از ۱۴ روزه آپدیت نشده و آپدیت امنیتی نمی‌رسه: ${STALE_REPOS}. ops/os-repos/README.md رو ببین."
+else
+  clear_alert "stalerepos"
 fi
 
 exit 0

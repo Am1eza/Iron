@@ -76,6 +76,26 @@ fi
 
 echo "redirect-repair: running in ${MODE} mode against ${REPO}"
 
+# The production `.env` has no DATABASE_URL: docker-compose.yml assembles it
+# for the `web` service from POSTGRES_PASSWORD. Passing `.env` alone made
+# every run die with "DATABASE_URL is not set" (found 2026-09-18, before this
+# unit was ever installed). Take the exact string the running app uses, so
+# this can never drift from compose, and hand it over in a private temp
+# env-file — same rule as below: never argv, the journal, or `ps`.
+# `</dev/null`: `compose exec` otherwise reads this script's stdin.
+ENV_FILE="$(umask 077 && mktemp)"
+trap 'rm -f "$ENV_FILE"' EXIT
+cat "${REPO}/.env" > "$ENV_FILE"
+if ! grep -q '^DATABASE_URL=' "$ENV_FILE"; then
+  db_url="$(docker compose --project-directory "$REPO" exec -T web printenv DATABASE_URL </dev/null || true)"
+  if [ -z "$db_url" ]; then
+    echo "redirect-repair: could not read DATABASE_URL from the running web container." >&2
+    exit 1
+  fi
+  printf 'DATABASE_URL=%s\n' "$db_url" >> "$ENV_FILE"
+  unset db_url
+fi
+
 # node:20, not node:20-alpine — CLAUDE.md §4's trap.
 # --env-file, never an inline -e: the connection string must not reach this
 # script's argv, the journal, or `ps`.
@@ -86,7 +106,7 @@ echo "redirect-repair: running in ${MODE} mode against ${REPO}"
 status=0
 docker run --rm \
   --network "$NETWORK" \
-  --env-file "${REPO}/.env" \
+  --env-file "$ENV_FILE" \
   -v "${REPO}:/app" \
   -w /app/web \
   node:20 \
