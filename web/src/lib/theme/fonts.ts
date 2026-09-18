@@ -27,6 +27,15 @@ export const vazirmatn = localFont({
   // (next.config) means a warm cache still paints Vazirmatn immediately.
   display: 'optional',
   preload: true,
+  // The flip side of 'optional': a cold-cache first visit that misses the
+  // ~100ms window renders the whole page in the fallback for good. next/font
+  // generates a metric-matched `vazirmatn Fallback` from `local("Arial")`,
+  // which Linux does not have, so there it errors and the stack drops to
+  // DejaVu/system-ui, a wider face. That pushed the English header 31px
+  // past its container (caught by e2e/header-fit.spec.ts on the Ubuntu CI
+  // runner). `vazirmatn Fallback Linux` (styles/tokens.css) applies the same
+  // overrides to Liberation Sans/Arimo, which are metric-compatible with Arial.
+  fallback: ['vazirmatn Fallback Linux'],
 });
 
 // Not wired into any font stack (tokens.css) or the root layout's className

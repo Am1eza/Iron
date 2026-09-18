@@ -10,6 +10,17 @@
    Their `--font-vazirmatn`/`--font-estedad`/`--font-inter` custom properties
    are applied on <html> (see app/layout.tsx) and consumed below. */
 
+/* next/font's generated `vazirmatn Fallback` is `local("Arial")`. Linux has
+   no Arial, so this is the same face on its metric-compatible clones. Keep
+   the overrides identical to the generated rule (read it from the built
+   CSS if Vazirmatn.var.woff2 is ever replaced). Wired in via `fallback` in
+   lib/theme/fonts.ts. */
+@font-face{
+  font-family:"vazirmatn Fallback Linux";
+  src:local("Liberation Sans"),local("LiberationSans"),local("Arimo");
+  ascent-override:102.54%;descent-override:53.71%;line-gap-override:0%;size-adjust:100%;
+}
+
 :root{
   /* ===== PRIMITIVES ===== */
   --neutral-0:#FFFFFF; --neutral-25:#FAFBFD; --neutral-50:#F4F7FA; --neutral-100:#ECF0F5;

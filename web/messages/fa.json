@@ -92,7 +92,8 @@
     "search": "جستجو",
     "cartAria": "سبد استعلام",
     "cartAriaWithCount": "سبد استعلام، {count} کالا",
-    "language": "زبان"
+    "language": "زبان",
+    "login": "ورود"
   },
   "footer": {
     "products": "محصولات",

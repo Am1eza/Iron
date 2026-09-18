@@ -349,7 +349,47 @@
    off the left edge of the viewport entirely (login button and language
    switcher invisible). 1280px is the first width with headroom again: past
    it .container is pinned to 1280px forever, so this fits at every wider
-   viewport too, not just barely past the old cutoff. */
+   viewport too, not just barely past the old cutoff.
+
+   That "fits" was measured with the PERSIAN labels only. The row has
+   1216px (1280 − 2×32px container padding), and on 2026-09-18 it needed
+   fa 1171 · zh 1053 · ar 1271 · en 1346. Past 1280px nothing grows, so ar
+   and en overflowed the container at EVERY width. The side margin hid it on
+   big screens, but on the most common laptop widths the language switcher
+   and login ran off the right edge: en by 98px at 1280, 55 at 1366 and 18
+   at 1440; ar by 23px at 1280. No breakpoint can fix a row that is too
+   wide for its own container, so it was made to fit instead:
+   «Customer Warehouse»→«Warehouse», «Smart Advisor»→«AI Advisor» and a
+   header-only «دخول» (see `header.login`), plus the tighter spacing below
+   for the two long-label locales. That leaves ~40px of slack at 1280px in
+   every locale (en was at 13px with the labels alone, too close to survive
+   a different font rasteriser). Keep it that way: e2e/header-fit.spec.ts
+   measures all four. */
+:global(:root:lang(en)) .navLink,
+:global(:root:lang(en)) .navTrigger,
+:global(:root:lang(ar)) .navLink,
+:global(:root:lang(ar)) .navTrigger {
+  padding-inline: var(--space-2);
+}
+:global(:root:lang(en)) .aiLink,
+:global(:root:lang(ar)) .aiLink {
+  padding-inline: var(--space-3);
+}
+:global(:root:lang(en)) .primary,
+:global(:root:lang(ar)) .primary {
+  margin-inline-start: var(--space-2);
+}
+:global(:root:lang(en)) .utility,
+:global(:root:lang(ar)) .utility {
+  gap: var(--space-1);
+}
+/* The active underline is inset by the link padding, so it follows it. */
+:global(:root:lang(en)) .navLink[data-active]::after,
+:global(:root:lang(en)) .navTrigger[data-active]::after,
+:global(:root:lang(ar)) .navLink[data-active]::after,
+:global(:root:lang(ar)) .navTrigger[data-active]::after {
+  inset-inline: var(--space-2);
+}
 @media (max-width: 1279px) {
   .primary {
     display: none;

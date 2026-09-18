@@ -32,7 +32,6 @@ export function Header({ categories, subs }: { categories: Category[]; subs: Sub
   const pathname = usePathname();
   const t = useTranslations('header');
   const tNav = useTranslations('nav');
-  const tCommon = useTranslations('common');
   const tNavLinks = useTranslations('navLinks');
   const locale = useLocale() as AppLocale;
   const drawerOpen = useUiStore((s) => s.drawerOpen);
@@ -275,7 +274,10 @@ export function Header({ categories, subs }: { categories: Category[]; subs: Sub
           ) : (
             <Link href={routes.login()} className={styles.loginBtn}>
               <UserIcon size={18} />
-              {tCommon('action.login')}
+              {/* `header.login`, not `common.action.login`: in Arabic the
+                  shared «تسجيل الدخول» is 60px wider than this row can spare
+                  (see the width budget in Header.module.css). */}
+              {t('login')}
             </Link>
           )}
           <LocaleSwitcher />

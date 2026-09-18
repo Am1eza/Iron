@@ -92,7 +92,8 @@
     "search": "بحث",
     "cartAria": "سلة الاستفسار",
     "cartAriaWithCount": "سلة الاستفسار، {count} عنصر",
-    "language": "اللغة"
+    "language": "اللغة",
+    "login": "دخول"
   },
   "footer": {
     "products": "المنتجات",
