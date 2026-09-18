@@ -76,7 +76,7 @@
     "tools": "Tools",
     "content": "Articles",
     "services": "Services",
-    "warehouse": "Customer Warehouse",
+    "warehouse": "Warehouse",
     "club": "Customer Club",
     "cooperation": "Partnership",
     "contact": "Contact",
@@ -88,11 +88,12 @@
   "header": {
     "openMenu": "Open menu",
     "mainNav": "Main navigation",
-    "smartAdvisor": "Smart Advisor",
+    "smartAdvisor": "AI Advisor",
     "search": "Search",
     "cartAria": "Inquiry cart",
     "cartAriaWithCount": "Inquiry cart, {count} items",
-    "language": "Language"
+    "language": "Language",
+    "login": "Log In"
   },
   "footer": {
     "products": "Products",
