@@ -66,6 +66,48 @@ describe('proxy — locale-exempt prefixes are never rewritten to /fa/...', () =
   );
 });
 
+/**
+ * `app/layout.tsx` renders `<html lang dir>` from the REQUEST header set here,
+ * and `Content-Language` is the response-side twin of that attribute. Both
+ * were the fix for /en, /ar and /zh pages being served `lang="fa" dir="rtl"`,
+ * so both are pinned: dropping either silently re-declares every translated
+ * page Persian to any crawler, with nothing else failing.
+ */
+describe('proxy — the locale a page renders in is declared on both sides', () => {
+  /** `NextResponse.next({ request: { headers } })` surfaces overridden request
+   *  headers to the app as `x-middleware-request-*`. */
+  function forwardedLocale(res: Response): string | null {
+    return res.headers.get('x-middleware-request-x-next-intl-locale');
+  }
+
+  it.each([
+    ['/', 'fa'],
+    ['/about', 'fa'],
+    ['/prices/rebar/deformed', 'fa'],
+  ])('%s forwards locale %s and declares it', async (path, locale) => {
+    const res = await proxy(req(path));
+    expect(forwardedLocale(res)).toBe(locale);
+    expect(res.headers.get('content-language')).toBe(locale);
+  });
+
+  it.each([
+    ['/en/about', 'en'],
+    ['/ar/about', 'ar'],
+    ['/zh/about', 'zh'],
+    ['/en/prices/rebar', 'en'],
+  ])('%s forwards locale %s and declares it', async (path, locale) => {
+    const res = await proxy(req(path));
+    expect(forwardedLocale(res)).toBe(locale);
+    expect(res.headers.get('content-language')).toBe(locale);
+  });
+
+  it('the panel host is never given a locale to render in', async () => {
+    const res = await proxy(req('/leads', 'panel.ahantime.com'));
+    expect(forwardedLocale(res)).toBeNull();
+    expect(res.headers.get('content-language')).toBeNull();
+  });
+});
+
 describe('proxy — the panel host never gets locale-rewritten', () => {
   it('a bare panel-host path is untouched by locale logic', async () => {
     const res = await proxy(req('/leads', 'panel.ahantime.com'));

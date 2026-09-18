@@ -74,14 +74,17 @@ export function isPanelHost(host: string | null | undefined): boolean {
 }
 
 /**
- * A root-level FILE is not a panel page. `/theme-init.js` and
- * `/locale-init.js` are served from `public/` and requested on every page
- * load, but they are not in the middleware matcher's exclusion list — so on
- * the panel host they were rewritten to `/admin/theme-init.js`, which then hit
- * the admin gate and 307'd to `/api/auth/silent`. The two scripts that set the
- * theme and locale on <html> therefore NEVER loaded on panel.ahantime.com,
- * which showed up as a React hydration mismatch on every panel page for a
- * logged-out visitor (found while un-`fixme`-ing the e2e RBAC suite, W29).
+ * A root-level FILE is not a panel page. `/theme-init.js` is served from
+ * `public/` and requested on every page load, but it is not in the middleware
+ * matcher's exclusion list — so on the panel host it was rewritten to
+ * `/admin/theme-init.js`, which then hit the admin gate and 307'd to
+ * `/api/auth/silent`. The script that sets the theme on <html> therefore
+ * NEVER loaded on panel.ahantime.com, which showed up as a React hydration
+ * mismatch on every panel page for a logged-out visitor (found while
+ * un-`fixme`-ing the e2e RBAC suite, W29). Its locale counterpart
+ * (`/locale-init.js`) is gone — `app/layout.tsx` renders `lang`/`dir`
+ * server-side now — but the predicate is a general rule, not a list of those
+ * two names, so nothing here changed with it.
  *
  * A dot in the LAST segment only: `/prices/rebar` has none, `/sitemap.xml`
  * does, and a hypothetical panel route with a dot in a parent segment stays a

@@ -79,8 +79,9 @@ export default function GlobalError({ error, reset }: { error: Error; reset: () 
   const headingRef = useRef<HTMLHeadingElement | null>(null);
   const { disabled, retryLabel, statusText, retry } = useChunkRecovery(error, reset);
   // Read once per mount, not reactively — this page has no locale SWITCHER,
-  // just a locale it happens to render in; matches LocaleScript's own
-  // one-shot-before-paint philosophy (see that file's header comment).
+  // just a locale it happens to render in. It reads the path rather than the
+  // header `app/layout.tsx` uses because global-error replaces the whole
+  // document and runs on the client, with no request to read.
   const locale = useMemo(readLocaleFromPath, []);
   const copy = COPY[locale];
 

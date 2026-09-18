@@ -320,12 +320,12 @@ export async function proxy(req: NextRequest) {
 }
 
 /**
- * `Content-Language` for a public page. The root layout is shared with the
- * Persian-only panel and renders a static `<html lang="fa">` that
- * `locale-init.js` corrects only once JavaScript runs — so a crawler that
- * does not execute JS (Bing, most answer-engine fetchers) saw every /en page
- * declared Persian. The response header is the language signal those
- * crawlers read, and unlike the attribute it is correct on the first byte.
+ * `Content-Language` for a public page — the second, deliberately redundant
+ * half of declaring a page's language. The first is `<html lang>`, which
+ * `app/layout.tsx` renders per request from `withIntlLocale`'s header below.
+ * This one says the same thing in the response, for the crawlers and caches
+ * that read a header rather than parse the document, and it is the only one
+ * of the two that survives a HEAD request.
  */
 function contentLanguage(locale: string): Record<string, string> {
   return { 'Content-Language': locale };
@@ -341,6 +341,12 @@ function contentLanguage(locale: string): Record<string, string> {
  * rendered outside the page that called `setRequestLocale`), next-intl fell
  * through to `i18n/request.ts`'s default and answered in Persian. That is how
  * /en pages shipped Persian titles, canonicals, H1s and JSON-LD URLs.
+ *
+ * `app/layout.tsx` reads the same header directly for `<html lang dir>` — it
+ * sits above `[locale]` and so has no other way to know the locale. Removing
+ * or renaming this header therefore silently reverts BOTH the metadata fix
+ * and the document-language fix; `proxy.locale.test.ts` pins it for that
+ * reason.
  */
 function withIntlLocale(req: NextRequest, locale: string): Headers {
   const headers = new Headers(req.headers);
