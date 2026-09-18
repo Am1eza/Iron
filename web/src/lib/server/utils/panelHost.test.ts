@@ -172,14 +172,14 @@ describe('resolvePanelRouting', () => {
 });
 
 describe('root-level files are never panel pages', () => {
-  it.each(['/theme-init.js', '/locale-init.js', '/sitemap.xml', '/robots.txt', '/favicon.ico'])(
+  it.each(['/theme-init.js', '/sitemap.xml', '/robots.txt', '/favicon.ico'])(
     '%s is passed through on the panel host, not prefixed into /admin',
     (path) => {
       // These are served from public/ and are NOT in the middleware matcher's
       // exclusion list. Prefixing them made `/admin/theme-init.js` hit the
-      // admin gate and 307 to /api/auth/silent, so the theme/locale bootstrap
-      // scripts never loaded on panel.ahantime.com — a hydration mismatch on
-      // every panel page for a logged-out visitor.
+      // admin gate and 307 to /api/auth/silent, so the theme bootstrap script
+      // never loaded on panel.ahantime.com — a hydration mismatch on every
+      // panel page for a logged-out visitor.
       expect(resolvePanelRouting('panel.ahantime.com:3100', path)).toEqual({
         shouldPrefix: false,
         effectivePathname: path,

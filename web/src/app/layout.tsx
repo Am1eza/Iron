@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { headers } from 'next/headers';
 import './globals.css';
 import { NextIntlClientProvider } from 'next-intl';
 import { AppProviders } from '@/lib/providers/AppProviders';
@@ -7,7 +8,7 @@ import { ThemeScript } from '@/components/theme/ThemeScript';
 import { RouteAnnouncer } from '@/components/a11y/RouteAnnouncer';
 import { SkipLink } from '@/components/a11y/SkipLink';
 import { vazirmatn, inter } from '@/lib/theme/fonts';
-import { LocaleScript } from '@/i18n/LocaleScript';
+import { getDirection, localeFromIntlHeader } from '@/i18n/config';
 import { Analytics } from '@/components/analytics/Analytics';
 import { AttributionCapture } from '@/components/analytics/AttributionCapture';
 import { InteractionAnalytics } from '@/components/analytics/InteractionAnalytics';
@@ -18,15 +19,25 @@ import faMessages from '../../messages/fa.json';
  * Root layout — the TRUE Next.js root (the one place `<html><body>` may
  * appear), shared by BOTH `/admin/*` (which never lives under `[locale]` —
  * the panel is Persian-only for staff) and the public `[locale]/*` tree.
- * Because it sits ABOVE `[locale]` in the route tree it cannot read
+ *
+ * It sits ABOVE `[locale]` in the route tree, so it cannot read
  * `params.locale` (a parent layout renders before a child dynamic segment is
- * resolved) — so `<html lang dir>` stays a static Persian default here,
- * fixed to the REQUEST's real locale before paint by `LocaleScript`
- * (`public/locale-init.js`, now reading the URL path instead of a cookie —
- * see that file's header comment) exactly the same way `ThemeScript` fixes
- * `data-theme` before paint. This is the identical trade-off the old
- * cookie-based i18n setup already made and documented; only the SOURCE of
- * truth for "which locale is this" moved from a cookie to the URL.
+ * resolved). It reads `X-NEXT-INTL-LOCALE` instead — the request header
+ * `proxy.ts` sets on every public HTML request (see `withIntlLocale` there)
+ * — so `<html lang dir>` is correct IN THE FIRST BYTE for /en, /ar and /zh
+ * rather than being patched by client JavaScript afterwards.
+ *
+ * That header read makes this layout dynamic, which costs nothing here: every
+ * public page already rendered per request before it (the `next build` route
+ * table listed every `[locale]` route as `ƒ Dynamic`, and prod answered every
+ * HTML request with `cache-control: private, no-store` — both checked
+ * 2026-09-18, before this change). The predecessor to this — an external
+ * `beforeInteractive` script (`public/locale-init.js`) that flipped the two
+ * attributes before paint — existed ONLY to work around the static Persian
+ * shell, so it is deleted rather than left as a redundant blocking request in
+ * `<head>`: a crawler that does not execute JavaScript (Bing, most
+ * answer-engine fetchers) read `lang="fa"` on every /en page, which is
+ * precisely the bug this replaces.
  *
  * Everything genuinely PUBLIC-SITE-specific — the ticker/header/footer
  * (`SiteChrome`) and the locale-correct `NextIntlClientProvider` — moved to
@@ -38,7 +49,8 @@ import faMessages from '../../messages/fa.json';
  * want of a provider; `[locale]/layout.tsx` nests a second, correctly-scoped
  * provider on top of it for public pages.
  *
- * <html lang="fa" dir="rtl"> + design tokens (via globals.css).
+ * `<html lang dir>` (per request, see above) + design tokens (via
+ * globals.css).
  * Fonts are self-hosted via `next/font/local` (lib/theme/fonts.ts); Vazirmatn
  * preloads automatically, and tokens.css consumes its `--font-*` CSS variable
  * (see the `className` below). Estedad is exported from fonts.ts but no
@@ -88,11 +100,14 @@ export const viewport: Viewport = {
   themeColor: '#025652',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // See `localeFromIntlHeader` for why this header and what an absent one
+  // means. `headers()` is what makes this layout render per request.
+  const locale = localeFromIntlHeader((await headers()).get('x-next-intl-locale'));
   return (
     <html
-      lang="fa"
-      dir="rtl"
+      lang={locale}
+      dir={getDirection(locale)}
       suppressHydrationWarning
       // Next.js 16 stopped overriding `scroll-behavior` during SPA route
       // transitions by default — without this, the global `scroll-behavior:
@@ -106,7 +121,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body>
         <ThemeScript />
-        <LocaleScript />
         <NextIntlClientProvider locale="fa" messages={faMessages} timeZone="Asia/Tehran">
           <AppProviders>
             <SkipLink />
