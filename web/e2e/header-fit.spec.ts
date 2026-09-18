@@ -29,7 +29,19 @@ for (const { prefix, name } of LOCALES) {
     await page.goto(`${prefix}/prices/rebar`);
     await expect(page.getByRole('banner').getByRole('navigation').first()).toBeVisible();
     // Fonts decide text width, so measure only once they have loaded.
-    await page.evaluate(() => document.fonts.ready);
+    // `document.fonts.ready` alone is not that: it resolves at once if no
+    // font load has STARTED yet, and then the row is measured in the system
+    // fallback. Load the face the header is set in explicitly.
+    const fontBefore = await page.evaluate(() =>
+      [...document.fonts].filter((f) => f.family === 'vazirmatn').map((f) => f.status).join(',')
+    );
+    const fontAfter = await page.evaluate(async () => {
+      await document.fonts.load('500 1em vazirmatn');
+      await document.fonts.ready;
+      return [...document.fonts].filter((f) => f.family === 'vazirmatn').map((f) => f.status).join(',');
+    });
+    console.log(`[header-fit] ${name}: vazirmatn before=${fontBefore} after=${fontAfter}`);
+    expect(fontAfter, 'vazirmatn must be loaded before measuring').toContain('loaded');
 
     for (const width of WIDTHS) {
       await page.setViewportSize({ width, height: 900 });
