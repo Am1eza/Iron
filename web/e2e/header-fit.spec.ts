@@ -47,8 +47,12 @@ for (const { prefix, name } of LOCALES) {
           .map((el) => ({ cls: el.className.toString().split(' ')[0], r: el.getBoundingClientRect() }))
           .filter(({ r }) => r.left < left - 0.5 || r.right > right + 0.5)
           .map(({ cls, r }) => `${cls} [${Math.round(r.left)}, ${Math.round(r.right)}]`);
+        // Context for a failure: the per-locale spacing in Header.module.css
+        // keys off `:root:lang(..)`, so a wrong served lang looks exactly
+        // like a too-long label.
+        const link = inner.querySelector('[class*="navLink"]') as HTMLElement | null;
         return {
-          span: `[${Math.round(left)}, ${Math.round(right)}]`,
+          span: `[${Math.round(left)}, ${Math.round(right)}] lang=${document.documentElement.lang} navLink padding=${link ? getComputedStyle(link).paddingInlineStart : '?'}`,
           out,
           docOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
         };
