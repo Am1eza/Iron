@@ -1,0 +1,17 @@
+# Originally created by cloud-init on 2026-07-05 with a single baseurl on
+# repo.abrha.net. Rewritten 20260918T103419Z: abrha dropped its /almalinux/9/ path
+# (only /9.8/ remains), so every metadata refresh 404'd and
+# dnf-makecache.service kept failing (infra-monitor alarms 2026-09-18).
+# Several baseurls = librepo fails over to the next one automatically.
+# Iranian mirrors first (reachable during international outages), the
+# official origin last. gpgkey is the local copy shipped by
+# almalinux-release, so key retrieval no longer depends on any mirror.
+# Original: /root/yum.repos.d.bak-20260918T103419Z/almalinux-appstream.repo
+[almalinux-appstream]
+name = AlmaLinux $releasever - AppStream
+baseurl = https://mirror.iranserver.com/almalinux/$releasever/AppStream/$basearch/os/
+          https://mirror.mobinhost.com/almalinux/$releasever/AppStream/$basearch/os/
+          https://repo.almalinux.org/almalinux/$releasever/AppStream/$basearch/os/
+enabled = 1
+gpgcheck = 1
+gpgkey = file:///etc/pki/rpm-gpg/RPM-GPG-KEY-AlmaLinux-9
