@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { subCategorySubject, sectionSubject } from './catalogLabels';
+import { subCategorySubject, localizedSubCategorySubject, sectionSubject } from './catalogLabels';
 
 /**
  * Every case below is a live (category, sub-category) pair, taken from the
@@ -52,6 +52,71 @@ describe('subCategorySubject', () => {
     // the two-word category without containing the whole of it, and trimming
     // per token would produce «ناودانی سبک نبشی و».
     expect(subCategorySubject('نبشی', 'نبشی و ناودانی')).toBe('نبشی نبشی و ناودانی');
+  });
+});
+
+/**
+ * The same question in en/ar/zh. Every pair below is a live (sub, category)
+ * name pair, and every "before" string is a <title> production served on
+ * 2026-09-18.
+ */
+describe('localizedSubCategorySubject', () => {
+  it('stops repeating the category in Arabic, where the two words inflect differently', () => {
+    // was «سعر أنبوب مجلفن الأنابيب اليوم»
+    expect(localizedSubCategorySubject('أنبوب مجلفن', 'الأنابيب', 'pipe', 'ar')).toBe('أنبوب مجلفن');
+    // was «سعر حديد تسليح مضلع حديد التسليح اليوم»
+    expect(localizedSubCategorySubject('حديد تسليح مضلع', 'حديد التسليح', 'rebar', 'ar')).toBe(
+      'حديد تسليح مضلع',
+    );
+    // was «سعر صفيحة سوداء (ساخنة الدرفلة) الصفائح اليوم»
+    expect(localizedSubCategorySubject('صفيحة سوداء (ساخنة الدرفلة)', 'الصفائح', 'sheet', 'ar')).toBe(
+      'صفيحة سوداء (ساخنة الدرفلة)',
+    );
+    // was «سعر بروفيل Z بروفيل (قطاعات) اليوم»
+    expect(localizedSubCategorySubject('بروفيل Z', 'بروفيل (قطاعات)', 'profile', 'ar')).toBe('بروفيل Z');
+  });
+
+  it('stops repeating the category in Chinese, which has no token boundaries', () => {
+    // was «标准工字钢 工字钢 今日价格» and «带肋钢筋 螺纹钢 今日价格»
+    expect(localizedSubCategorySubject('标准工字钢', '工字钢', 'ibeam', 'zh')).toBe('标准工字钢');
+    expect(localizedSubCategorySubject('带肋钢筋', '螺纹钢', 'rebar', 'zh')).toBe('带肋钢筋');
+    expect(localizedSubCategorySubject('镀锌管', '钢管', 'pipe', 'zh')).toBe('镀锌管');
+    expect(localizedSubCategorySubject('轻型H型钢(HEA)', '工字钢', 'ibeam', 'zh')).toBe('轻型H型钢(HEA)');
+    expect(localizedSubCategorySubject('Z型钢', '型材', 'profile', 'zh')).toBe('Z型钢');
+  });
+
+  it('stops repeating the category in English', () => {
+    // was «Light H-Beam (HEA) I-Beam price today» and «Z-Profile Profile price today»
+    expect(localizedSubCategorySubject('Light H-Beam (HEA)', 'I-Beam', 'ibeam', 'en')).toBe('Light H-Beam (HEA)');
+    expect(localizedSubCategorySubject('Z-Profile', 'Profile', 'profile', 'en')).toBe('Z-Profile');
+  });
+
+  it('still appends the category when the translated sub name is only a qualifier', () => {
+    // «H خفيف (HEA)» says "light H" — without «كمرة I» nothing names the product.
+    expect(localizedSubCategorySubject('H خفيف (HEA)', 'كمرة I', 'ibeam', 'ar')).toBe('H خفيف (HEA) كمرة I');
+    expect(localizedSubCategorySubject('Scaffold', 'Pipes', 'pipe', 'en')).toBe('Scaffold Pipes');
+  });
+
+  it('matches English on whole words only', () => {
+    // "beams" is not "beam" and "Sheetrock" is not "sheet"; a substring test would drop the category.
+    expect(localizedSubCategorySubject('Sheetrock', 'Sheets', 'sheet', 'en')).toBe('Sheetrock Sheets');
+  });
+
+  it('leaves the two deliberate exceptions exactly as the Persian rule does', () => {
+    expect(localizedSubCategorySubject('Equal Angle', 'Angle & Channel', 'angle-channel', 'en')).toBe(
+      'Equal Angle Angle & Channel',
+    );
+    expect(localizedSubCategorySubject('Copper Pipe', 'Non-Ferrous Metals', 'felezat-rangi', 'en')).toBe(
+      'Copper Pipe Non-Ferrous Metals',
+    );
+  });
+
+  it('is exactly subCategorySubject for Persian', () => {
+    expect(localizedSubCategorySubject('هاش سبک', 'تیرآهن', 'ibeam', 'fa')).toBe('هاش سبک تیرآهن');
+    expect(localizedSubCategorySubject('لوله گالوانیزه', 'لوله', 'pipe', 'fa')).toBe('لوله گالوانیزه');
+    // A Persian name containing a Chinese/English head term is not a thing,
+    // but the fa path must not consult the table at all.
+    expect(localizedSubCategorySubject('ورقه‌ای', 'ورق', 'sheet', 'fa')).toBe('ورقه‌ای ورق');
   });
 });
 
