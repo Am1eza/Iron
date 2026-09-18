@@ -47,6 +47,11 @@ jobs:
         # sitemap it could produce would list fixture URLs — which is the exact
         # failure the force-dynamic exists to prevent (see src/app/sitemap.ts).
         # A preview of mock data should not publish a sitemap at all.
+        # llms-full.txt/route.ts is removed for the same two reasons: it is
+        # `force-dynamic` like sitemap.ts, and it lists every indexable
+        # category/sub from the catalog — mock fixtures here. It also imports
+        # `[locale]/prices/_seo/indexability`, which the prices/ removal
+        # below deletes, so leaving it in fails the build outright.
         #
         # Test files are removed too: this job never runs tests, but `next
         # build` type-checks every file tsconfig includes, and some tests
@@ -79,7 +84,7 @@ jobs:
         # just does it dynamically instead of from a static/ISR cache; see
         # https://github.com/Am1eza/Iron/issues/400 for that follow-up.
         run: |
-          rm -rf src/app/api src/app/admin src/app/uploads src/app/sitemap.ts
+          rm -rf src/app/api src/app/admin src/app/uploads src/app/sitemap.ts src/app/llms-full.txt
           rm -rf "src/app/[locale]/account" "src/app/[locale]/proforma"
           # /ai and /search opt into `dynamic = "error"` and read
           # searchParams — interactive, request-driven pages, not ones with
