@@ -2591,7 +2591,13 @@
     "faqVatQ": "Do {subject} prices include VAT?",
     "faqVatA": "No. Prices in the table exclude VAT. Turning on the “{toggle}” switch on the price table shows the same prices with {pct}% VAT.",
     "faqBuyQ": "How do I buy {subject}?",
-    "faqBuyA": "Ahantime has no online payment. Choose the product in the price table and submit a proforma request, or ask the Ahantime AI advisor for guidance. A sales expert then calls you to confirm the final price, the delivery time and the order."
+    "faqBuyA": "Ahantime has no online payment. Choose the product in the price table and submit a proforma request, or ask the Ahantime AI advisor for guidance. A sales expert then calls you to confirm the final price, the delivery time and the order.",
+    "hubTitle": "{subject} Price Today ({date})",
+    "hubDescription": "Today's {subject} prices by size and mill: from {min} to {max} Toman per {unit}, excluding VAT. Last updated {date}, with movement, branch weight and delivery time.",
+    "faqUpdateQ": "How often are {subject} prices updated?",
+    "faqUpdateA": "Prices are matched against the mills' and the market's lists several times on every working day. On holidays and weekends the last confirmed price stays on the page until the source publishes a new one. The date next to each price shows when it was last confirmed.",
+    "faqBranchQ": "How is the price of one bar of {subject} calculated?",
+    "faqBranchA": "The table price is per {unit}. To get the price of one bar, multiply the bar weight (the “Branch weight” column) by the price per kilogram. For example, size {size} with a bar weight of {weight} kg at {price} Toman per kg comes to about {total} Toman per bar. Weights are theoretical; a sales expert confirms the actual weight when issuing the proforma."
   },
   "catalogCopy": {
     "categoryDescriptions": {
@@ -2604,5 +2610,18 @@
       "steel": "Stainless steel pipe, profile, angle, channel, strip, mesh and fittings in grades 201, 304 and 316 — for the food and pharmaceutical industries and any corrosive environment. The grade determines the price.",
       "felezat-rangi": "Aluminium and copper — pipe, sheet, bar, angle, profile, strip and welding wire. Buyers are building services, electrical and the door-and-window trade. Copper pipe is priced per coil; everything else per kilogram."
     }
+  },
+  "pricesGuide": {
+    "subTitle": "{category} prices by type",
+    "subLead": "The price range of each {category} type, taken from the table above. Click a type to see its full table.",
+    "colType": "Type",
+    "colItems": "Products",
+    "colMills": "Mills",
+    "colRange": "Price range (Toman per {unit})",
+    "sizeTitle": "Most-listed {category} sizes",
+    "sizeLead": "The sizes with the most priced products. Each row opens the price page for that size.",
+    "colSize": "Size",
+    "range": "{min} to {max}",
+    "articlesTitle": "Articles about {category}"
   }
 }

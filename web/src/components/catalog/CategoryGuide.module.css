@@ -1,0 +1,82 @@
+.guide {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.title {
+  margin: 0;
+  font: var(--t-h2);
+}
+.lead {
+  margin: 0;
+  font: var(--t-body-sm);
+  color: var(--color-text-muted);
+}
+.tableWrap {
+  overflow-x: auto;
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.table {
+  inline-size: 100%;
+  border-collapse: collapse;
+}
+.table thead th {
+  font: var(--t-thead);
+  color: var(--color-text-muted);
+  text-align: start;
+  padding: var(--space-3) var(--space-4);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  background: var(--color-surface-sunken);
+  white-space: nowrap;
+}
+.table tbody th,
+.table tbody td {
+  padding: var(--space-3) var(--space-4);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+  font: var(--t-data);
+  color: var(--color-text);
+  text-align: start;
+  font-variant-numeric: tabular-nums;
+}
+.table tbody tr:last-child th,
+.table tbody tr:last-child td {
+  border-block-end: 0;
+}
+.link {
+  color: var(--color-accent-text);
+  text-decoration: none;
+}
+.link:hover {
+  text-decoration: underline;
+}
+.unit {
+  color: var(--color-text-muted);
+}
+.articles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.articles li {
+  padding-block: var(--space-2);
+  border-block-end: var(--border-hairline) solid var(--color-hairline);
+}
+.articles li:last-child {
+  border-block-end: 0;
+}
+.excerpt {
+  display: block;
+  margin-block-start: var(--space-1);
+  font: var(--t-caption);
+  color: var(--color-text-muted);
+}

@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { ArticleFaq } from '@/components/content/ArticleFaq';
 import { Text } from '@/components/ui';
 import { formatToman, localizeDigits } from '@/lib/utils/format';
+import { localizeValue } from '@/lib/utils/catalogI18n';
 import { priceBasisNoun } from '@/lib/utils/catalogLabels';
 import { getLocalizedBasisNoun } from '@/lib/utils/localizedNames';
 import { formatPriceUpdatedAt, type PriceFacts } from '@/lib/seo/priceFacts';
@@ -80,7 +81,23 @@ export async function PriceFaq({
     });
   }
 
+  if (facts.example && facts.rangeBasis === 'kg') {
+    const { size, weightKg, pricePerKg } = facts.example;
+    items.push({
+      question: t('faqBranchQ', { subject }),
+      answer: t('faqBranchA', {
+        subject,
+        unit,
+        size: localizeValue(size, locale),
+        weight: localizeDigits(weightKg, locale),
+        price: money(pricePerKg),
+        total: money(Math.round(pricePerKg * weightKg)),
+      }),
+    });
+  }
+
   items.push(
+    { question: t('faqUpdateQ', { subject }), answer: t('faqUpdateA') },
     {
       question: t('faqVatQ', { subject }),
       answer: t('faqVatA', {
