@@ -20,6 +20,7 @@ import { PriceHeader } from '@/components/catalog/PriceHeader';
 import { BulkQuote } from '@/components/catalog/BulkQuote';
 import { PriceFaq, PriceUpdatedAt } from '@/components/catalog/PriceFaq';
 import { priceFacts } from '@/lib/seo/priceFacts';
+import { hubMeta } from '@/lib/seo/hubMeta';
 
 type Params = {
   params: Promise<{ category: string; sub: string; locale: string }>;
@@ -89,9 +90,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
           factories: localizeDigits(factoryCount, locale),
         })
       : tMeta('statsOnly', { products: localizeDigits(rows.length, locale) });
+  const hub = hubMeta(tMeta, subject, priceFacts(rows), locale as AppLocale);
   return buildMetadata({
     locale,
-    title: tMeta('todayPrice', { subject }),
+    title: hub?.title ?? tMeta('todayPrice', { subject }),
     description: tMeta('tableDescription', { subject, stats }),
     path: routes.subCategory(category, sub),
   });

@@ -2591,7 +2591,13 @@
     "faqVatQ": "{subject}价格含增值税吗？",
     "faqVatA": "不含。价格表中的价格均不含增值税。打开价格表上的“{toggle}”开关，即可查看含 {pct}% 增值税的价格。",
     "faqBuyQ": "如何购买{subject}？",
-    "faqBuyA": "Ahantime 不支持在线支付。请在价格表中选择产品并提交形式发票申请，或向 Ahantime 的 AI 顾问咨询。随后销售专员会致电与您确认最终价格、交货时间和订单。"
+    "faqBuyA": "Ahantime 不支持在线支付。请在价格表中选择产品并提交形式发票申请，或向 Ahantime 的 AI 顾问咨询。随后销售专员会致电与您确认最终价格、交货时间和订单。",
+    "hubTitle": "{subject}今日价格（{date}）",
+    "hubDescription": "{subject}今日价格，按规格和钢厂分类：每{unit}{min}至{max}土曼（不含增值税）。最近更新于{date}，含涨跌、单支重量与交货时间。",
+    "faqUpdateQ": "{subject}价格多久更新一次？",
+    "faqUpdateA": "每个工作日会多次与钢厂及市场的报价单核对价格。节假日和周末，在来源发布新价格之前，页面保留最近一次确认的价格。每个价格旁的日期表示其最近一次确认的时间。",
+    "faqBranchQ": "一支{subject}的价格如何计算？",
+    "faqBranchA": "表格价格按每{unit}计。要得到单支价格，将单支重量（“单支重量”列）乘以每公斤价格。例如规格{size}，单支重量{weight}公斤，每公斤{price}土曼，则每支约{total}土曼。重量为理论值，专员在开具形式发票时确认实际重量。"
   },
   "catalogCopy": {
     "categoryDescriptions": {
@@ -2604,5 +2610,18 @@
       "steel": "201、304、316牌号不锈钢管、型材、角钢、槽钢、扁钢、网和管件——适用于食品、制药行业及各类腐蚀环境。牌号决定价格。",
       "felezat-rangi": "铝和铜——管、板、棒、角材、型材、扁带和焊丝。买家为建筑设备、电气和门窗行业。铜管按盘（卷）报价，其余按公斤。"
     }
+  },
+  "pricesGuide": {
+    "subTitle": "{category}价格（按类型）",
+    "subLead": "各类型{category}的价格区间，取自上方表格。点击类型可查看完整价格表。",
+    "colType": "类型",
+    "colItems": "商品数",
+    "colMills": "钢厂数",
+    "colRange": "价格区间（土曼/{unit}）",
+    "sizeTitle": "{category}热门规格",
+    "sizeLead": "报价商品最多的规格。点击每一行进入该规格的价格页。",
+    "colSize": "规格",
+    "range": "{min} 至 {max}",
+    "articlesTitle": "关于{category}的文章"
   }
 }

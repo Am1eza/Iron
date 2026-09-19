@@ -16,6 +16,8 @@ import { BulkQuote } from '@/components/catalog/BulkQuote';
 import { PriceHeader } from '@/components/catalog/PriceHeader';
 import { PriceFaq, PriceUpdatedAt } from '@/components/catalog/PriceFaq';
 import { priceFacts } from '@/lib/seo/priceFacts';
+import { hubMeta } from '@/lib/seo/hubMeta';
+import { CategoryGuide } from '@/components/catalog/CategoryGuide';
 import { FacetRail } from '@/components/catalog/FacetRail';
 import { factoryFacets, sizeFacets } from '@/lib/utils/catalogFacets';
 import { sizeLabel } from '@/lib/utils/catalogLabels';
@@ -66,10 +68,13 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
       noindex: true,
     });
   }
+  // Title/snippet with the head keyword, the last-confirmed date and the real
+  // range — see `hubMeta`. Falls back to the plain wording when nothing is priced.
+  const hub = hubMeta(tMeta, name, priceFacts(rows), locale as AppLocale);
   return buildMetadata({
     locale,
-    title: tMeta('todayPrice', { subject: name }),
-    description: tMeta('todayPriceDescription', { subject: name }),
+    title: hub?.title ?? tMeta('todayPrice', { subject: name }),
+    description: hub?.description ?? tMeta('todayPriceDescription', { subject: name }),
     path: routes.category(category),
   });
 }
@@ -187,6 +192,13 @@ export default async function CategoryPage({ params }: Params) {
                 title={tFacet('bySizeTitle', { category: catName, measure: getLocalizedMeasure(sizeLabel(category), locale) })}
                 facets={facets.sizes}
                 href={(slug) => routes.categoryBySize(category, slug)}
+              />
+              <CategoryGuide
+                category={cat}
+                categorySlug={category}
+                rows={rows}
+                subs={subs}
+                locale={locale}
               />
               {facts && <PriceFaq facts={facts} subject={catName} locale={locale} vatRate={vatRate} />}
             </>

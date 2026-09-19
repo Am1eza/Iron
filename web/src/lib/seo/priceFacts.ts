@@ -27,6 +27,10 @@ export interface PriceFacts {
    *  withholds `factory` where it is a country or import status (see
    *  `factoryIsMeaningful`), so a blank here is a deliberate absence. */
   factories: string[];
+  /** One real kg-priced row that has a theoretical bar weight — the worked
+   *  example behind «how is the price of one bar calculated». Null when no
+   *  priced kg row carries a weight. */
+  example: { size: string; weightKg: number; pricePerKg: number } | null;
 }
 
 /** Anything before this is the epoch sentinel `priceSync` writes for an
@@ -68,6 +72,10 @@ export function priceFacts(rows: readonly PriceRow[]): PriceFacts | null {
     if (name) mills.set(name, (mills.get(name) ?? 0) + 1);
   }
 
+  const exampleRow = rangeBasis === 'kg'
+    ? rangeRows.find((r) => r.size && r.theoreticalWeightKg && r.theoreticalWeightKg > 0)
+    : undefined;
+
   return {
     pricedCount: priced.length,
     rangeBasis,
@@ -78,6 +86,9 @@ export function priceFacts(rows: readonly PriceRow[]): PriceFacts | null {
     factories: [...mills.entries()]
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'fa'))
       .map(([name]) => name),
+    example: exampleRow
+      ? { size: exampleRow.size!, weightKg: exampleRow.theoreticalWeightKg!, pricePerKg: exampleRow.current.price }
+      : null,
   };
 }
 
@@ -87,6 +98,17 @@ const DATE_LOCALE: Record<string, string> = {
   ar: 'ar',
   zh: 'zh-CN',
 };
+
+/** «۲۷ شهریور ۱۴۰۵» — the day only, for titles and snippets. Tehran calendar
+ *  day, so it never flips because the server runs on UTC. */
+export function formatPriceDate(iso: string, locale: string): string {
+  return new Intl.DateTimeFormat(DATE_LOCALE[locale] ?? DATE_LOCALE.fa, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'Asia/Tehran',
+  }).format(new Date(iso));
+}
 
 /** «۲۷ شهریور ۱۴۰۵ ساعت ۱۰:۰۰» — Tehran wall-clock, which is what the
  *  mills and the market quote in, regardless of the server's UTC clock. */
