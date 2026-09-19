@@ -14,6 +14,16 @@ import { AttributionCapture } from '@/components/analytics/AttributionCapture';
 import { InteractionAnalytics } from '@/components/analytics/InteractionAnalytics';
 import { ServiceWorkerRegistrar } from '@/components/pwa/ServiceWorkerRegistrar';
 import faMessages from '../../messages/fa.json';
+import enMessages from '../../messages/en.json';
+import arMessages from '../../messages/ar.json';
+import zhMessages from '../../messages/zh.json';
+
+const SKIP_LABELS = {
+  fa: faMessages.common.skipToContent,
+  en: enMessages.common.skipToContent,
+  ar: arMessages.common.skipToContent,
+  zh: zhMessages.common.skipToContent,
+} as const;
 
 /**
  * Root layout — the TRUE Next.js root (the one place `<html><body>` may
@@ -123,7 +133,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <ThemeScript />
         <NextIntlClientProvider locale="fa" messages={faMessages} timeZone="Asia/Tehran">
           <AppProviders>
-            <SkipLink />
+            <SkipLink label={SKIP_LABELS[locale]} />
             <AuthHydrator />
             <InteractionAnalytics />
             {children}

@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { Link } from '@/i18n/navigation';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { clientLogos, type ClientLogo } from '../../../public/assets/logos/clients';
 import { millLogos, type MillLogo } from '../../../public/assets/logos/mills';
 import { useIntersectionObserver } from '@/lib/hooks/useIntersectionObserver';
@@ -17,6 +17,10 @@ import styles from './Partners.module.css';
 function LogoCell({ c, shouldLoad }: { c: ClientLogo | MillLogo; shouldLoad: boolean }) {
   const [errored, setErrored] = useState(false);
   const showImg = c.hasLogo && !errored && shouldLoad;
+  // en and zh read the company's own Latin name; fa and ar keep the Persian
+  // one (Arabic readers can read it, and it is what the site search matches).
+  const locale = useLocale();
+  const latin = locale === 'en' || locale === 'zh';
   return (
     <div className={styles.cell} title={c.name}>
       {showImg ? (
@@ -38,7 +42,9 @@ function LogoCell({ c, shouldLoad }: { c: ClientLogo | MillLogo; shouldLoad: boo
           <span className={styles.mono} aria-hidden="true">
             {c.monogram}
           </span>
-          <span className={styles.chipName}>{c.nameFa}</span>
+          <span className={styles.chipName} lang={latin ? 'en' : 'fa'}>
+            {latin ? c.name : c.nameFa}
+          </span>
         </span>
       )}
     </div>

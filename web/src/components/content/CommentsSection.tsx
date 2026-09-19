@@ -21,7 +21,7 @@ import { useToast } from '@/lib/hooks/useToast';
 import { api } from '@/lib/api';
 import { ApiError } from '@/lib/api/errors';
 import { routes } from '@/lib/routes';
-import { formatJalali } from '@/lib/utils/jalali';
+import { formatDisplayDate } from '@/lib/utils/jalali';
 import { localizeDigits } from '@/lib/utils/format';
 import type { AppLocale } from '@/i18n/config';
 import { Heading, Button, Text, Badge, EmptyState } from '@/components/ui';
@@ -197,7 +197,7 @@ export function CommentsSection({ slug, initialComments }: { slug: string; initi
                   <span className={styles.author}>{c.authorName ?? t('anonymousAuthor')}</span>
                   {c.isVerifiedBuyer ? <Badge tone="gain">{t('verifiedBuyerBadge')}</Badge> : null}
                   <time className="tnum" dateTime={c.createdAt}>
-                    {formatJalali(c.createdAt)}
+                    {formatDisplayDate(c.createdAt, undefined, locale)}
                   </time>
                 </div>
                 <Text>{c.body}</Text>

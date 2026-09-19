@@ -9,7 +9,8 @@ import { useToast } from '@/lib/hooks/useToast';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
-import { formatToman, priceHiddenLabelLocalized, toPersianDigits } from '@/lib/utils/format';
+import { priceHiddenLabelLocalized } from '@/lib/utils/format';
+import { useCatalogFormat } from '@/lib/hooks/useCatalogFormat';
 import {
   priceBasisNoun,
   sizeLabel,
@@ -22,7 +23,6 @@ import {
   BRAND_LABEL,
   factoryLabel,
 } from '@/lib/utils/catalogLabels';
-import { formatJalali } from '@/lib/utils/jalali';
 import { trackGoal } from '@/lib/analytics/track';
 import {
   priceSeries as mockSeries,
@@ -125,6 +125,7 @@ export function SkuDetail({
   const tCommon = useTranslations('common');
   const tPriceHidden = useTranslations('common.priceHidden');
   const locale = useLocale() as AppLocale;
+  const f = useCatalogFormat();
   // Falls back to `row.name` (fa) unchanged whenever `category` or the
   // matching sub-category lacks a real translation for this locale — see
   // `getLocalizedSkuName`'s own comment for why a partially-translated name
@@ -303,9 +304,9 @@ export function SkuDetail({
   // فولاد مبارکه» — so the کارخانه form carries its ezafe. «برند» takes none:
   // «برند چینی» is how the trade says it, and an ezafe there would be wrong
   // Persian.
-  const factoryPhrase = factoryCol === BRAND_LABEL ? BRAND_LABEL : t('millLabel');
+  const factoryPhrase = factoryCol === BRAND_LABEL ? f.text(BRAND_LABEL) : t('millLabel');
   const attrSpecs = attrCols
-    .map((c) => ({ key: c.key, label: c.label, value: c.cell(row) }))
+    .map((c) => ({ key: c.key, label: f.text(c.label), value: c.cell(row) }))
     .filter((a) => a.value !== NOT_APPLICABLE);
   // …so the generic «طول شاخه» row below doesn't print the same fact twice.
   const attrCoversLength = attrCols.some(
@@ -320,15 +321,15 @@ export function SkuDetail({
   // mill's page — the natural next question on a product page is "what else
   // does this mill make?" and the spec table was a dead end for it.
   const specs: { label: string; value: ReactNode }[] = [
-    { label: sizeCol, value: row.size ? toPersianDigits(row.size) : tPriceTable('unknown') },
+    { label: f.text(sizeCol), value: row.size ? f.val(row.size) : tPriceTable('unknown') },
     // Only once someone has filled it in. There is deliberately no «نامشخص»
     // placeholder: existing ورق rows and all current نبشی rows are
     // mostly/null throughout, and an empty new spec on every product reads as
     // a broken page rather than an unanswered optional question.
     ...(showDimensions && row.dimensions
-      ? [{ label: dimensionsCol, value: toPersianDigits(row.dimensions) }]
+      ? [{ label: f.text(dimensionsCol), value: f.val(row.dimensions) }]
       : []),
-    ...attrSpecs.map((a) => ({ label: a.label, value: a.value })),
+    ...attrSpecs.map((a) => ({ label: a.label, value: f.text(a.value) })),
     // Only when this product actually has a mill. The پروفیل sub-categories
     // whose stored factory names were fabricated publish none (see
     // catalogLabels.factoryIsMeaningful), and a «کارخانه: نامشخص» row would
@@ -336,7 +337,7 @@ export function SkuDetail({
     ...(row.factory
       ? [
           {
-            label: factoryCol,
+            label: f.text(factoryCol),
             value: <FactoryLink categorySlug={row.categoryId} factory={row.factory} />,
           },
         ]
@@ -347,24 +348,24 @@ export function SkuDetail({
         // there is no per-region landing page, and it is a reconstruction
         // rather than sourced data (see catalogLabels.regionFromFactory).
         row.region
-        ? [{ label: REGION_LABEL, value: row.region }]
+        ? [{ label: f.text(REGION_LABEL), value: f.text(row.region) }]
         : []),
     {
-      label: weightLabel(row.categoryId),
+      label: f.text(weightLabel(row.categoryId)),
       value: row.theoreticalWeightKg
-        ? `${toPersianDigits(row.theoreticalWeightKg)} ${t('kg')}`
+        ? `${f.val(row.theoreticalWeightKg)} ${t('kg')}`
         : tPriceTable('unknown'),
     },
     // Only when the catalog actually records one — «طول شاخه» is genuinely
     // 6 m for some نبشی rows and 12 m for others, so a blanket default here
     // would be the same guess the per-SKU column exists to stop.
     ...(row.branchLengthM && !attrCoversLength
-      ? [{ label: t('branchLength'), value: `${toPersianDigits(row.branchLengthM)} ${t('meter')}` }]
+      ? [{ label: t('branchLength'), value: `${f.val(row.branchLengthM)} ${t('meter')}` }]
       : []),
     // Read from the stored denomination, not hard-coded: this said
     // «کیلوگرم» on a لوله مسی sold by the 15-metre coil.
-    { label: t('saleUnit'), value: priceBasisNoun(row.priceBasis, row.branchLengthM) },
-    { label: tCommon('data.delivery'), value: toPersianDigits(row.current.deliveryTime) },
+    { label: t('saleUnit'), value: f.text(priceBasisNoun(row.priceBasis, row.branchLengthM)) },
+    { label: tCommon('data.delivery'), value: f.val(row.current.deliveryTime) },
   ];
 
   const related = relatedProp ?? mockRelated(row);
@@ -387,26 +388,26 @@ export function SkuDetail({
             <ul className={styles.attrs}>
               {row.size ? (
                 <li>
-                  {sizeCol} <strong className="tnum">{toPersianDigits(row.size)}</strong>
+                  {f.text(sizeCol)} <strong className="tnum">{f.val(row.size)}</strong>
                 </li>
               ) : null}
               {showDimensions && row.dimensions ? (
                 <li>
-                  {dimensionsCol}{' '}
-                  <strong className="tnum">{toPersianDigits(row.dimensions)}</strong>
+                  {f.text(dimensionsCol)}{' '}
+                  <strong className="tnum">{f.val(row.dimensions)}</strong>
                 </li>
               ) : null}
               {attrCols.map((c) => {
                 const value = c.card(row);
                 return value ? (
                   <li key={c.key}>
-                    {c.label} <strong>{value}</strong>
+                    {f.text(c.label)} <strong>{f.text(value)}</strong>
                   </li>
                 ) : null;
               })}
               {row.region ? (
                 <li>
-                  {REGION_LABEL} <strong>{row.region}</strong>
+                  {f.text(REGION_LABEL)} <strong>{f.text(row.region)}</strong>
                 </li>
               ) : null}
               {row.factory ? (
@@ -417,12 +418,12 @@ export function SkuDetail({
               ) : null}
               {row.theoreticalWeightKg ? (
                 <li>
-                  {weightLabel(row.categoryId)}{' '}
+                  {f.text(weightLabel(row.categoryId))}{' '}
                   <strong className="tnum">
                     {/* Was Latin "kg" here while every other weight on this same
                         page (specs table below, BulkQuote) spells out «کیلوگرم» —
                         the exact mixed-unit inconsistency the audit flagged. */}
-                    {toPersianDigits(row.theoreticalWeightKg)} {t('kg')}
+                    {f.val(row.theoreticalWeightKg)} {t('kg')}
                   </strong>
                 </li>
               ) : null}
@@ -453,14 +454,14 @@ export function SkuDetail({
 
           <div className={styles.priceBox}>
             <span className={styles.priceLabel}>
-              {t('pricePerUnit', { basis: priceBasisNoun(row.priceBasis, row.branchLengthM) })}
+              {t('pricePerUnit', { basis: f.text(priceBasisNoun(row.priceBasis, row.branchLengthM)) })}
             </span>
             <div className={styles.priceRow}>
               {hiddenLabel ? (
                 <span className={`${styles.priceVal} tnum`}>{hiddenLabel}</span>
               ) : (
                 <>
-                  <span className={`${styles.priceVal} tnum`}>{formatToman(price, false)}</span>
+                  <span className={`${styles.priceVal} tnum`}>{f.toman(price)}</span>
                   <span className={styles.priceUnit}>{tCommon('unit.currency')}</span>
                 </>
               )}
@@ -474,17 +475,17 @@ export function SkuDetail({
                   and delivery signals it sits next to (design/UX audit). */}
               <span className={styles.updated}>
                 <ClockIcon size={14} aria-hidden="true" />
-                {tPriceTable('updatedAt')} <span className="tnum">{formatJalali(row.current.updatedAt)}</span>
+                {tPriceTable('updatedAt')} <span className="tnum">{f.date(row.current.updatedAt)}</span>
               </span>
             </div>
 
             {billetDiffPct !== null ? (
               <p className={styles.vatNote} style={{ marginBlockStart: 0 }}>
                 {billetDiffPct >= 0
-                  ? t('aboveBillet', { pct: toPersianDigits(Math.abs(billetDiffPct).toFixed(1)) })
-                  : t('belowBillet', { pct: toPersianDigits(Math.abs(billetDiffPct).toFixed(1)) })}{' '}
+                  ? t('aboveBillet', { pct: f.num(Math.abs(billetDiffPct).toFixed(1)) })
+                  : t('belowBillet', { pct: f.num(Math.abs(billetDiffPct).toFixed(1)) })}{' '}
                 <bdi>
-                  ({formatToman(billet!.value, false)} {tCommon('unit.currency')})
+                  ({f.toman(billet!.value)} {tCommon('unit.currency')})
                 </bdi>
               </p>
             ) : null}
@@ -493,7 +494,7 @@ export function SkuDetail({
               <Switch checked={vat} onChange={setVat} label={t('vatToggleLabel')} />
               <span className={styles.vatNote}>
                 {vat
-                  ? t('vatIncludedPct', { pct: toPersianDigits(vatRate * 100) })
+                  ? t('vatIncludedPct', { pct: f.num(vatRate * 100) })
                   : t('vatExcludedLabel')}
               </span>
             </div>
@@ -631,7 +632,7 @@ export function SkuDetail({
                     <span className={`${styles.relPrice} tnum`}>
                       {priceHiddenLabelLocalized(r.current, locale, tPriceHidden) ?? (
                         <>
-                          {formatToman(r.current.price, false, locale)}
+                          {f.toman(r.current.price)}
                           <span className={styles.relUnit}> {tCommon('unit.currency')}</span>
                         </>
                       )}

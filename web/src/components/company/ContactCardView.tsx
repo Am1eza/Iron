@@ -39,7 +39,7 @@ export function ContactCardView({
         <h2 className={styles.title}>{t('title')}</h2>
         <address className={styles.address}>
           <HomeIcon size={18} />
-          <span>{address}</span>
+          <span lang="fa">{address}</span>
         </address>
         <Link href={routes.contact()} className={styles.cta}>
           {t('cta')}

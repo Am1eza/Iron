@@ -266,14 +266,32 @@ export function buildMetadata(opts: {
 
 type ContactLike = { address: string; phoneLandline: string; phoneMobile: string };
 
-export function orgJsonLd(contact: ContactLike = CONTACT) {
+const SLOGAN_BY_LOCALE: Record<AppLocale, string> = {
+  fa: 'اول مشورت، بعد خرید',
+  en: 'Consult first, then buy',
+  ar: 'استشر أولاً ثم اشترِ',
+  zh: '先咨询，后购买',
+};
+const CITY_BY_LOCALE: Record<AppLocale, string> = { fa: 'تهران', en: 'Tehran', ar: 'طهران', zh: '德黑兰' };
+
+/** The brand name in the page's own language; the Persian name rides along as
+ *  `alternateName` on the other locales so the entity stays one entity. */
+function brandNames(locale: string | undefined) {
+  const l = toAppLocale(locale);
+  return {
+    name: BRAND_BY_LOCALE[l],
+    ...(l === DEFAULT_LOCALE ? {} : { alternateName: BRAND }),
+  };
+}
+
+export function orgJsonLd(contact: ContactLike = CONTACT, locale?: string) {
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    name: BRAND,
+    ...brandNames(locale),
     url: SITE_URL,
     logo: LOGO_URL,
-    slogan: 'اول مشورت، بعد خرید',
+    slogan: SLOGAN_BY_LOCALE[toAppLocale(locale)],
     contactPoint: {
       '@type': 'ContactPoint',
       telephone: contact.phoneLandline,
@@ -290,25 +308,26 @@ export function orgJsonLd(contact: ContactLike = CONTACT) {
   };
 }
 
-export function localBusinessJsonLd(contact: ContactLike = CONTACT) {
+export function localBusinessJsonLd(contact: ContactLike = CONTACT, locale?: string) {
   return {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
-    name: BRAND,
+    ...brandNames(locale),
     url: SITE_URL,
     image: DEFAULT_OG_IMAGE,
     telephone: [contact.phoneLandline, contact.phoneMobile],
-    address: { '@type': 'PostalAddress', addressLocality: 'تهران', streetAddress: contact.address },
+    address: { '@type': 'PostalAddress', addressLocality: CITY_BY_LOCALE[toAppLocale(locale)], streetAddress: contact.address },
     priceRange: '$$',
   };
 }
 
 /** WebSite + SearchAction — lets Google offer a sitelinks search box for brand queries. */
-export function websiteJsonLd() {
+export function websiteJsonLd(locale?: string) {
   return {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: BRAND,
+    ...brandNames(locale),
+    inLanguage: toAppLocale(locale),
     url: SITE_URL,
     potentialAction: {
       '@type': 'SearchAction',
@@ -501,6 +520,19 @@ export function faqJsonLd(items: { question: string; answer: string }[]) {
   };
 }
 
+const NAV_TITLE_BY_LOCALE: Record<AppLocale, (brand: string) => string> = {
+  fa: (b) => `دسته‌بندی محصولات ${b}`,
+  en: (b) => `${b} product categories`,
+  ar: (b) => `فئات منتجات ${b}`,
+  zh: (b) => `${b}产品分类`,
+};
+const NAV_DESCRIPTION_BY_LOCALE: Record<AppLocale, (brand: string) => string> = {
+  fa: () => 'دسته‌بندی‌های آهن‌آلات و فولادی که آهن‌تایم قیمت روز آن‌ها را منتشر می‌کند و سفارش می‌گیرد.',
+  en: (b) => `The iron and steel categories ${b} publishes daily prices for and takes orders on.`,
+  ar: (b) => `فئات الحديد والصلب التي تنشر ${b} أسعارها اليومية وتستقبل طلبات شرائها.`,
+  zh: (b) => `${b}每日发布价格并接受订单的钢铁类别。`,
+};
+
 /**
  * `ItemList` of `SiteNavigationElement` for the product taxonomy — one entry
  * per top-level category, each carrying its own sub-categories.
@@ -521,14 +553,16 @@ export function faqJsonLd(items: { question: string; answer: string }[]) {
 export function catalogNavigationJsonLd(
   categories: readonly { slug: string; name: string; description?: string }[],
   subsBySlug: Readonly<Record<string, readonly { slug: string; name: string }[]>>,
+  locale?: string,
 ) {
   if (categories.length === 0) return null;
+  const l = toAppLocale(locale);
+  const brand = BRAND_BY_LOCALE[l];
   return {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
-    name: `دسته‌بندی محصولات ${BRAND}`,
-    description:
-      'دسته‌بندی‌های آهن‌آلات و فولادی که آهن‌تایم قیمت روز آن‌ها را منتشر می‌کند و سفارش می‌گیرد.',
+    name: NAV_TITLE_BY_LOCALE[l](brand),
+    description: NAV_DESCRIPTION_BY_LOCALE[l](brand),
     numberOfItems: categories.length,
     itemListElement: categories.map((cat, i) => ({
       '@type': 'SiteNavigationElement',

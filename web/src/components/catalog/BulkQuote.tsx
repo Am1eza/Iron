@@ -6,13 +6,21 @@ import { useCartStore } from '@/lib/stores/cart';
 import { useRequestsStore } from '@/lib/stores/requests';
 import { useRequireAuth } from '@/lib/hooks/useRequireAuth';
 import { routes } from '@/lib/routes';
-import { formatToman, toPersianDigits, localizeDigits } from '@/lib/utils/format';
+import { localizeDigits } from '@/lib/utils/format';
+import { useCatalogFormat } from '@/lib/hooks/useCatalogFormat';
 import { sizeLabel } from '@/lib/utils/catalogLabels';
 import { getRows } from '@/lib/mock/catalogData';
 import { computeBulkSplit, pickBestGroup } from '@/lib/utils/bulkSplit';
 import { MOCK_CATEGORY_SUBS, type SubCat } from '@/lib/data/nav';
 import { FactoryLink } from './FactoryLink';
-import { DEFAULT_LOGISTICS_CONFIG, cityDistance, estimateLogistics, type LogisticsConfig } from '@/lib/data/logistics';
+import {
+  DEFAULT_LOGISTICS_CONFIG,
+  cityDistance,
+  deliveryBucket,
+  estimateLogistics,
+  localizedCityName,
+  type LogisticsConfig,
+} from '@/lib/data/logistics';
 import { useProfileStore } from '@/lib/stores/profile';
 import { CONSTANTS } from '@/lib/config/constants';
 import type { PriceRow, Category } from '@/lib/types/domain';
@@ -84,11 +92,13 @@ export function BulkQuote({
   const { requireAuth } = useRequireAuth();
   const t = useTranslations('bulkQuote');
   const tPriceTable = useTranslations('priceTable');
+  const tBucket = useTranslations('account.deliveryCity');
   const locale = useLocale() as AppLocale;
+  const f = useCatalogFormat();
   const displayCategoryName = categoryEntity ? getLocalizedName(categoryEntity, locale) : categoryName;
   const [tonnage, setTonnage] = useState<number>(defaultTonnage);
   const [sub, setSub] = useState<string>(defaultSub ?? '');
-  const sizeCol = sizeLabel(category, sub || null);
+  const sizeCol = f.text(sizeLabel(category, sub || null));
   const [size, setSize] = useState<string>('');
   const warehouseCity = useProfileStore((s) => s.warehouseCity);
   const setWarehouseCity = useProfileStore((s) => s.setWarehouseCity);
@@ -196,7 +206,7 @@ export function BulkQuote({
     if (!best) return;
     add({
       skuId: `bulk-${category}-${best.factory}`,
-      name: t('bulkCartItemName', { name: displayCategoryName, factory: best.factory }),
+      name: t('bulkCartItemName', { name: displayCategoryName, factory: f.factory(best.factory) }),
       qty: split.totalKg,
       unit: 'kg',
       unitPrice: best.pricePerKg,
@@ -258,7 +268,7 @@ export function BulkQuote({
             <option value="">{t('allSizesAverage', { sizeCol })}</option>
             {sizes.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {f.val(s)}
               </option>
             ))}
           </select>
@@ -291,7 +301,7 @@ export function BulkQuote({
           >
             {logisticsConfig.cities.map((c) => (
               <option key={c.name} value={c.name}>
-                {c.name}
+                {localizedCityName(c.name, locale)}
               </option>
             ))}
           </select>
@@ -307,7 +317,7 @@ export function BulkQuote({
               data-active={tonnage === preset ? '' : undefined}
               onClick={() => setTonnage(preset)}
             >
-              {toPersianDigits(preset)} {t('tonUnit')}
+              {f.num(preset)} {t('tonUnit')}
             </button>
           ))}
         </div>
@@ -327,14 +337,14 @@ export function BulkQuote({
           covered every row in the selection. See computeBulkSplit. */}
       {split.excludedNonKg > 0 && (
         <p className={styles.exactNote}>
-          {t('excludedNonKgNote', { count: toPersianDigits(split.excludedNonKg) })}
+          {t('excludedNonKgNote', { count: f.num(split.excludedNonKg) })}
         </p>
       )}
 
       <div className={styles.tableScroll} role="region" aria-label={t('title')} tabIndex={0}>
         <table className={`${styles.table} tnum`}>
           <caption className="visually-hidden">
-            {t('tableCaption', { name: displayCategoryName, tonnage: toPersianDigits(split.tonnage) })}
+            {t('tableCaption', { name: displayCategoryName, tonnage: f.num(split.tonnage) })}
           </caption>
           <thead>
             <tr>
@@ -342,7 +352,7 @@ export function BulkQuote({
               <th scope="col" className={styles.num}>{t('pricePerKgColumn')}</th>
               <th scope="col" className={styles.num}>{t('deltaColumn')}</th>
               <th scope="col" className={styles.num}>
-                {t('costColumn', { tonnage: toPersianDigits(split.tonnage) })}
+                {t('costColumn', { tonnage: f.num(split.tonnage) })}
               </th>
             </tr>
           </thead>
@@ -357,14 +367,14 @@ export function BulkQuote({
                     </span>
                     {l.best ? <span className={styles.bestTag}>{t('cheapestTag')}</span> : null}
                     <span className={styles.rowCount}>
-                      {t('basedOnPrices', { count: toPersianDigits(l.rowCount) })}
+                      {t('basedOnPrices', { count: f.num(l.rowCount) })}
                     </span>
                   </th>
-                  <td className={styles.num}>{formatToman(l.pricePerKg, false)}</td>
+                  <td className={styles.num}>{f.toman(l.pricePerKg)}</td>
                   <td className={`${styles.num} ${l.best ? styles.deltaBest : styles.delta}`}>
-                    {l.best ? localizeDigits(0, locale) : `${formatToman(delta, false)}+`}
+                    {l.best ? localizeDigits(0, locale) : `${f.toman(delta)}+`}
                   </td>
-                  <td className={`${styles.num} ${styles.lineCost}`}>{formatToman(l.lineToman, false)}</td>
+                  <td className={`${styles.num} ${styles.lineCost}`}>{f.toman(l.lineToman)}</td>
                 </tr>
               );
             })}
@@ -376,24 +386,24 @@ export function BulkQuote({
         <p className={styles.suggest}>
           <CheckCircleIcon size={15} aria-hidden="true" />
           <span>
-            {t('suggestPrefix')} <strong>{split.cheapest.factory}</strong>{' '}
+            {t('suggestPrefix')} <strong>{f.factory(split.cheapest.factory)}</strong>{' '}
             {t('suggestPriceLead')}{' '}
-            <strong className="tnum">{formatToman(split.cheapest.pricePerKg, false)}</strong>{' '}
+            <strong className="tnum">{f.toman(split.cheapest.pricePerKg)}</strong>{' '}
             {t('suggestPerKgTotalLead')}{' '}
-            <strong className="tnum">{formatToman(split.cheapest.lineToman)}</strong>
+            <strong className="tnum">{f.toman(split.cheapest.lineToman, true)}</strong>
             {split.cheapest.rowCount === 1 ? ` ${t('singlePriceNote')}` : ''}.
             {savingsVsNext > 0 ? (
               <>
                 {' '}
                 {t('savingsVsNextLead')}{' '}
-                <strong className="tnum">{formatToman(savingsVsNext)}</strong> {t('savingsVsNextTail')}
+                <strong className="tnum">{f.toman(savingsVsNext, true)}</strong> {t('savingsVsNextTail')}
               </>
             ) : null}
             {savingsVsMax > savingsVsNext ? (
               <>
                 {' '}
                 {t('savingsVsMaxLead')}{' '}
-                <strong className="tnum">{formatToman(savingsVsMax)}</strong> {t('savingsVsMaxTail')}
+                <strong className="tnum">{f.toman(savingsVsMax, true)}</strong> {t('savingsVsMaxTail')}
               </>
             ) : null}
           </span>
@@ -405,41 +415,42 @@ export function BulkQuote({
       {landed && split.cheapest ? (
         <div className={styles.landed}>
           <h3 className={styles.landedTitle}>
-            {t('landedTitle', { city })}
-            <span className={styles.landedOrigin}>{t('shippedFrom', { origin: logisticsConfig.originLabel })}</span>
+            {t('landedTitle', { city: localizedCityName(city, locale) })}
+            <span className={styles.landedOrigin}>{t('shippedFrom', { origin: f.text(logisticsConfig.originLabel) })}</span>
           </h3>
           <dl className={styles.landedGrid}>
             <div className={styles.landedRow}>
-              <dt>{t('goodsLabel', { factory: split.cheapest.factory })}</dt>
-              <dd className="tnum">{formatToman(split.cheapest.lineToman)}</dd>
+              <dt>{t('goodsLabel', { factory: f.factory(split.cheapest.factory) })}</dt>
+              <dd className="tnum">{f.toman(split.cheapest.lineToman, true)}</dd>
             </div>
             <div className={styles.landedRow}>
-              <dt>{t('freightLabel', { km: toPersianDigits(km) })}</dt>
-              <dd className="tnum">{formatToman(landed.freight)}</dd>
+              <dt>{t('freightLabel', { km: f.num(km) })}</dt>
+              <dd className="tnum">{f.toman(landed.freight, true)}</dd>
             </div>
             <div className={styles.landedRow}>
               <dt>{t('handlingLabel')}</dt>
-              <dd className="tnum">{formatToman(landed.handling)}</dd>
+              <dd className="tnum">{f.toman(landed.handling, true)}</dd>
             </div>
             <div className={styles.landedRow}>
               <dt>{t('insuranceScaleLabel')}</dt>
-              <dd className="tnum">{formatToman(landed.insurance + landed.scale)}</dd>
+              <dd className="tnum">{f.toman(landed.insurance + landed.scale, true)}</dd>
             </div>
             <div className={styles.landedRow}>
               <dt>{t('packagingLabel')}</dt>
-              <dd className="tnum">{landed.packaging > 0 ? formatToman(landed.packaging) : t('notApplicableZero')}</dd>
+              <dd className="tnum">{landed.packaging > 0 ? f.toman(landed.packaging, true) : t('notApplicableZero')}</dd>
             </div>
             <div className={styles.landedRow}>
-              <dt>{t('vatLabel', { pct: toPersianDigits(Math.round(vatRate * 100)) })}</dt>
-              <dd className="tnum">{formatToman(landed.vat)}</dd>
+              <dt>{t('vatLabel', { pct: f.num(Math.round(vatRate * 100)) })}</dt>
+              <dd className="tnum">{f.toman(landed.vat, true)}</dd>
             </div>
             <div className={`${styles.landedRow} ${styles.landedTotal}`}>
               <dt>{t('approxTotalLabel')}</dt>
-              <dd className="tnum">{formatToman(landed.total)}</dd>
+              <dd className="tnum">{f.toman(landed.total, true)}</dd>
             </div>
           </dl>
           <p className={styles.landedMeta}>
-            {t('approxDeliveryLabel')} <strong>{landed.delivery}</strong>
+            {t('approxDeliveryLabel')}{' '}
+            <strong>{locale === 'fa' ? landed.delivery : tBucket(`bucket.${deliveryBucket(km)}`)}</strong>
           </p>
           <p className={styles.landedMeta}>{t('landedDisclaimer')}</p>
           {!logisticsConfig.verifiedAt || Date.now() - new Date(logisticsConfig.verifiedAt).getTime() > 30 * 86_400_000 ? (
@@ -460,9 +471,9 @@ export function BulkQuote({
               const best = split.cheapest;
               addRequest({
                 type: 'bulk',
-                title: t('requestTitle', { name: displayCategoryName, tonnage: toPersianDigits(split.tonnage) }),
+                title: t('requestTitle', { name: displayCategoryName, tonnage: f.num(split.tonnage) }),
                 detail: best
-                  ? t('requestDetail', { factory: best.factory, price: formatToman(best.pricePerKg, false) })
+                  ? t('requestDetail', { factory: f.factory(best.factory), price: f.toman(best.pricePerKg) })
                   : undefined,
               });
               toast.success(t('proformaRequested'));

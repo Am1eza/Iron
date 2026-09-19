@@ -7,7 +7,8 @@ import { useCartStore } from '@/lib/stores/cart';
 import { useToast } from '@/lib/hooks/useToast';
 import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
-import { normalizeDigits, formatToman, localizeDigits } from '@/lib/utils/format';
+import { normalizeDigits, localizeDigits } from '@/lib/utils/format';
+import { useCatalogFormat } from '@/lib/hooks/useCatalogFormat';
 import { getLocalizedName, getLocalizedSkuName } from '@/lib/utils/localizedNames';
 import { Card, Stack, Cluster, Text, Switch, DeliveryBadge, MovementBadge } from '@/components/ui';
 import { Button } from '@/components/ui';
@@ -45,6 +46,7 @@ function parse(value: string): number {
 export function CostCalculator() {
   const t = useTranslations('costCalculator');
   const locale = useLocale() as AppLocale;
+  const cf = useCatalogFormat();
   const add = useCartStore((s) => s.add);
   const toast = useToast();
 
@@ -276,7 +278,7 @@ export function CostCalculator() {
               </Text>
               <Cluster gap={3} align="center">
                 <span className={`${styles.unitPrice} tnum`}>
-                  {formatToman(unitPrice, false)}
+                  {cf.toman(unitPrice)}
                 </span>
                 <Text variant="caption" color="muted">
                   {priceUnitCaption(product.priceBasis, product.branchLengthM)}
@@ -310,19 +312,19 @@ export function CostCalculator() {
               ) : null}
               <div className={styles.row}>
                 <dt>{t('itemAmountLabel')}</dt>
-                <dd className="tnum">{formatToman(base)}</dd>
+                <dd className="tnum">{cf.toman(base, true)}</dd>
               </div>
               {vat ? (
                 <div className={styles.row}>
                   <dt>{t('vatRowLabel', { rate: localizeDigits(CONSTANTS.VAT_RATE * 100, locale) })}</dt>
-                  <dd className="tnum">{formatToman(vatAmount)}</dd>
+                  <dd className="tnum">{cf.toman(vatAmount, true)}</dd>
                 </div>
               ) : null}
             </dl>
 
             <div className={styles.totalRow}>
               <span className={styles.totalLabel}>{t('grandTotalLabel')}</span>
-              <span className={`${styles.totalValue} tnum`}>{formatToman(total)}</span>
+              <span className={`${styles.totalValue} tnum`}>{cf.toman(total, true)}</span>
             </div>
 
             <Cluster gap={2} align="center" justify="space-between">

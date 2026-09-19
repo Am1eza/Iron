@@ -1,7 +1,8 @@
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { routes } from '@/lib/routes';
 import { factoryFacetSlug } from '@/lib/utils/catalogFacets';
+import { localizedFactoryName } from '@/lib/utils/factoryNames';
 import styles from './FactoryLink.module.css';
 
 /** The DB/server-side sentinel for "mill not recorded" (see
@@ -55,15 +56,21 @@ export function FactoryLink({
   // (PriceTable is 'use client') — the hook form works in either, an async
   // component would break every client caller.
   const t = useTranslations('priceTable');
+  const locale = useLocale();
   const name = factory?.trim();
   if (!name || name === UNKNOWN_FACTORY) return <>{t('unknown')}</>;
+  // The link target is always built from the stored Persian name; only the
+  // visible text follows the locale. A name with no Latin form on a non-fa
+  // page is still Persian, so it is marked as such for screen readers/crawlers.
+  const shown = localizedFactoryName(name, locale);
   return (
     <Link
       href={routes.categoryByFactory(categorySlug, factoryFacetSlug(name))}
       className={className ?? styles.link}
       prefetch={prefetch}
+      lang={locale !== 'fa' && shown === name ? 'fa' : undefined}
     >
-      {name}
+      {shown}
     </Link>
   );
 }

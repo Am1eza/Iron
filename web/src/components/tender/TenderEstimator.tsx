@@ -8,7 +8,8 @@ import { API_MODE } from '@/lib/api/config';
 import { useAuthStore } from '@/lib/stores/auth';
 import { useToast } from '@/lib/hooks/useToast';
 import { trackGoal } from '@/lib/analytics/track';
-import { formatToman, localizeDigits } from '@/lib/utils/format';
+import { localizeDigits } from '@/lib/utils/format';
+import { useCatalogFormat } from '@/lib/hooks/useCatalogFormat';
 import { getLocalizedName } from '@/lib/utils/localizedNames';
 import type { FactoryOption, TenderQuote } from '@/lib/server/services/tenderEstimate';
 import type { CreateLeadResult } from '@/lib/server/services/leads.service';
@@ -73,6 +74,7 @@ export function TenderEstimator({
 }) {
   const t = useTranslations('tenderEstimator');
   const locale = useLocale() as AppLocale;
+  const cf = useCatalogFormat();
   const user = useAuthStore((s) => s.user);
   const toast = useToast();
   const [rows, setRows] = useState<Row[]>(() => [emptyRow(), emptyRow()]);
@@ -208,7 +210,7 @@ export function TenderEstimator({
         {done.proformaRef ? (
           <div className={styles.successProforma}>
             <p className="tnum">
-              {done.total ? t('proformaIssuedWithAmount', { amount: formatToman(done.total) }) : t('proformaIssued')}
+              {done.total ? t('proformaIssuedWithAmount', { amount: cf.toman(done.total, true) }) : t('proformaIssued')}
             </p>
             <Link
               href={`/proforma/${encodeURIComponent(done.proformaRef)}`}
@@ -337,10 +339,10 @@ export function TenderEstimator({
                     )}
                   </td>
                   <td data-label={t('tableHeaders.unitPrice')} className="tnum">
-                    {line?.priced ? formatToman(line.unitPrice!, false) : <span className={styles.quote}>{t('quoteLabel')}</span>}
+                    {line?.priced ? cf.toman(line.unitPrice!) : <span className={styles.quote}>{t('quoteLabel')}</span>}
                   </td>
                   <td data-label={t('tableHeaders.lineTotal')} className="tnum">
-                    {line?.priced ? formatToman(line.lineTotal!, false) : <span className={styles.dash}>{t('unknown')}</span>}
+                    {line?.priced ? cf.toman(line.lineTotal!) : <span className={styles.dash}>{t('unknown')}</span>}
                   </td>
                   <td>
                     <button
@@ -372,7 +374,7 @@ export function TenderEstimator({
         <dl className={styles.totals}>
           <div>
             <dt>{t('subtotalLabel')}</dt>
-            <dd className="tnum">{quote ? formatToman(quote.subtotal) : t('unknown')}</dd>
+            <dd className="tnum">{quote ? cf.toman(quote.subtotal, true) : t('unknown')}</dd>
           </div>
           <div>
             <dt>
@@ -380,11 +382,11 @@ export function TenderEstimator({
                 ? t('vatLabelWithRate', { rate: localizeDigits(Math.round(quote.vatRate * 100), locale) })
                 : t('vatLabel')}
             </dt>
-            <dd className="tnum">{quote ? formatToman(quote.vatAmount) : t('unknown')}</dd>
+            <dd className="tnum">{quote ? cf.toman(quote.vatAmount, true) : t('unknown')}</dd>
           </div>
           <div className={styles.grand}>
             <dt>{t('grandTotalLabel')}</dt>
-            <dd className="tnum">{quote ? formatToman(quote.grandTotal) : t('unknown')}</dd>
+            <dd className="tnum">{quote ? cf.toman(quote.grandTotal, true) : t('unknown')}</dd>
           </div>
         </dl>
         {quote && !quote.allPriced ? <p className={styles.partial}>{t('partialPricingNote')}</p> : null}

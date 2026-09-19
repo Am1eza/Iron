@@ -2592,5 +2592,17 @@
     "faqVatA": "No. Prices in the table exclude VAT. Turning on the “{toggle}” switch on the price table shows the same prices with {pct}% VAT.",
     "faqBuyQ": "How do I buy {subject}?",
     "faqBuyA": "Ahantime has no online payment. Choose the product in the price table and submit a proforma request, or ask the Ahantime AI advisor for guidance. A sales expert then calls you to confirm the final price, the delivery time and the order."
+  },
+  "catalogCopy": {
+    "categoryDescriptions": {
+      "rebar": "Deformed rebar A2 and A3, plain bar, heat-treated rebar and couplers — the most-used item in reinforced-concrete frames. Buyers are building contractors and concrete workshops; the price per kilogram is quoted by size and mill.",
+      "ibeam": "IPE beams, light and heavy H-beams (HEA/HEB) and castellated beams — load-bearing sections for steel frames. The price is per kilogram, with the weight of a 12 m bar alongside so the real cost of each bar is clear.",
+      "profile": "Box sections and profiles — square and rectangular, furniture, column, Z, corrugated and galvanized — for light structures, doors and windows, and the furniture industry. Size is the outer section; state the wall thickness when requesting a quote.",
+      "sheet": "Black, oiled, galvanized, pickled, checkered, coated and alloy sheet, plus steel decking, grating and sandwich panels — supplies for metalworking, sheds and plate fabrication. Sheet dimensions affect the price.",
+      "pipe": "Seamless (Mannesmann), gas, seam-welded industrial, scaffolding, galvanized, spiral and well-casing pipe — from industrial pipelines to site scaffolding. Sizes are in inches; state the schedule or wall thickness when requesting a quote.",
+      "angle-channel": "Equal and unequal angles, cleats, light and heavy channels, T-bars and wall-post sections — framing, connection and partition sections. Angles are priced per 6 m bar; buyers are building sites and door-and-window makers.",
+      "steel": "Stainless steel pipe, profile, angle, channel, strip, mesh and fittings in grades 201, 304 and 316 — for the food and pharmaceutical industries and any corrosive environment. The grade determines the price.",
+      "felezat-rangi": "Aluminium and copper — pipe, sheet, bar, angle, profile, strip and welding wire. Buyers are building services, electrical and the door-and-window trade. Copper pipe is priced per coil; everything else per kilogram."
+    }
   }
 }

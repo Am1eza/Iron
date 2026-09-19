@@ -2,7 +2,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Chip, CountBadge } from '@/components/ui';
-import { toPersianDigits, normalizeDigits } from '@/lib/utils/format';
+import { localizeDigits, normalizeDigits } from '@/lib/utils/format';
+import { useCatalogFormat } from '@/lib/hooks/useCatalogFormat';
 import styles from './SpecFilterDropdown.module.css';
 
 /**
@@ -29,6 +30,7 @@ export function SpecFilterDropdown({
   onToggle: (value: string) => void;
 }) {
   const t = useTranslations('specFilterDropdown');
+  const cf = useCatalogFormat();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const rootRef = useRef<HTMLDivElement>(null);
@@ -89,7 +91,7 @@ export function SpecFilterDropdown({
         onClick={() => setOpen((o) => !o)}
       >
         <span>{label}</span>
-        <CountBadge count={count} label={t('selectedCount', { count: toPersianDigits(count), label })} />
+        <CountBadge count={count} label={t('selectedCount', { count: localizeDigits(count, cf.locale), label })} />
         <span className={styles.caret} aria-hidden="true">
           ▾
         </span>
@@ -117,7 +119,7 @@ export function SpecFilterDropdown({
                   selected={selected.has(v)}
                   onClick={() => onToggle(v)}
                 >
-                  {toPersianDigits(v)}
+                  {cf.val(v)}
                 </Chip>
               ))
             )}

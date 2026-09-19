@@ -1,4 +1,7 @@
+import { getLocale, getTranslations } from 'next-intl/server';
 import { getCategories, getSubsMap } from '@/lib/data/catalog';
+import { getLocalizedName } from '@/lib/utils/localizedNames';
+import type { AppLocale } from '@/i18n/config';
 import { getContact } from '@/lib/server/contact';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { orgJsonLd, localBusinessJsonLd, websiteJsonLd, catalogNavigationJsonLd } from '@/lib/seo';
@@ -15,19 +18,37 @@ import { orgJsonLd, localBusinessJsonLd, websiteJsonLd, catalogNavigationJsonLd 
  * `HeroTrustLine`/`HomeBelowFold` make, so this adds no extra DB round trip.
  */
 export async function HomeJsonLd() {
-  const [contact, categories, subsMap] = await Promise.all([
+  const [contact, categories, subsMap, locale, tCopy] = await Promise.all([
     getContact(),
     getCategories(),
     getSubsMap(),
+    getLocale() as Promise<AppLocale>,
+    getTranslations('catalogCopy'),
   ]);
-  const catalogNav = catalogNavigationJsonLd(categories, subsMap);
+  const catalogNav = catalogNavigationJsonLd(
+    categories.map((c) => ({
+      slug: c.slug,
+      name: getLocalizedName(c, locale),
+      description:
+        locale !== 'fa' && tCopy.has(`categoryDescriptions.${c.slug}`)
+          ? tCopy(`categoryDescriptions.${c.slug}`)
+          : c.description,
+    })),
+    Object.fromEntries(
+      Object.entries(subsMap).map(([slug, list]) => [
+        slug,
+        list.map((s) => ({ slug: s.slug, name: getLocalizedName(s, locale) })),
+      ]),
+    ),
+    locale,
+  );
 
   return (
     <JsonLd
       data={[
-        orgJsonLd(contact),
-        localBusinessJsonLd(contact),
-        websiteJsonLd(),
+        orgJsonLd(contact, locale),
+        localBusinessJsonLd(contact, locale),
+        websiteJsonLd(locale),
         ...(catalogNav ? [catalogNav] : []),
       ]}
     />

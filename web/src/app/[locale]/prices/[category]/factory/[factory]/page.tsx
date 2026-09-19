@@ -153,12 +153,14 @@ export default async function FactoryLandingPage({ params }: Params) {
 
           <FacetRail
             id="rail-sizes"
+            kind="size"
             title={tFacet('sizesOfTitle', { category: cat.name, measure: sizeLabel(category) })}
             facets={facets.sizes}
             href={(slug) => routes.categoryBySize(category, slug)}
           />
           <FacetRail
             id="rail-factories"
+            kind="factory"
             title={tFacet('otherFactoriesTitle', { category: cat.name })}
             facets={facets.factories}
             activeSlug={facet.slug}

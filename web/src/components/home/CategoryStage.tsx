@@ -149,7 +149,7 @@ export function CategoryStage({
                       {hasPhoto ? (
                         <ProductImage
                           slug={cat.slug}
-                          name={cat.name}
+                          name={getLocalizedName(cat, locale)}
                           variant="thumb"
                           sizes="40px"
                         />
@@ -183,7 +183,7 @@ export function CategoryStage({
                 // file for a box this size.
                 <ProductImage
                   slug={activeCat.slug}
-                  name={activeCat.name}
+                  name={getLocalizedName(activeCat, locale)}
                   variant="full"
                   eager
                   sizes="(min-width: 1100px) 700px, 100vw"

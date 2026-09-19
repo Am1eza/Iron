@@ -7,6 +7,8 @@ import type { PriceRow, Article, Category } from '@/lib/types/domain';
 import type { SubCat } from '@/lib/data/nav';
 import { formatToman, priceHiddenLabelLocalized, localizeDigits } from '@/lib/utils/format';
 import { priceUnitCaption } from '@/lib/utils/catalogLabels';
+import { localizeCatalogText, localizeValue } from '@/lib/utils/catalogI18n';
+import { localizedFactoryName } from '@/lib/utils/factoryNames';
 import { getLocalizedName, getLocalizedSkuName } from '@/lib/utils/localizedNames';
 import type { AppLocale } from '@/i18n/config';
 import { Heading, Text, EmptyState, MovementBadge, Badge } from '@/components/ui';
@@ -292,7 +294,7 @@ function ProductGroup({
                         <span className={resultStyles.dot} aria-hidden="true">
                           ·
                         </span>
-                        <span>{row.factory}</span>
+                        <span>{localizedFactoryName(row.factory, locale)}</span>
                       </>
                     ) : null}
                     {row.size ? (
@@ -305,7 +307,7 @@ function ProductGroup({
                             same established exclusion as PriceTable's size
                             column (catalogLabels.ts-sourced values). */}
                         <span>
-                          {t('sizeLabel')} {localizeDigits(row.size, locale)}
+                          {t('sizeLabel')} {localizeValue(row.size, locale)}
                         </span>
                       </>
                     ) : null}
@@ -318,7 +320,7 @@ function ProductGroup({
                     ) : (
                       <>
                         <span className={resultStyles.price}>{formatToman(row.current.price, false, locale)}</span>
-                        <span className={resultStyles.priceUnit}>{priceUnitCaption(row.priceBasis, row.branchLengthM)}</span>
+                        <span className={resultStyles.priceUnit}>{localizeCatalogText(priceUnitCaption(row.priceBasis, row.branchLengthM), locale)}</span>
                       </>
                     )}
                   </span>

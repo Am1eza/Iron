@@ -1,5 +1,6 @@
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { formatToman, formatMovement, toPersianDigits } from '@/lib/utils/format';
+import { localizeCatalogText } from '@/lib/utils/catalogI18n';
 import type { MovementDir } from '@/lib/types/domain';
 import { ClockIcon, CheckIcon } from '@/components/primitives/icons';
 import styles from './PriceParts.module.css';
@@ -40,7 +41,7 @@ export function MovementBadge({
   pct,
   pill = false,
   onPanel = false,
-  locale = 'fa',
+  locale: localeProp,
   labels,
 }: {
   dir: MovementDir;
@@ -50,19 +51,18 @@ export function MovementBadge({
    *  — the plain gain/loss text colors are tuned for light surfaces and fall
    *  below WCAG AA against a permanently-dark background. */
   onPanel?: boolean;
-  /** Defaults to 'fa' — this file deliberately has no 'use client' (see
-   *  PriceTag's comment below) so it can't call `useTranslations` itself;
-   *  every existing caller renders in fa and is unaffected. A caller that
-   *  IS already a client component in a non-fa locale passes its own
-   *  `locale` (for `formatMovement`'s digits) and translated `labels`. */
+  /** Defaults to the active next-intl locale (admin renders under the fa
+   *  provider, so it is unchanged). A caller may still pin one. */
   locale?: string;
-  /** Screen-reader-only up/down/flat words, translated by the caller — falls
-   *  back to the Persian default when omitted. */
+  /** Up/down/flat words — defaults to the locale's `common.movement` messages. */
   labels?: { up: string; down: string; flat: string };
 }) {
+  const activeLocale = useLocale();
+  const tMove = useTranslations('common.movement');
+  const locale = localeProp ?? activeLocale;
   const arrow = dir === 'up' ? '▲' : dir === 'down' ? '▼' : '';
   const cls = dir === 'up' ? styles.up : dir === 'down' ? styles.down : styles.flat;
-  const defaultLabels = { up: 'افزایش', down: 'کاهش', flat: 'بدون تغییر' };
+  const defaultLabels = { up: tMove('up'), down: tMove('down'), flat: tMove('flat') };
   const label = (labels ?? defaultLabels)[dir];
   const text = formatMovement(pct, locale);
   // No numeric pct (no history to compute a real % from, e.g. the market
@@ -88,16 +88,17 @@ export function MovementBadge({
 export function PriceTag({
   value,
   size = 'cell',
-  unitLabel = 'تومان',
+  unitLabel,
 }: {
   value: number;
   size?: 'cell' | 'hero';
   unitLabel?: string;
 }) {
+  const locale = useLocale();
   return (
     <span className={`${styles.price} ${size === 'hero' ? styles.hero : styles.cell} tnum`}>
-      <span className={styles.priceNum}>{formatToman(value, false)}</span>
-      <span className={styles.priceUnit}>{unitLabel}</span>
+      <span className={styles.priceNum}>{formatToman(value, false, locale)}</span>
+      <span className={styles.priceUnit}>{unitLabel ?? localizeCatalogText('تومان', locale)}</span>
     </span>
   );
 }
@@ -112,12 +113,15 @@ export function DeliveryBadge({
   value: string;
   guaranteed?: boolean;
 }) {
+  const locale = useLocale();
   return (
     <span className={`${styles.delivery} ${guaranteed ? styles.guaranteed : ''}`}>
       <span className={styles.deliveryIcon} aria-hidden="true">
         {guaranteed ? <CheckIcon size={14} /> : <ClockIcon size={14} />}
       </span>
-      <span className="tnum">{toPersianDigits(value)}</span>
+      <span className="tnum">
+        {locale === 'fa' ? toPersianDigits(value) : localizeCatalogText(value, locale)}
+      </span>
     </span>
   );
 }

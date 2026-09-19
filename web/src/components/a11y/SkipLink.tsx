@@ -1,19 +1,14 @@
-'use client';
-import { useTranslations } from 'next-intl';
-
 /**
- * Rendered inside `LocaleProvider` (unlike the rest of the pre-hydration
- * shell in `app/layout.tsx`) specifically so it re-renders with the visitor's
- * actual locale — a plain `faMessages.common.skipToContent` reference at the
- * body root stayed Persian forever, even after the page itself switched to
- * English/Arabic/Chinese, because it lived outside the provider whose
- * `messages` state is what changes on locale switch.
+ * The root layout sits ABOVE `[locale]` and wraps every page in the fa
+ * provider, so a `useTranslations` call here always answered in Persian — the
+ * first link a crawler or screen reader met on an /en page was «پرش به محتوا».
+ * The label is now resolved by the root layout from the request locale (the
+ * `X-NEXT-INTL-LOCALE` header it already reads for `<html lang>`) and passed in.
  */
-export function SkipLink() {
-  const t = useTranslations('common');
+export function SkipLink({ label }: { label: string }) {
   return (
     <a href="#main" className="skip-link">
-      {t('skipToContent')}
+      {label}
     </a>
   );
 }

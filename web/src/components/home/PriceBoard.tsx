@@ -7,7 +7,7 @@ import type { PriceRow } from '@/lib/types/domain';
 // to this file's own 'use client' below).
 import { MovementBadge } from '@/components/ui/PriceParts';
 import { CountUp } from '@/components/ui/CountUp';
-import { formatJalali } from '@/lib/utils/jalali';
+import { formatDisplayDate } from '@/lib/utils/jalali';
 import { priceHiddenLabel } from '@/lib/utils/format';
 import type { AppLocale } from '@/i18n/config';
 import styles from './PriceBoard.module.css';
@@ -45,7 +45,7 @@ export function PriceBoard({ rows }: { rows: PriceRow[] }) {
           <span className={styles.dot} aria-hidden="true" />
           {t('live')}
         </span>
-        {updated && <span className={styles.date}>{formatJalali(updated, 'yyyy/MM/dd، HH:mm')}</span>}
+        {updated && <span className={styles.date}>{formatDisplayDate(updated, 'yyyy/MM/dd، HH:mm', locale)}</span>}
       </header>
 
       <ul className={styles.rows}>

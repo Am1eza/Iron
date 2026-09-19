@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { buildMetadata } from '@/lib/seo';
 import { routes } from '@/lib/routes';
+import { getLocalizedName } from '@/lib/utils/localizedNames';
+import type { AppLocale } from '@/i18n/config';
 import { getCategories, getSubsMap } from '@/lib/data/catalog';
 import { getRows, getHeadlineRows } from '@/lib/server/catalog';
 import { itemListJsonLd, catalogNavigationJsonLd } from '@/lib/seo';
@@ -47,7 +49,23 @@ export default async function PriceHubPage({ params }: { params: Promise<{ local
   // The catalog taxonomy as structured data — see catalogNavigationJsonLd.
   // This hub and the homepage are the two URLs an answer engine lands on to
   // work out what آهن‌تایم sells; it is not published site-wide.
-  const catalogNav = catalogNavigationJsonLd(categories, subs);
+  const catalogNav = catalogNavigationJsonLd(
+    categories.map((c) => ({
+      slug: c.slug,
+      name: getLocalizedName(c, locale as AppLocale),
+      description:
+        locale !== 'fa' && t.has(`catalogCopy.categoryDescriptions.${c.slug}`)
+          ? t(`catalogCopy.categoryDescriptions.${c.slug}`)
+          : c.description,
+    })),
+    Object.fromEntries(
+      Object.entries(subs).map(([slug, list]) => [
+        slug,
+        list.map((s) => ({ slug: s.slug, name: getLocalizedName(s, locale as AppLocale) })),
+      ]),
+    ),
+    locale,
+  );
   return (
     <Container>
       <BreadcrumbJsonLd items={crumbs} />

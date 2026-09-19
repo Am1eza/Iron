@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { useTranslations, useLocale } from 'next-intl';
 import type { Article } from '@/lib/types/domain';
 import { routes } from '@/lib/routes';
-import { formatJalali } from '@/lib/utils/jalali';
+import { formatDisplayDate } from '@/lib/utils/jalali';
 import { localizeDigits } from '@/lib/utils/format';
 import type { AppLocale } from '@/i18n/config';
 import { getLocalizedArticleTitle, getLocalizedArticleExcerpt } from '@/lib/utils/localizedNames';
@@ -68,7 +68,7 @@ export function ArticleCard({ article }: { article: Article }) {
                 <span className={styles.date}>
                   <CalendarIcon size={14} aria-hidden="true" />
                   <time className="tnum" dateTime={article.publishAt}>
-                    {formatJalali(article.publishAt)}
+                    {formatDisplayDate(article.publishAt, undefined, locale)}
                   </time>
                 </span>
               ) : null}
