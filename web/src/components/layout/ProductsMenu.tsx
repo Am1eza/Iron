@@ -13,6 +13,7 @@ import { productImage } from '@/lib/data/productImages';
 import { groupSubCategories } from '@/lib/utils/catalogGroups';
 import { localizeDigits } from '@/lib/utils/format';
 import { getLocalizedName } from '@/lib/utils/localizedNames';
+import { localizeCatalogText } from '@/lib/utils/catalogI18n';
 import type { AppLocale } from '@/i18n/config';
 import { ChevronStartIcon } from '@/components/primitives/icons';
 import { NavDropdown } from './NavDropdown';
@@ -406,7 +407,7 @@ function CategoryPanel({
                         <SubCategoryArt
                           categorySlug={cat.slug}
                           slug={group.lead.slug}
-                          name={getLocalizedName(group.lead, locale)}
+                          name={group.lead.name}
                           size={16}
                         />
                       </span>
@@ -428,11 +429,11 @@ function CategoryPanel({
                         <SubCategoryArt
                           categorySlug={cat.slug}
                           slug={group.items[0]!.slug}
-                          name={getLocalizedName(group.items[0]!, locale)}
+                          name={group.items[0]!.name}
                           size={16}
                         />
                       </span>
-                      {group.label}
+                      {localizeCatalogText(group.label, locale)}
                     </p>
                   ) : null}
 
@@ -464,7 +465,7 @@ function CategoryPanel({
                                 <SubCategoryArt
                                   categorySlug={cat.slug}
                                   slug={s.slug}
-                                  name={getLocalizedName(s, locale)}
+                                  name={s.name}
                                   size={16}
                                 />
                               </span>

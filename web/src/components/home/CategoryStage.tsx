@@ -11,6 +11,7 @@ import { ProductImage } from '@/components/catalog/ProductImage';
 import { productImage, productThumb } from '@/lib/data/productImages';
 import { groupSubCategories } from '@/lib/utils/catalogGroups';
 import { getLocalizedName } from '@/lib/utils/localizedNames';
+import { localizeCatalogText } from '@/lib/utils/catalogI18n';
 import { FactoryLink } from '@/components/catalog/FactoryLink';
 import { ChevronStartIcon } from '@/components/primitives/icons';
 import styles from './CategoryStage.module.css';
@@ -216,7 +217,7 @@ export function CategoryStage({
                         <ChevronStartIcon size={14} className={`${styles.subChev} icon--rtl`} />
                       </Link>
                     ) : group.label ? (
-                      <p className={styles.subGroupHeading}>{group.label}</p>
+                      <p className={styles.subGroupHeading}>{localizeCatalogText(group.label, locale)}</p>
                     ) : null}
                     <ul className={styles.colList}>
                       {group.items.map((s) => (

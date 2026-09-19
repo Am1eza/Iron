@@ -1081,9 +1081,9 @@ export function PriceTable({
                 key={`g_${group.label}`}
                 className={styles.subGroup}
                 role="group"
-                aria-label={group.label}
+                aria-label={localizeCatalogText(group.label, locale)}
               >
-                <span className={styles.subGroupHeading}>{group.label}</span>
+                <span className={styles.subGroupHeading}>{localizeCatalogText(group.label, locale)}</span>
                 <div className={styles.subGroupChips}>
                   {group.items.map((s) => (
                     <Chip

@@ -70,6 +70,25 @@ const PHRASES: Record<string, Tr> = {
   'روز': t('days', 'أيام', '天'),
   'تحویل فوری': t('Immediate delivery', 'تسليم فوري', '现货即发'),
 
+  // Sub-category group headings (menu, drawer, price-table sub filter)
+  'هاش': t('H-Beam', 'عارضة H', 'H型钢'),
+  'پروفیل استیل': t('Stainless Steel Profile', 'بروفيل ستانلس ستيل', '不锈钢型材'),
+  'ورق گرم': t('Hot-Rolled Sheet', 'صفائح مدلفنة على الساخن', '热轧钢板'),
+  'ورق سرد و پوشش دار': t('Cold-Rolled & Coated Sheet', 'صفائح مدلفنة على البارد ومطلية', '冷轧及涂层钢板'),
+  'ساندویچ پانل': t('Sandwich Panel', 'ألواح الساندويتش', '夹芯板'),
+  'ورق استیل': t('Stainless Steel Sheet', 'صفائح ستانلس ستيل', '不锈钢板'),
+  'لوله بدون درز': t('Seamless Pipe', 'أنابيب بدون لحام', '无缝钢管'),
+  'لوله درزدار': t('Welded Pipe', 'أنابيب ملحومة', '焊接钢管'),
+  'لوله استیل': t('Stainless Steel Pipe', 'أنبوب ستانلس ستيل', '不锈钢管'),
+  'نبشی': t('Angle', 'زاوية', '角钢'),
+  'ناودانی': t('Channel', 'قناة', '槽钢'),
+  'لوله و پروفیل استیل': t('Stainless Steel Pipe & Profile', 'أنابيب وبروفيلات ستانلس ستيل', '不锈钢管与型材'),
+  'مقاطع استیل': t('Stainless Steel Sections', 'مقاطع ستانلس ستيل', '不锈钢型材类'),
+  'توری و مش استیل': t('Stainless Steel Mesh & Wire Cloth', 'شبك ومش ستانلس ستيل', '不锈钢网'),
+  'اتصالات و قطعات استیل': t('Stainless Steel Fittings & Parts', 'تجهيزات وقطع ستانلس ستيل', '不锈钢管件及零件'),
+  'آلومینیوم': t('Aluminum', 'ألومنيوم', '铝'),
+  'مس': t('Copper', 'نحاس', '铜'),
+
   // Values the live catalog holds today (condition / standard / grade / region)
   'رول': t('Roll', 'رول', '卷材'),
   'برش‌خورده': t('Cut', 'مقطوع', '已切割'),
