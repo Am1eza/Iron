@@ -103,7 +103,7 @@
     "badgeETrust": "电子信誉认证",
     "badgeRegistered": "工商注册",
     "badgeUnion": "钢铁经销商协会成员",
-    "blurb": "智能钢铁市场：AI 智能顾问、透明实时报价与明确的交货时间。",
+    "blurb": "智能钢铁市场：AI 智能顾问、透明的每日报价与明确的交货时间。",
     "rights": "© {year} Ahantime，保留所有权利。"
   },
   "auth": {
@@ -149,7 +149,7 @@
   },
   "metadata": {
     "title": "Ahantime：智能钢铁市场",
-    "description": "Ahantime，智能钢铁市场：AI 智能顾问、透明实时报价与明确的交货时间。先咨询，后购买。"
+    "description": "Ahantime，智能钢铁市场：AI 智能顾问、透明的每日报价与明确的交货时间。先咨询，后购买。"
   },
   "contact": {
     "messageLabel": "您的留言",
@@ -295,7 +295,7 @@
       },
       "services": {
         "title": "专属 B2B 服务",
-        "text": "基于实时价格的招标测算、订单跟踪、按需定尺加工与代客仓储——这些是纯报价网站所不提供的服务。",
+        "text": "基于当日价格的招标测算、订单跟踪、按需定尺加工与代客仓储——这些是纯报价网站所不提供的服务。",
         "meta": "{count} 项在线服务",
         "cta": "招标测算"
       }
@@ -327,8 +327,8 @@
       "fullComparisonCta": "查看{name}的完整工厂比较"
     },
     "priceBoard": {
-      "ariaLabel": "实时价格看板",
-      "live": "实时价格",
+      "ariaLabel": "今日价格看板",
+      "live": "当日价格",
       "unit": "土曼",
       "viewAll": "查看全部价格"
     }
@@ -343,7 +343,7 @@
     "ctaAi": "与智能顾问对话",
     "storyTitle": "我们为什么创立 Ahantime",
     "storyP1": "多年来，伊朗钢铁市场一直饱受价格剧烈波动、中间商层层加价与信息分散之苦。无论是<b>工程承包商</b>还是<b>自建房业主</b>，往往在不了解真实价格与货品质量的情况下做出决定。",
-    "storyP2": "我们创立 Ahantime，正是为了让这一过程变得透明：价格实时可靠，购买前人人都能获得咨询，货源由钢厂直供、没有中间商层层转手。我们的口号是一份承诺——<b>“先咨询，后购买”</b>。",
+    "storyP2": "我们创立 Ahantime，正是为了让这一过程变得透明：价格及时可靠，购买前人人都能获得咨询，货源由钢厂直供、没有中间商层层转手。我们的口号是一份承诺——<b>“先咨询，后购买”</b>。",
     "whyTitle": "为什么选择 Ahantime？",
     "whyLead": "我们去掉了中间商，让价格透明，并把咨询前置到购买之前，让您安心决策。",
     "howTitle": "采购流程是怎样的？",
@@ -364,7 +364,7 @@
       },
       "transparent": {
         "title": "价格透明、实时更新",
-        "desc": "价格实时更新，每种货品旁均标明涨跌幅、单支重量与交货时间。"
+        "desc": "价格每日更新，每种货品旁均标明涨跌幅、单支重量与交货时间。"
       },
       "direct": {
         "title": "钢厂直供",
@@ -1281,7 +1281,7 @@
       "warehouseTitle": "我的仓库",
       "warehouseSub": "您寄存在 Ahantime 的货物。如需登记新货物，请前往<link>客户仓库页面</link>。",
       "favoritesTitle": "收藏",
-      "favoritesSub": "您收藏的产品，附实时价格。",
+      "favoritesSub": "您收藏的产品，附当日价格。",
       "requestsTitle": "我的申请",
       "requestsSub": "形式发票、批量采购与仓储申请，附各自的实时状态。",
       "alertsTitle": "价格提醒",
@@ -1863,7 +1863,7 @@
     },
     "unknown": "未知",
     "detailsOf": "{name}详情",
-    "note": "价格不含增值税，实时更新。"
+    "note": "价格不含增值税，每日更新。"
   },
   "categoryGrid": {
     "eyebrow": "产品类别",
@@ -1954,7 +1954,7 @@
       "otherCategories": "其他分类"
     },
     "noPrice": {
-      "headline": "获取实时报价",
+      "headline": "获取今日报价",
       "body": "我们的专员会为您提供该产品的最新报价。",
       "callWithPhone": "致电 {phone}"
     },
@@ -2330,7 +2330,7 @@
   "meta": {
     "home": {
       "title": "安挺时代（Ahantime）——伊朗钢铁智能交易市场",
-      "description": "安挺时代（Ahantime），伊朗钢铁智能交易市场：AI 顾问、透明的实时价格、正式形式发票与明确的交货时间。先咨询，后购买。"
+      "description": "安挺时代（Ahantime），伊朗钢铁智能交易市场：AI 顾问、透明的每日价格、正式形式发票与明确的交货时间。先咨询，后购买。"
     },
     "about": {
       "title": "关于我们",
@@ -2552,7 +2552,7 @@
     "byFactoryTitle": "{category} 按钢厂报价",
     "bySizeTitle": "{category} 按{measure}报价",
     "factoryPageTitle": "{factory} {category} 今日价格",
-    "factoryPageDescription": "{factory} 生产的 {category} 实时价格，按{measure}分类。",
+    "factoryPageDescription": "{factory} 生产的 {category} 当日价格，按{measure}分类。",
     "sizesOfTitle": "{category} {measure}",
     "otherFactoriesTitle": "其他 {category} 钢厂",
     "sizePageTitle": "{category} {measure} {size} 今日价格",
@@ -2560,7 +2560,7 @@
     "factoriesTitle": "{category} 钢厂",
     "todayPrice": "{subject} 今日价格",
     "todayPriceDescription": "Ahantime 上 {subject} 的今日价格，含涨跌、单支重量与交货时间。",
-    "liveDescription": "{subject} 实时价格，含涨跌、单支重量与交货时间。",
+    "liveDescription": "{subject} 当日价格，含涨跌、单支重量与交货时间。",
     "emptyCategoryDescription": "{subject} 分类下暂无商品。请联系 Ahantime 专员查询价格与库存。",
     "emptyCategoryBody": "{subject} 分类下暂无商品。请联系我们的专员查询价格、库存与交货时间。",
     "emptySubjectDescription": "{subject} 下暂无商品。请联系 Ahantime 专员查询价格与库存。",
@@ -2568,15 +2568,15 @@
     "skuQuoteTitle": "{subject} 询价",
     "skuQuoteDescription": "{subject}{mill} — Ahantime 尚未公布该商品的今日价格。请联系我们的专员查询每{unit}价格、单支重量与交货时间。",
     "skuPriceDescription": "{subject}{mill} 今日价格：每{unit} {price}，涨跌、单支重量与交货时间见 Ahantime。",
-    "factoryPageDescriptionFull": "{factory} 生产的全部 {category} 实时价格，按{measure}分类，含涨跌、单支重量与交货时间。",
-    "factorySectionDescription": "{factory} 生产的 {category} 实时价格，按{measure}分类，含涨跌、单支重量与交货时间。",
-    "sizePageDescription": "{category} {measure} {factory}{byFactory} 今日价格 — 实时更新，含涨跌、单支重量与交货时间。",
+    "factoryPageDescriptionFull": "{factory} 生产的全部 {category} 当日价格，按{measure}分类，含涨跌、单支重量与交货时间。",
+    "factorySectionDescription": "{factory} 生产的 {category} 当日价格，按{measure}分类，含涨跌、单支重量与交货时间。",
+    "sizePageDescription": "{category} {measure} {factory}{byFactory} 今日价格 — 每日更新，含涨跌、单支重量与交货时间。",
     "sizeSectionDescription": "{category} {measure} {size}{allMills} 的最新公布价格，含涨跌、单支重量与公布的交货时间。购买前请咨询我们的专员。",
     "byFactorySuffix": "（按钢厂）",
     "statsWithFactories": "来自 {factories} 家钢厂的 {products} 件商品",
     "statsOnly": "{products} 件商品",
     "allMillsSuffix": "（全部钢厂）",
-    "subLiveDescription": "{subject}实时价格{breakdown}，含涨跌、单根重量及公布的交货时间。购买前请咨询我们的专家。",
+    "subLiveDescription": "{subject}当日价格{breakdown}，含涨跌、单根重量及公布的交货时间。购买前请咨询我们的专家。",
     "breakdownBySizeAndMill": "（按规格与钢厂）",
     "breakdownBySize": "（按规格）",
     "subEmptyBody": "{subject}下暂无商品。请联系我们的专家咨询价格、库存和交货时间。",

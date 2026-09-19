@@ -103,7 +103,7 @@
     "badgeETrust": "E-Trust Certified",
     "badgeRegistered": "Business Registered",
     "badgeUnion": "Iron Sellers Union Member",
-    "blurb": "The smart iron & steel marketplace: an AI advisor, transparent live pricing, and clear delivery times.",
+    "blurb": "The smart iron & steel marketplace: an AI advisor, transparent daily pricing, and clear delivery times.",
     "rights": "© {year} Ahantime. All rights reserved."
   },
   "auth": {
@@ -149,7 +149,7 @@
   },
   "metadata": {
     "title": "Ahantime: Smart Iron & Steel Marketplace",
-    "description": "Ahantime, the smart iron & steel marketplace: an AI advisor, transparent real-time pricing, and clear delivery times. Consult first, then buy."
+    "description": "Ahantime, the smart iron & steel marketplace: an AI advisor, transparent daily pricing, and clear delivery times. Consult first, then buy."
   },
   "contact": {
     "messageLabel": "Your Message",
@@ -295,7 +295,7 @@
       },
       "services": {
         "title": "Dedicated B2B services",
-        "text": "Tender estimation against live prices, order tracking, cut-to-size goods and managed storage — services a price-listing site does not provide.",
+        "text": "Tender estimation against current prices, order tracking, cut-to-size goods and managed storage — services a price-listing site does not provide.",
         "meta": "{count} active services",
         "cta": "Estimate a tender"
       }
@@ -327,8 +327,8 @@
       "fullComparisonCta": "See the full mill comparison for {name}"
     },
     "priceBoard": {
-      "ariaLabel": "Live Price Board",
-      "live": "Live price",
+      "ariaLabel": "Today's Price Board",
+      "live": "Today's price",
       "unit": "Toman",
       "viewAll": "View all prices"
     }
@@ -343,7 +343,7 @@
     "ctaAi": "Talk to the smart advisor",
     "storyTitle": "Why we built Ahantime",
     "storyP1": "Iran's iron and steel market has struggled for years with sharp price swings, layers of middlemen and scattered information. Whether a <b>contractor</b> or an <b>individual builder</b>, the buyer usually decides without a clear picture of the real price or the quality of the goods.",
-    "storyP2": "We built Ahantime to make that path transparent: prices that are live and dependable, advice available to everyone before they buy, and direct mill sourcing with no chain of intermediaries. Our motto is a commitment — <b>“Consult first, then buy”</b>.",
+    "storyP2": "We built Ahantime to make that path transparent: prices that are current and dependable, advice available to everyone before they buy, and direct mill sourcing with no chain of intermediaries. Our motto is a commitment — <b>“Consult first, then buy”</b>.",
     "whyTitle": "Why Ahantime?",
     "whyLead": "We removed the middleman, made pricing transparent and put advice within reach before the purchase, so you can decide with confidence.",
     "howTitle": "How does buying work?",
@@ -364,7 +364,7 @@
       },
       "transparent": {
         "title": "Transparent, current prices",
-        "desc": "Prices update live, and the movement, bar weight and delivery time are stated next to every item."
+        "desc": "Prices are updated every day, and the movement, bar weight and delivery time are stated next to every item."
       },
       "direct": {
         "title": "Direct mill sourcing",
@@ -1281,7 +1281,7 @@
       "warehouseTitle": "My Warehouse",
       "warehouseSub": "Goods you have consigned to Ahantime. To register a new item, go to the <link>customer warehouse page</link>.",
       "favoritesTitle": "Favorites",
-      "favoritesSub": "Products you've saved, with live pricing.",
+      "favoritesSub": "Products you've saved, with today's pricing.",
       "requestsTitle": "My Requests",
       "requestsSub": "Proformas, bulk purchases and warehouse requests, with live status for each.",
       "alertsTitle": "Price Alerts",
@@ -1863,7 +1863,7 @@
     },
     "unknown": "Unspecified",
     "detailsOf": "Details for {name}",
-    "note": "Prices exclude VAT and update live."
+    "note": "Prices exclude VAT and are updated every day."
   },
   "categoryGrid": {
     "eyebrow": "Product categories",
@@ -2330,7 +2330,7 @@
   "meta": {
     "home": {
       "title": "Ahantime — Iran's Smart Marketplace for Buying and Selling Iron and Steel",
-      "description": "Ahantime, Iran's smart marketplace for iron and steel: an AI advisor, transparent live pricing, an official proforma invoice and a clear delivery window. Consult first, then buy."
+      "description": "Ahantime, Iran's smart marketplace for iron and steel: an AI advisor, transparent daily pricing, an official proforma invoice and a clear delivery window. Consult first, then buy."
     },
     "about": {
       "title": "About Us",
@@ -2552,7 +2552,7 @@
     "byFactoryTitle": "{category} prices by mill",
     "bySizeTitle": "{category} prices by {measure}",
     "factoryPageTitle": "Today's {category} price — {factory}",
-    "factoryPageDescription": "Live prices for {factory} {category}, broken down by {measure}.",
+    "factoryPageDescription": "Today's prices for {factory} {category}, broken down by {measure}.",
     "sizesOfTitle": "{category} {measure}s",
     "otherFactoriesTitle": "Other {category} mills",
     "sizePageTitle": "Today's {category} {measure} {size} price",
@@ -2560,7 +2560,7 @@
     "factoriesTitle": "{category} mills",
     "todayPrice": "{subject} price today",
     "todayPriceDescription": "Today's {subject} price on Ahantime, with movement, branch weight and delivery time.",
-    "liveDescription": "Live {subject} prices, with movement, branch weight and delivery time.",
+    "liveDescription": "Today's {subject} prices, with movement, branch weight and delivery time.",
     "emptyCategoryDescription": "No products are listed under {subject} yet. Call an Ahantime specialist for prices and availability.",
     "emptyCategoryBody": "No products are listed under {subject} yet. Call our specialists for price, availability and delivery time.",
     "emptySubjectDescription": "No products are listed under {subject} yet. Call an Ahantime specialist for prices and availability.",
@@ -2568,15 +2568,15 @@
     "skuQuoteTitle": "Price enquiry — {subject}",
     "skuQuoteDescription": "{subject}{mill} — today's price for this item is not published on Ahantime. Call our specialist for the price per {unit}, branch weight and delivery time.",
     "skuPriceDescription": "{subject}{mill} price today: {price} per {unit}, with movement, branch weight and delivery time on Ahantime.",
-    "factoryPageDescriptionFull": "Live prices for every {factory} {category}, broken down by {measure}, with movement, branch weight and delivery time.",
-    "factorySectionDescription": "Live prices for {factory} {category}, broken down by {measure}, with movement, branch weight and delivery time.",
-    "sizePageDescription": "Today's {category} {measure} {factory}{byFactory} price — live, with movement, branch weight and delivery time.",
+    "factoryPageDescriptionFull": "Today's prices for every {factory} {category}, broken down by {measure}, with movement, branch weight and delivery time.",
+    "factorySectionDescription": "Today's prices for {factory} {category}, broken down by {measure}, with movement, branch weight and delivery time.",
+    "sizePageDescription": "Today's {category} {measure} {factory}{byFactory} price — updated daily, with movement, branch weight and delivery time.",
     "sizeSectionDescription": "The latest published {category} {measure} {size} price{allMills}, with movement, branch weight and the stated delivery time. Talk to our specialist before you buy.",
     "byFactorySuffix": " by mill",
     "statsWithFactories": "{products} products from {factories} mills",
     "statsOnly": "{products} products",
     "allMillsSuffix": " across all mills",
-    "subLiveDescription": "Live {subject} prices {breakdown}, with movement, branch weight and the stated delivery time. Talk to our specialist before you buy.",
+    "subLiveDescription": "Today's {subject} prices {breakdown}, with movement, branch weight and the stated delivery time. Talk to our specialist before you buy.",
     "breakdownBySizeAndMill": "by size and mill",
     "breakdownBySize": "by size",
     "subEmptyBody": "No products are listed under {subject} yet. Call our specialists for price, availability and delivery time.",
