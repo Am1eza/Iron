@@ -176,12 +176,14 @@ export default async function CategoryPage({ params }: Params) {
                   sitemap.xml, which is a discovery hint, not a crawl path. */}
               <FacetRail
                 id="rail-factories"
+                kind="factory"
                 title={tFacet('byFactoryTitle', { category: catName })}
                 facets={facets.factories}
                 href={(slug) => routes.categoryByFactory(category, slug)}
               />
               <FacetRail
                 id="rail-sizes"
+                kind="size"
                 title={tFacet('bySizeTitle', { category: catName, measure: getLocalizedMeasure(sizeLabel(category), locale) })}
                 facets={facets.sizes}
                 href={(slug) => routes.categoryBySize(category, slug)}

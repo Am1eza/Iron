@@ -2,7 +2,7 @@
 import { useId, useMemo, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { formatToman, toPersianDigits, localizeDigits } from '@/lib/utils/format';
-import { formatJalali } from '@/lib/utils/jalali';
+import { formatDisplayDate } from '@/lib/utils/jalali';
 import styles from './PriceChart.module.css';
 
 type Range = 7 | 30 | 90 | 365;
@@ -108,7 +108,9 @@ export function PriceChart({
     return d;
   };
   const labelFor = (i: number, pattern?: string) =>
-    dateData?.[i] ? formatJalali(new Date(dateData[i]!), pattern) : formatJalali(dateFor(i), pattern);
+    dateData?.[i]
+      ? formatDisplayDate(new Date(dateData[i]!), pattern, locale)
+      : formatDisplayDate(dateFor(i), pattern, locale);
   // Build text as single strings — interleaved text/expression nodes inside an
   // SVG <title> can hydrate-mismatch, so we render one text node per element.
   const titleText = t('titleText', { range: rangeLabel, from: fmtVal(first), to: fmtVal(last), unit: unitLabel });

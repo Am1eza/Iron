@@ -6,7 +6,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { routes } from '@/lib/routes';
 import { articleJsonLd } from '@/lib/seo';
 import type { Article } from '@/lib/types/domain';
-import { formatJalali } from '@/lib/utils/jalali';
+import { formatDisplayDate } from '@/lib/utils/jalali';
 import { getLocalizedArticleTitle } from '@/lib/utils/localizedNames';
 import type { AppLocale } from '@/i18n/config';
 import { Container, Section, Stack, Heading, Breadcrumbs, Badge } from '@/components/ui';
@@ -109,7 +109,7 @@ export function ArticleDetailContent({
                   <span className={styles.date}>
                     <CalendarIcon size={14} aria-hidden="true" />
                     <time className="tnum" dateTime={article.publishAt}>
-                      {formatJalali(article.publishAt)}
+                      {formatDisplayDate(article.publishAt, undefined, locale)}
                     </time>
                   </span>
                 ) : null}

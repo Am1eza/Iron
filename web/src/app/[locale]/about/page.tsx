@@ -40,7 +40,7 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
   return (
     <Container>
       <BreadcrumbJsonLd items={crumbs} />
-      <JsonLd data={orgJsonLd()} />
+      <JsonLd data={orgJsonLd(undefined, locale)} />
 
       <Section space={10} aria-labelledby="about-title">
         {/* ContactCard is an async Server Component — rendered here and passed

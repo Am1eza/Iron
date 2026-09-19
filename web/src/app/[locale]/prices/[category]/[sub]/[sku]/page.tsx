@@ -19,6 +19,7 @@ import { priceBasisNoun } from '@/lib/utils/catalogLabels';
 import { productImage } from '@/lib/data/productImages';
 import { getSetting, getVatRate, getStaleHideAfterDays } from '@/lib/server/repos/settingsRepo';
 import { DEFAULT_LOGISTICS_CONFIG, type LogisticsConfig } from '@/lib/data/logistics';
+import { localizedFactoryName } from '@/lib/utils/factoryNames';
 import { skuHasPublishedPrice } from '../../../_seo/indexability';
 import { JsonLd, BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { Container, Section } from '@/components/ui';
@@ -46,7 +47,11 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const basisNoun =
     appLocale === 'fa' ? priceBasisNoun(basis, row.branchLengthM) : getLocalizedBasisNoun(basis, appLocale);
   const tMeta = await getTranslations({ locale, namespace: 'pricesFacet' });
-  const mill = row.factory ? (appLocale === 'fa' ? ` کارخانه ${row.factory}` : ` (${row.factory})`) : '';
+  const mill = row.factory
+    ? appLocale === 'fa'
+      ? ` کارخانه ${row.factory}`
+      : ` (${localizedFactoryName(row.factory, appLocale)})`
+    : '';
   const [metaCategories, metaSubs] = await Promise.all([getCategories(), getSubsMap()]);
   const subject = getLocalizedSkuName(
     row,
@@ -170,7 +175,7 @@ export default async function SkuPage({ params }: Params) {
           priceValidityDays: staleHideAfterDays,
           url: routes.sku(row.categoryId, row.subCategoryId, row.slug),
           image: row.imageUrl ?? productImage(row.categoryId),
-          brand: row.factory,
+          brand: row.factory ? localizedFactoryName(row.factory, locale) : row.factory,
           sku: row.slug,
         })}
       />

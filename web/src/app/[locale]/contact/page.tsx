@@ -33,7 +33,7 @@ export default async function ContactPage({ params }: { params: Promise<{ locale
   return (
     <Container>
       <BreadcrumbJsonLd items={crumbs} />
-      <JsonLd data={localBusinessJsonLd()} />
+      <JsonLd data={localBusinessJsonLd(undefined, locale)} />
 
       <Section space={10} aria-labelledby="contact-title">
         <Stack gap={8}>

@@ -212,7 +212,7 @@ export function ProductsMenu({ categories, subs }: { categories: Category[]; sub
                         wire/coil one read the same as the flange one. */}
                     <span className={styles.railThumb} aria-hidden="true">
                       {productImage(cat.slug) ? (
-                        <ProductImage slug={cat.slug} name={cat.name} variant="thumb" />
+                        <ProductImage slug={cat.slug} name={getLocalizedName(cat, locale)} variant="thumb" />
                       ) : (
                         <CategoryArt slug={cat.slug} size={20} />
                       )}
@@ -292,6 +292,11 @@ function CategoryPanel({
   const tBrowse = useTranslations('home.browse');
   const locale = useLocale() as AppLocale;
   const catName = getLocalizedName(cat, locale);
+  const tCopy = useTranslations('catalogCopy');
+  const lede =
+    locale !== 'fa' && tCopy.has(`categoryDescriptions.${cat.slug}`)
+      ? tCopy(`categoryDescriptions.${cat.slug}`)
+      : cat.description;
   const groups = groupSubCategories(subs);
   /**
    * Column count is a function of how many LINES the flow will draw, not of
@@ -337,7 +342,7 @@ function CategoryPanel({
             the one an answer engine lifts are the same sentence, and it is now
             the whole sentence. Rendered only when set — there is no generated
             fallback. */}
-        {cat.description ? <p className={styles.panelLede}>{cat.description}</p> : null}
+        {lede ? <p className={styles.panelLede}>{lede}</p> : null}
       </div>
 
       <div className={styles.panelBody}>
@@ -366,7 +371,7 @@ function CategoryPanel({
           {productImage(cat.slug) ? (
             <ProductImage
               slug={cat.slug}
-              name={cat.name}
+              name={catName}
               variant="full"
               sizes="(min-width: 1024px) 30vw, 0px"
             />
@@ -401,7 +406,7 @@ function CategoryPanel({
                         <SubCategoryArt
                           categorySlug={cat.slug}
                           slug={group.lead.slug}
-                          name={group.lead.name}
+                          name={getLocalizedName(group.lead, locale)}
                           size={16}
                         />
                       </span>
@@ -423,7 +428,7 @@ function CategoryPanel({
                         <SubCategoryArt
                           categorySlug={cat.slug}
                           slug={group.items[0]!.slug}
-                          name={group.items[0]!.name}
+                          name={getLocalizedName(group.items[0]!, locale)}
                           size={16}
                         />
                       </span>
@@ -459,7 +464,7 @@ function CategoryPanel({
                                 <SubCategoryArt
                                   categorySlug={cat.slug}
                                   slug={s.slug}
-                                  name={s.name}
+                                  name={getLocalizedName(s, locale)}
                                   size={16}
                                 />
                               </span>

@@ -9,7 +9,7 @@ import { useToast } from '@/lib/hooks/useToast';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { CONSTANTS } from '@/lib/config/constants';
 import { routes } from '@/lib/routes';
-import { formatToman, priceHiddenLabelLocalized, toPersianDigits, localizeDigits, withVat } from '@/lib/utils/format';
+import { formatToman, priceHiddenLabelLocalized, localizeDigits, withVat } from '@/lib/utils/format';
 import { compareCatalogSizes } from '@/lib/utils/catalogSize';
 import {
   sizeLabel,
@@ -25,6 +25,7 @@ import {
   REGION_LABEL,
   UNKNOWN_VALUE,
   NOT_APPLICABLE,
+  OTHER_GROUP,
   priceBasisNoun,
   priceUnitCaption,
   singlePriceBasis,
@@ -32,7 +33,10 @@ import {
 import { FactoryLink } from './FactoryLink';
 import { SpecFilterDropdown } from './SpecFilterDropdown';
 import { groupByLabel } from '@/lib/utils/catalogGroups';
-import { formatJalali } from '@/lib/utils/jalali';
+import { useCatalogFormat } from '@/lib/hooks/useCatalogFormat';
+import { localizeCatalogText, localizeValue } from '@/lib/utils/catalogI18n';
+import { localizedFactoryName } from '@/lib/utils/factoryNames';
+import { formatDisplayDate } from '@/lib/utils/jalali';
 import { trackGoal } from '@/lib/analytics/track';
 import { API_MODE } from '@/lib/api/config';
 import { api } from '@/lib/api';
@@ -316,6 +320,7 @@ const PriceTableRow = memo(function PriceTableRow({
   const t = useTranslations('priceTable');
   const tPriceHidden = useTranslations('common.priceHidden');
   const locale = useLocale() as AppLocale;
+  const f = useCatalogFormat();
   // `getLocalizedSkuName` falls back to `r.name` (fa) unchanged whenever
   // either parent lacks a real translation — see that function's own
   // comment for why a partially-translated name is worse than an honest
@@ -358,35 +363,35 @@ const PriceTableRow = memo(function PriceTableRow({
       </th>
       {/* The size is the tail of the product name, so the card form drops this
           cell rather than printing «سایز: ۱۴» directly under «میلگرد ۱۴». */}
-      <td role="cell" data-label={sizeCol} className={styles.sizeCell}>
-        {r.size ? toPersianDigits(r.size) : t('unknown')}
+      <td role="cell" data-label={f.text(sizeCol)} className={styles.sizeCell}>
+        {r.size ? f.val(r.size) : t('unknown')}
       </td>
       {showDimensions ? (
         <td
           role="cell"
-          data-label={dimensionsCol}
+          data-label={f.text(dimensionsCol)}
           className={`${styles.muted}${r.dimensions ? '' : ` ${styles.blankOnNarrow}`}`}
         >
-          {r.dimensions ? toPersianDigits(r.dimensions) : t('unknown')}
+          {r.dimensions ? f.val(r.dimensions) : t('unknown')}
         </td>
       ) : null}
       {attrCols.map((c) => (
         <td
           role="cell"
           key={c.key}
-          data-label={c.label}
+          data-label={f.text(c.label)}
           // `card` is the column's own answer to "is there anything worth a
           // line here" — null both for an unfilled value and for a column that
           // is not a property of this row's sub-category at all.
           className={`${styles.muted}${c.card(r) === null ? ` ${styles.blankOnNarrow}` : ''}`}
         >
-          {c.cell(r)}
+          {f.text(c.cell(r))}
         </td>
       ))}
       {showFactory ? (
         <td
           role="cell"
-          data-label={factoryCol}
+          data-label={f.text(factoryCol)}
           className={`${styles.muted}${r.factory ? '' : ` ${styles.blankOnNarrow}`}`}
         >
           <FactoryCell categorySlug={r.categoryId} factory={r.factory} />
@@ -395,20 +400,20 @@ const PriceTableRow = memo(function PriceTableRow({
       {showRegion ? (
         <td
           role="cell"
-          data-label={REGION_LABEL}
+          data-label={f.text(REGION_LABEL)}
           className={`${styles.muted}${r.region ? '' : ` ${styles.blankOnNarrow}`}`}
         >
-          {r.region ?? UNKNOWN_VALUE}
+          {f.text(r.region ?? UNKNOWN_VALUE)}
         </td>
       ) : null}
       <td
         role="cell"
-        data-label={weightCol}
+        data-label={f.text(weightCol)}
         className={`${styles.num}${r.theoreticalWeightKg ? '' : ` ${styles.blankOnNarrow}`}`}
       >
         {r.theoreticalWeightKg ? (
           <>
-            {toPersianDigits(r.theoreticalWeightKg)} <bdi lang="en">kg</bdi>
+            {f.val(r.theoreticalWeightKg)} <bdi lang="en">kg</bdi>
           </>
         ) : (
           t('unknown')
@@ -417,13 +422,13 @@ const PriceTableRow = memo(function PriceTableRow({
       <td
         role="cell"
         className={`${styles.num} ${styles.price} ${styles.priceCell}`}
-        data-unit={hiddenLabel ? undefined : priceUnitCaption(r.priceBasis, r.branchLengthM)}
+        data-unit={hiddenLabel ? undefined : f.text(priceUnitCaption(r.priceBasis, r.branchLengthM))}
       >
-        {hiddenLabel ?? formatToman(withVat(r.current.price, vat, vatRate), false)}
+        {hiddenLabel ?? f.toman(withVat(r.current.price, vat, vatRate))}
         {showRowBasis && !hiddenLabel ? (
           <span className={styles.rowBasis}>
             {' / '}
-            {priceBasisNoun(r.priceBasis, r.branchLengthM)}
+            {f.text(priceBasisNoun(r.priceBasis, r.branchLengthM))}
           </span>
         ) : null}
       </td>
@@ -431,7 +436,7 @@ const PriceTableRow = memo(function PriceTableRow({
         {!hiddenLabel ? <MovementBadge dir={r.current.movementDir} pct={r.current.movementPct} /> : null}
       </td>
       <td role="cell" data-label={t('updatedAt')} className={styles.muted}>
-        {formatJalali(r.current.updatedAt, 'MM/dd')}
+        {f.date(r.current.updatedAt, 'MM/dd')}
       </td>
       <td role="cell" className={styles.deliveryCell}>
         {!hiddenLabel ? <DeliveryBadge value={r.current.deliveryTime} /> : null}
@@ -719,7 +724,11 @@ export function PriceTable({
    *  `none`: there are no sections, and naming a structure the page does not
    *  have is worse than saying nothing about it. */
   const sectionNoun =
-    groupMode === 'factory' ? factoryCol : groupMode === 'region' ? REGION_LABEL : null;
+    groupMode === 'factory' ? localizeCatalogText(factoryLabel(categorySlug, sub), locale) : groupMode === 'region' ? localizeCatalogText(REGION_LABEL, locale) : null;
+  /** A section's heading text: the mill in Latin (en/zh), the city translated,
+   *  «سایر» as «Other». The raw `name` stays the key everywhere else. */
+  const sectionLabel = (name: string) =>
+    groupMode === 'factory' && name !== OTHER_GROUP ? localizedFactoryName(name, locale) : localizeCatalogText(name, locale);
   /**
    * «محل تولید» as a COLUMN rather than as section headings.
    *
@@ -1010,7 +1019,12 @@ export function PriceTable({
   // qty:1. Every other basis already counts in a real unit (شاخه/برگ/عدد/…),
   // so 1 there stays correct as-is.
   const [kgQtyRow, setKgQtyRow] = useState<PriceRow | null>(null);
+  // Same compiler quirk as `toggleFav` above: once the render body calls the
+  // catalog localizers in many places the compiler infers `setKgQtyRow` as this
+  // callback's only dependency and refuses to preserve `[addRowToCart]`. The
+  // array is correct per exhaustive-deps; only the compiler's extra pass is lost.
   const addToCart = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization
     (r: PriceRow) => {
       if (r.priceBasis === 'kg') {
         setKgQtyRow(r);
@@ -1107,7 +1121,7 @@ export function PriceTable({
               className={styles.select}
               aria-label={sortLabel}
             >
-              <option value="size">{sizeCol}</option>
+              <option value="size">{localizeCatalogText(sizeCol, locale)}</option>
               <option value="price">{t('priceOption')}</option>
               <option value="movement">{t('movementOption')}</option>
             </select>
@@ -1173,7 +1187,7 @@ export function PriceTable({
             {facets.map((f) => (
               <SpecFilterDropdown
                 key={f.key}
-                label={f.label}
+                label={localizeCatalogText(f.label, locale)}
                 values={f.values}
                 selected={specFilters[f.key] ?? EMPTY_SPEC_SET}
                 onToggle={(v) => toggleSpecFilter(f.key, v)}
@@ -1196,7 +1210,7 @@ export function PriceTable({
                     onClick={() => toggleSpecFilter(f.key, v)}
                     onRemove={() => toggleSpecFilter(f.key, v)}
                   >
-                    {`${f.label}: ${localizeDigits(v, locale)}`}
+                    {`${localizeCatalogText(f.label, locale)}: ${localizeValue(v, locale)}`}
                   </Chip>
                 )),
               )}
@@ -1229,7 +1243,7 @@ export function PriceTable({
               })
             : t('itemCount', { count: localizeDigits(subFiltered.length, locale) })}
           {sectionNoun ? ` · ${localizeDigits(bySection.length, locale)} ${sectionNoun}` : ''}
-          {updated ? ` · ${t('updatedAt')} ${formatJalali(updated)}` : ''}
+          {updated ? ` · ${t('updatedAt')} ${formatDisplayDate(updated, undefined, locale)}` : ''}
         </span>
         {/* Only when every visible row shares one denomination. A table mixing
             kg-priced and عدد-priced products (میلگرد + کوپلر) would otherwise
@@ -1237,7 +1251,7 @@ export function PriceTable({
             own rows; there, each row's own caption carries it instead. */}
         {priceBasis ? (
           <span className={styles.note}>
-            {t('priceNote', { basis: priceBasisNoun(priceBasis.basis, priceBasis.branchLengthM) })}
+            {t('priceNote', { basis: localizeCatalogText(priceBasisNoun(priceBasis.basis, priceBasis.branchLengthM), locale) })}
           </span>
         ) : null}
       </div>
@@ -1252,7 +1266,7 @@ export function PriceTable({
               className={styles.quickJumpChip}
               onClick={() => jumpToSection(name)}
             >
-              {name}
+              {sectionLabel(name)}
             </button>
           ))}
         </nav>
@@ -1287,7 +1301,7 @@ export function PriceTable({
           // to the category name for every other category and for the mixed
           // «همه» view, so this line is byte-for-byte what it was everywhere
           // else.
-          const sectionTitle = sectionNoun ? `${subject} ${name}` : subject;
+          const sectionTitle = sectionNoun ? `${subject} ${sectionLabel(name)}` : subject;
           return (
             <SectionShell
               key={name}
@@ -1298,7 +1312,7 @@ export function PriceTable({
               open={i < DEFAULT_OPEN_COUNT}
               meta={
                 <>
-                  {localizeDigits(list.length, locale)} {sizeCol}
+                  {localizeDigits(list.length, locale)} {localizeCatalogText(sizeCol, locale)}
                   {cheapest ? (
                     <>
                       {' '}
@@ -1356,7 +1370,7 @@ export function PriceTable({
                       vat={factoryVat}
                       vatRate={vatRate}
                       compact
-                      scopeLabel={name}
+                      scopeLabel={sectionLabel(name)}
                     />
                   </div>
                 ) : null}
@@ -1390,7 +1404,7 @@ export function PriceTable({
                           scope="col"
                           aria-sort={sort === 'size' ? 'ascending' : 'none'}
                         >
-                          {sizeCol}
+                          {localizeCatalogText(sizeCol, locale)}
                         </th>
                         {/* The shared secondary-spec column is deliberately
                             not sortable. ورق stores a width×length pair here;
@@ -1398,26 +1412,26 @@ export function PriceTable({
                             an ordering this table's comparator can honour. */}
                         {showDimensions ? (
                           <th role="columnheader" scope="col">
-                            {dimensionsCol}
+                            {localizeCatalogText(dimensionsCol, locale)}
                           </th>
                         ) : null}
                         {attrCols.map((c) => (
                           <th role="columnheader" key={c.key} scope="col">
-                            {c.label}
+                            {localizeCatalogText(c.label, locale)}
                           </th>
                         ))}
                         {showFactory ? (
                           <th role="columnheader" scope="col">
-                            {factoryCol}
+                            {localizeCatalogText(factoryLabel(categorySlug, sub), locale)}
                           </th>
                         ) : null}
                         {showRegionColumn ? (
                           <th role="columnheader" scope="col">
-                            {REGION_LABEL}
+                            {localizeCatalogText(REGION_LABEL, locale)}
                           </th>
                         ) : null}
                         <th role="columnheader" scope="col" className={styles.num}>
-                          {weightCol}
+                          {localizeCatalogText(weightCol, locale)}
                         </th>
                         <th
                           role="columnheader"
@@ -1585,18 +1599,18 @@ export function PriceTable({
                   ))}
                 </tr>
                 <tr className={diffRowClass(selectedForCompare.map((r) => r.size ?? null))}>
-                  <th scope="row">{sizeCol}</th>
+                  <th scope="row">{localizeCatalogText(sizeCol, locale)}</th>
                   {selectedForCompare.map((r) => (
-                    <td key={r.id}>{r.size ? toPersianDigits(r.size) : t('unknown')}</td>
+                    <td key={r.id}>{r.size ? localizeValue(r.size, locale) : t('unknown')}</td>
                   ))}
                 </tr>
                 {/* ورق dimensions or the approved نبشی wall thickness,
                     kept in the comparison wherever it is on the source table. */}
                 {showDimensions ? (
                   <tr className={diffRowClass(selectedForCompare.map((r) => r.dimensions ?? null))}>
-                    <th scope="row">{dimensionsCol}</th>
+                    <th scope="row">{localizeCatalogText(dimensionsCol, locale)}</th>
                     {selectedForCompare.map((r) => (
-                      <td key={r.id}>{r.dimensions ? toPersianDigits(r.dimensions) : t('unknown')}</td>
+                      <td key={r.id}>{r.dimensions ? localizeValue(r.dimensions, locale) : t('unknown')}</td>
                     ))}
                   </tr>
                 ) : null}
@@ -1606,16 +1620,16 @@ export function PriceTable({
                     exactly the fabricated distinction this page dropped. */}
                 {selectedForCompare.some((r) => r.factory) ? (
                   <tr className={diffRowClass(selectedForCompare.map((r) => r.factory ?? null))}>
-                    <th scope="row">{factoryCol}</th>
+                    <th scope="row">{localizeCatalogText(factoryLabel(categorySlug, sub), locale)}</th>
                     {selectedForCompare.map((r) => (
-                      <td key={r.id}>{r.factory ?? t('unknown')}</td>
+                      <td key={r.id}>{r.factory ? localizedFactoryName(r.factory, locale) : t('unknown')}</td>
                     ))}
                   </tr>
                 ) : selectedForCompare.some((r) => r.region) ? (
                   <tr className={diffRowClass(selectedForCompare.map((r) => r.region ?? null))}>
-                    <th scope="row">{REGION_LABEL}</th>
+                    <th scope="row">{localizeCatalogText(REGION_LABEL, locale)}</th>
                     {selectedForCompare.map((r) => (
-                      <td key={r.id}>{r.region ?? UNKNOWN_VALUE}</td>
+                      <td key={r.id}>{localizeCatalogText(r.region ?? UNKNOWN_VALUE, locale)}</td>
                     ))}
                   </tr>
                 ) : null}
@@ -1624,7 +1638,7 @@ export function PriceTable({
                     selectedForCompare.map((r) => r.theoreticalWeightKg ?? null),
                   )}
                 >
-                  <th scope="row">{weightCol}</th>
+                  <th scope="row">{localizeCatalogText(weightCol, locale)}</th>
                   {selectedForCompare.map((r) => (
                     <td key={r.id}>
                       {r.theoreticalWeightKg

@@ -1,5 +1,7 @@
+import { useLocale } from 'next-intl';
 import { Link } from '@/i18n/navigation';
-import { toPersianDigits } from '@/lib/utils/format';
+import { localizeCatalogText, localizeValue } from '@/lib/utils/catalogI18n';
+import { localizedFactoryName } from '@/lib/utils/factoryNames';
 import type { Facet } from '@/lib/utils/catalogFacets';
 import styles from './FacetRail.module.css';
 
@@ -22,6 +24,7 @@ export function FacetRail({
   href,
   activeSlug,
   id,
+  kind,
 }: {
   title: string;
   facets: readonly Facet[];
@@ -31,8 +34,14 @@ export function FacetRail({
   /** Unique per rail on the page — two rails share a page, so a fixed id would
    *  produce duplicate ids and an ambiguous `aria-labelledby`. */
   id: string;
+  /** What the facets ARE, so the label is translated the right way: a size
+   *  gets Latin digits / unit words, a mill gets its Latin name. */
+  kind: 'size' | 'factory';
 }) {
+  const locale = useLocale();
   if (facets.length === 0) return null;
+  const shown = (label: string) =>
+    kind === 'size' ? localizeCatalogText(label, locale) : localizedFactoryName(label, locale);
   return (
     <nav className={styles.rail} aria-labelledby={id}>
       <h2 id={id} className={styles.title}>
@@ -43,13 +52,13 @@ export function FacetRail({
           <li key={f.slug}>
             {f.slug === activeSlug ? (
               <span className={`${styles.item} ${styles.active}`} aria-current="page">
-                {f.label}
-                <span className={styles.count}>{toPersianDigits(f.count)}</span>
+                {shown(f.label)}
+                <span className={styles.count}>{localizeValue(f.count, locale)}</span>
               </span>
             ) : (
               <Link className={styles.item} href={href(f.slug)}>
-                {f.label}
-                <span className={styles.count}>{toPersianDigits(f.count)}</span>
+                {shown(f.label)}
+                <span className={styles.count}>{localizeValue(f.count, locale)}</span>
               </Link>
             )}
           </li>

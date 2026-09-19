@@ -1,3 +1,6 @@
+import { getLocale } from 'next-intl/server';
+import { getLocalizedName } from '@/lib/utils/localizedNames';
+import type { AppLocale } from '@/i18n/config';
 import { getRows } from '@/lib/server/catalog';
 import { getCategories, getSubsMap } from '@/lib/data/catalog';
 import type { PriceRow } from '@/lib/types/domain';
@@ -26,7 +29,8 @@ import { clientLogos } from '../../../public/assets/logos/clients';
  * history for the perf investigation this was split out of.
  */
 export async function HomeBelowFold() {
-  const [categories, subsMap] = await Promise.all([getCategories(), getSubsMap()]);
+  const [categories, subsMap, localeRaw] = await Promise.all([getCategories(), getSubsMap(), getLocale()]);
+  const locale = localeRaw as AppLocale;
   // One data pass: all rows per category (live: DB; mock: generator).
   const rowsBySlug = new Map<string, PriceRow[]>();
   await Promise.all(
@@ -69,7 +73,7 @@ export async function HomeBelowFold() {
       const scoped = group ? rows.filter((r) => r.subCategoryId === group.subCategoryId) : rows;
       return {
         slug: cat.slug,
-        name: cat.name,
+        name: getLocalizedName(cat, locale),
         lines: computeBulkSplit(scoped, 1)
           .lines.slice(0, 4)
           .map((l) => ({
