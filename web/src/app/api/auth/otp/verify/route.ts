@@ -62,7 +62,7 @@ async function POSTImpl(req: NextRequest) {
         const name = user.firstName ? ` ${user.firstName} عزیز` : '';
         await sendSms(
           mobile,
-          `آهن‌تایم:${name} خوش آمدید! قیمت لحظه‌ای آهن‌آلات، مشاور هوشمند و پیش‌فاکتور فوری در ahantime.com منتظر شماست.`,
+          `آهن‌تایم:${name} خوش آمدید! قیمت روز آهن‌آلات، مشاور هوشمند و پیش‌فاکتور فوری در ahantime.com منتظر شماست.`,
           'generic',
         );
       })().catch(() => {});

@@ -391,7 +391,7 @@ function aiReply(
         {
           id: uid(),
           role: 'ai',
-          text: `${specific.name} (${specific.factory}) طبق قیمت لحظه‌ای حدود ${formatToman(specific.current.price)} است؛ برای دریافت پیش‌فاکتور فوری «دریافت پیش‌فاکتور» را بزن.`,
+          text: `${specific.name} (${specific.factory}) طبق قیمت روز حدود ${formatToman(specific.current.price)} است؛ برای دریافت پیش‌فاکتور فوری «دریافت پیش‌فاکتور» را بزن.`,
           chips: ['دریافت پیش‌فاکتور', 'همهٔ قیمت‌ها'],
         },
       ],
@@ -443,7 +443,7 @@ function aiReply(
         {
           id: uid(),
           role: 'ai',
-          text: 'باشه! قیمت کدام محصول را می‌خواهی؟ جدول‌ها لحظه‌ای و شفاف‌اند:',
+          text: 'باشه! قیمت کدام محصول را می‌خواهی؟ جدول‌ها به‌روز و شفاف‌اند:',
           chips: ['قیمت میلگرد', 'قیمت تیرآهن', 'قیمت ورق', 'همهٔ قیمت‌ها'],
         },
       ],
