@@ -15,6 +15,11 @@ const LIVE_VALUES = {
   standard: ['HEB', 'HEA', 'W22', 'ضد سایش', 'ST37', 'کویل ۱۵ متری', 'شاخه ۴ متری'],
   grade: ['A2', 'A3', '316L', 'گالوانیزه', 'آبی', 'قرمز', 'سفید یخچالی', 'ماشینکاری', 'نوردی', 'ضخامت ۲', 'ضخامت ۰.۸۱', '۷۰۰۰'],
   region: ['اصفهان', 'مشهد', 'تهران'],
+  groupLabel: [
+    'هاش', 'پروفیل استیل', 'ورق گرم', 'ورق سرد و پوشش دار', 'ساندویچ پانل', 'ورق استیل', 'لوله بدون درز', 'لوله درزدار',
+    'لوله استیل', 'نبشی', 'ناودانی', 'لوله و پروفیل استیل', 'مقاطع استیل', 'توری و مش استیل', 'اتصالات و قطعات استیل',
+    'آلومینیوم', 'مس',
+  ],
   size: ['۱۰', '۳ اینچ', '۱/۲ اینچ', '¼۱ اینچ', '۱½ اینچ', '۳۲ میل', 'Z*۱۶'],
   dimensions: ['۱۰۰۰×۲۰۰۰', '۲٫۵', '۱۲۵۰×۲۵۰۰'],
 };
@@ -94,7 +99,7 @@ describe('localizeCatalogText', () => {
 
   it('matches whole words only, so a phrase inside a longer word is left alone', () => {
     // «بال» is «Flange»; «بال‌مساوی» (equal-leg) is a different word.
-    expect(localizeCatalogText('نبشی بال‌مساوی', 'en')).toBe('نبشی بال‌مساوی');
+    expect(localizeCatalogText('بال‌مساوی', 'en')).toBe('بال‌مساوی');
     expect(localizeCatalogText('بال', 'en')).toBe('Flange');
   });
 

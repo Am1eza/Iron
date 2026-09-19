@@ -17,6 +17,7 @@ import type { SubsMap } from '@/lib/data/catalog';
 import { groupSubCategories } from '@/lib/utils/catalogGroups';
 import { localizeDigits } from '@/lib/utils/format';
 import { getLocalizedName } from '@/lib/utils/localizedNames';
+import { localizeCatalogText } from '@/lib/utils/catalogI18n';
 import type { AppLocale } from '@/i18n/config';
 import { useUiStore } from '@/lib/stores/ui';
 import { useAuthStore } from '@/lib/stores/auth';
@@ -285,7 +286,7 @@ export function MobileDrawer({ categories, subs }: { categories: Category[]; sub
                                       size={18}
                                     />
                                   </span>
-                                  {group.label}
+                                  {localizeCatalogText(group.label, locale)}
                                 </p>
                               ) : null}
                               {/* Empty once a single-member group's lead is
